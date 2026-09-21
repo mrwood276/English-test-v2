@@ -1,0 +1,63 @@
+# 01 PROJECT
+
+## Identity
+
+| Item | Value |
+|---|---|
+| Name | English Daily Test v2 (working title "English Testing Platform"; Claude project "APP_V2") |
+| Repository | `mrwood276/English-test-v2` (GitHub, private) |
+| Purpose | A web platform for English **daily tests** (ulangan harian) at one school, grades X, XI, XII, all majors |
+| Development stage | **Phase 2 (core) in progress.** Foundation, auth, question bank, editor, and media are built; question import is in progress; exams, exam engine, grading, results, anti-cheating are not started |
+| Deployment | v2 is **not deployed anywhere yet**; it runs locally against the live Supabase project. Hosting for the frontend is UNKNOWN (not chosen). The older v1 app is live on a separate static host + separate Supabase project and is **outside this repository** |
+
+## Problem being solved
+
+v1 (a single-exam prototype for class XII TKJ) had no exam codes, no attempt limits, no server-side time enforcement, a shared teacher password, and only multiple choice. The school needs a platform where one teacher (helped by an admin) can build a question bank of several question types, create exams for several classes, run them on students' own phones in the classroom, grade essays, and see results. Details: `docs/audit-v1.md` and `docs/design.md`.
+
+## Target users and roles
+
+| Role | Who | Access |
+|---|---|---|
+| Student | Students of grades X to XII | No account. Enters name + class (typed freely) + exam code. Takes the exam on a personal phone in the classroom. **Not built yet** |
+| Teacher | One teacher for now | Email + password (Supabase Auth). Manages questions, exams, grading, results. **Account not created yet** |
+| Admin | The owner (helps the teacher) | Email + password (Supabase Auth). Everything a teacher can do, plus accounts, backup, audit log, purge. Account **exists** (profile role `admin`, display name is the placeholder "Admin") |
+
+Only teachers and admins may see student scores.
+
+## Main goals
+
+1. A flexible question bank: 4 question types (multiple choice, true/false, short answer, essay), reading texts, images and audio, class labels, topics, difficulty Easy/Medium/HOTS, duplicate detection, import from Excel/CSV and pasted text.
+2. Exams with mandatory exam code, scheduling or manual open/close, manual or automatic question selection, 1 attempt per student (remedial by teacher permission).
+3. A robust exam engine for phones (server-enforced time, autosave, offline tolerance, essay grading).
+4. Realistic anti-cheating (warnings, event log, live monitor) without harming honest students.
+5. Results, statistics, exports (Excel/CSV/PDF), audit log, backups.
+
+## Technology stack (verified in the repository)
+
+| Layer | Technology |
+|---|---|
+| Frontend | Plain HTML + CSS + JavaScript ES modules. No framework, no bundler, no npm dependencies. Hash router. Fonts from Google Fonts (with system fallbacks) |
+| Backend | Supabase Edge Functions (Deno, TypeScript). Only dependency: `npm:@supabase/supabase-js@2` (in `_shared/db.ts`) |
+| Database | Supabase Postgres (v2 server version not checked; the v1 project runs 17) with extensions `pgcrypto` and `pg_trgm`; business rules as PL/pgSQL functions |
+| Auth | Supabase Auth (email + password) for staff; students have no accounts |
+| File storage | Supabase Storage, private bucket `question-media` |
+| Tests | Deno tests (backend), Playwright + Python (frontend, mocked network), SQL DO-block tests run against the live database |
+| CI | GitHub Actions: backend Deno tests only (`.github/workflows/backend-tests.yml`) |
+
+## Important constraints
+
+- One school; one teacher for now; classes and student names are typed freely and normalized (DEC-009).
+- Students use their own phones in class (mobile first, unreliable connection, notifications may look like "leaving the page").
+- UI language is English only. The owner writes to agents in Indonesian.
+- Supabase free plan (two free projects: v1 and v2). Egress quota about 5 GB uncached + 5 GB cached per month; audio up to 10 MB per file was chosen consciously (DEC-011).
+- The service role key never leaves Edge Functions.
+- Legacy v1 keeps running untouched until v2 is ready; the owner decided **not** to patch v1 (DEC-015).
+
+## Where things are documented
+
+| Need | File |
+|---|---|
+| Product requirements, business rules, data model, phases | `docs/design.md` (Draft 4, approved by the owner) |
+| What was wrong with v1 | `docs/audit-v1.md` |
+| Approved screens | `docs/mockups/round-1.html`, `docs/mockups/round-2.html` (open in a browser) |
+| How to run and test | `README.md`, `frontend/README.md`, `backend/README.md`, `00_AI_RULES.md` section 7 |

@@ -4,6 +4,10 @@ A test platform for English daily tests (ulangan harian) at one school, grades X
 
 Status: **Phase 2 (core)**. Done so far: database schema, teacher/admin sign in, question bank (list, filters, preview), question editor (4 question types, duplicate warnings, reading texts), and images and audio for questions and reading texts (shrunk in the browser, uploaded to private storage). Next: import from Excel/Word, exams.
 
+## For AI agents
+
+Read `.ai/00_AI_RULES.md` first (project memory, task queue, and handoff for Claude and Codex/GPT). `AGENTS.md` and `CLAUDE.md` point to it.
+
 ## Folders
 
 | Folder | What is inside |
