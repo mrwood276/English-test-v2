@@ -140,3 +140,26 @@
 @media (max-width: 900px) {
   .editor-grid { grid-template-columns: 1fr; }
 }
+
+/* ---------- Files (images and audio) ---------- */
+.media-picker { margin-top: 12px; }
+.media-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
+.media-list:empty { display: none; }
+.media-item { display: flex; align-items: center; gap: 12px; border: 1.5px solid var(--line); background: var(--card); border-radius: var(--radius-m); padding: 8px 10px; }
+.media-item.uploading { border-style: dashed; }
+.media-info { flex: 1; min-width: 0; display: grid; }
+.media-info strong { font-size: 13.5px; overflow-wrap: anywhere; }
+.thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; background: var(--paper); flex: none; }
+.thumb.ph { display: grid; place-items: center; color: var(--ink-2); }
+.player, .q-audio { width: min(280px, 100%); height: 40px; }
+.media-item .player { flex: none; }
+.drop { margin-top: 0; flex-wrap: wrap; }
+.drop.over { border-color: var(--pen); background: var(--pen-tint); }
+.drop.full { opacity: .6; }
+.drop .hint { flex-basis: 100%; margin: 0; }
+.media-messages:empty { display: none; }
+.media-msg { font-size: 13px; margin-top: 6px; padding: 8px 10px; border-radius: var(--radius-s); }
+.media-msg.error { background: var(--red-tint); color: #7a1626; }
+.media-block { display: grid; gap: 8px; margin-bottom: 10px; }
+.q-image { max-width: 100%; max-height: 260px; border-radius: 10px; border: 1.5px solid var(--line); object-fit: contain; background: var(--card); justify-self: start; }
+.passage .media-block { margin-top: 6px; }

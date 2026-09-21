@@ -6,6 +6,15 @@ export const TYPE_LABEL = { multiple_choice: "Multiple choice", true_false: "Tru
 export const DIFFICULTY_LABEL = { easy: "Easy", medium: "Medium", hots: "HOTS" };
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
+/** Images and audio players for a list of files ({ kind, url }). Files without a viewing link show a small label. */
+export function mediaBlock(files) {
+  if (!files || files.length === 0) return null;
+  return h("div", { class: "media-block" }, files.map((m) => {
+    if (m.kind === "image") return m.url ? h("img", { class: "q-image", src: m.url, alt: "" }) : h("span", { class: "tag" }, icon("image"), " Image");
+    return m.url ? h("audio", { class: "q-audio", controls: true, preload: "none", src: m.url }) : h("span", { class: "tag" }, icon("audio"), " Audio");
+  }));
+}
+
 export const usedText = (n) => (n === 0 ? "Not used" : n === 1 ? "1 exam" : `${n} exams`);
 
 const rich = (html, cls, tag = "div") => {
@@ -32,12 +41,10 @@ export function questionView(q) {
     h("p", { class: "cap2" }, "What students will see"),
   );
 
-  if (q.media && q.media.length > 0) {
-    parts.push(h("div", { class: "media-note" }, q.media.map((m) => h("span", { class: "tag" }, icon(m.kind === "audio" ? "audio" : "image"), m.kind === "audio" ? " Audio" : " Image"))));
-  }
   if (q.passage) {
-    parts.push(h("div", { class: "passage" }, h("strong", { class: "passage-title" }, q.passage.title), rich(q.passage.body, "passage-body serif")));
+    parts.push(h("div", { class: "passage" }, h("strong", { class: "passage-title" }, q.passage.title), mediaBlock(q.passage.media), rich(q.passage.body, "passage-body serif")));
   }
+  parts.push(mediaBlock(q.media));
   parts.push(rich(q.body || "", "qtext serif"));
 
   if (q.type === "multiple_choice" || q.type === "true_false") {

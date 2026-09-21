@@ -183,7 +183,7 @@ with sync_playwright() as pw:
     page.click("button:has-text('Save and add another')"); page.wait_for_selector(".toast:has-text('Question saved.')")
     sent = srv.saved[-1]
     check("short answer payload", sent["type"] == "short_answer" and sent["accepted_answers"] == ["past"] and sent["options"] == [])
-    page.wait_for_function("document.querySelector('#q-body').value === ''")
+    page.wait_for_function("document.querySelector('#q-body') && document.querySelector('#q-body').value === ''")
     check("labels, topic, and difficulty are kept for the next question", [e.inner_text().strip() for e in page.query_selector_all(".chipx")] == ["XII TKJ A"] and page.input_value("#q-topic") == "Simple Past" and page.is_checked("#qdiff-easy"))
 
     # ---- server messages

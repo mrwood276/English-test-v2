@@ -15,5 +15,5 @@ export const questionBank = {
   checkDuplicates: ({ body, options, excludeId }) => call({ action: "check_duplicates", body, options, exclude_id: excludeId }).then((r) => r.matches),
   passages: (q) => call({ action: "passages", q }).then((r) => r.passages),
   passage: (id) => call({ action: "passage_get", id }).then((r) => r.passage),
-  savePassage: ({ id, title, body }) => call({ action: "passage_save", id, title, body }).then((r) => r.id),
+  savePassage: ({ id, title, body, media }) => call({ action: "passage_save", id, title, body, media }).then((r) => r.id),
 };

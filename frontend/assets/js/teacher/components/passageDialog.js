@@ -1,6 +1,8 @@
 import { h } from "../../shared/dom.js";
 import { questionBank } from "../api/questionBank.js";
 import { richTextarea } from "./richTextarea.js";
+import { mediaPicker } from "./mediaPicker.js";
+import { attachMediaUrls } from "../api/media.js";
 
 /**
  * Create or edit a reading text in a dialog. Resolves to the saved passage id, or null when cancelled.
@@ -12,6 +14,9 @@ export function passageDialog({ passage = null } = {}) {
     title.value = passage ? passage.title : "";
     const body = richTextarea({ id: "passage-body", label: "reading text", rows: 9, value: passage ? passage.body : "" });
     const error = h("div", { class: "notice error", role: "alert", hidden: true });
+    const passageMedia = passage && passage.media ? passage.media : [];
+    attachMediaUrls({ media: passageMedia }).then(() => picker.set(passageMedia));
+    const picker = mediaPicker({ items: passageMedia, id: "passage-media" });
     const cancel = h("button", { class: "btn ghost", type: "button" }, "Cancel");
     const save = h("button", { class: "btn", type: "button" }, "Save reading text");
     const shared = passage && passage.question_count > 0
@@ -25,6 +30,7 @@ export function passageDialog({ passage = null } = {}) {
       shared, error,
       h("div", { class: "field" }, h("label", { for: "passage-title" }, "Title"), title),
       h("div", { class: "field" }, h("label", { for: "passage-body" }, "Text"), body.el),
+      h("div", { class: "field" }, h("span", { class: "lbl" }, "Images and audio (optional)"), picker.el),
       h("div", { class: "dialog-actions" }, cancel, save),
     );
 
@@ -34,10 +40,11 @@ export function passageDialog({ passage = null } = {}) {
       error.hidden = true;
       if (!title.value.trim()) { error.textContent = "The reading text needs a title."; error.hidden = false; title.focus(); return; }
       if (!body.textarea.value.trim()) { error.textContent = "The reading text is empty."; error.hidden = false; body.textarea.focus(); return; }
+      if (picker.busy) { error.textContent = "Wait for the files to finish uploading."; error.hidden = false; return; }
       save.disabled = cancel.disabled = true;
       save.textContent = "Saving…";
       try {
-        result = await questionBank.savePassage({ id: passage ? passage.id : undefined, title: title.value, body: body.textarea.value });
+        result = await questionBank.savePassage({ id: passage ? passage.id : undefined, title: title.value, body: body.textarea.value, media: picker.items.map((m) => ({ id: m.id })) });
         dialog.close();
       } catch (err) {
         if (err.name === "SessionExpiredError") { dialog.close(); return; }

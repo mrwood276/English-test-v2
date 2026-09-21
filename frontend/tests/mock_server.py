@@ -1,5 +1,9 @@
 """A pretend server for the browser tests: answers the question-bank and auth-me endpoints from memory."""
 import json
+
+# tiny real files so <img> and <audio> have something to load in the browser
+PNG_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+WAV_URL = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="
 TYPES = ["multiple_choice", "true_false", "short_answer", "essay"]
 DIFFS = ["easy", "medium", "hots"]
 
@@ -21,7 +25,7 @@ def make_questions():
 class Server:
     def __init__(self):
         self.qs = make_questions(); self.calls = []; self.fail_list = 0; self.status_all = None
-        self.saved = []; self.dup_calls = []
+        self.saved = []; self.dup_calls = []; self.media = {}; self.media_calls = []; self.register_error = None; self.last_upload_size = None
         self.passages = [{"id": "pa1", "title": "The Lost Wallet", "body": "Dina found a <u>brown</u> wallet.", "question_count": 3}, {"id": "pa2", "title": "The Smart Monkey", "body": "A clever monkey sat on a branch.", "question_count": 1}]
     def item(self, q):
         return {k: q[k] for k in ["id", "type", "body", "topic", "difficulty", "weight", "class_labels", "has_audio", "has_image", "has_passage", "used_in_exams", "is_archived"]} | {"updated_at": "2026-09-20T00:00:00Z"}
@@ -34,15 +38,42 @@ class Server:
             opts = [{"position": 1, "body": "True", "is_correct": False}, {"position": 2, "body": "False", "is_correct": True}]
         return {**self.item(q), "options": opts, "accepted_answers": ["past", "simple past"] if t == "short_answer" else [],
                 "essay_guidance": "One mark per idea, up to 4." if t == "essay" else None, "explanation": "Because the passage says so.",
-                "passage": {"id": "p1", "title": "The Lost Wallet", "body": "Dina found a <u>brown</u> wallet."} if q["has_passage"] else None,
-                "media": [{"id": "m1", "kind": "audio", "mime_type": "audio/mpeg", "size_bytes": 1000, "source": "question", "position": 0}] if q["has_audio"] else [],
+                "passage": {"id": "p1", "title": "The Lost Wallet", "body": "Dina found a <u>brown</u> wallet.", "media": [{"id": "mp1", "kind": "image", "mime_type": "image/webp", "size_bytes": 50000, "name": "wallet.webp", "duration_seconds": None, "position": 0}] if q["n"] == 2 else []} if q["has_passage"] else None,
+                "media": q.get("media") or ([{"id": "m1", "kind": "audio", "mime_type": "audio/mpeg", "size_bytes": 1000, "name": "story.mp3", "duration_seconds": 135, "position": 0}] if q["has_audio"] else []),
                 "class_labels": q["class_labels"]}
+    def handle_media(self, route, req):
+        body = json.loads(req.post_data or "{}"); a = body.get("action"); self.media_calls.append(body)
+        def ok(data): route.fulfill(status=200, content_type="application/json", body=json.dumps(data))
+        def err(status, msg): route.fulfill(status=status, content_type="application/json", body=json.dumps({"error": msg, "code": "bad_request"}))
+        if a == "create_upload":
+            ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "audio/mpeg": "mp3", "audio/mp4": "m4a"}[body["mime_type"]]
+            kind = body["mime_type"].split("/")[0]
+            n = len(self.media_calls)
+            path = f"{kind}/2026/00000000-0000-4000-8000-{n:012d}.{ext}"
+            return ok({"path": path, "upload_url": f"https://mock-storage.test/upload/{path}?token=t", "max_bytes": 1500000 if kind == "image" else 10485760, "size_bytes": body["size_bytes"]})
+        if a == "register":
+            if self.register_error: return err(400, self.register_error)
+            path = body["path"]; kind = path.split("/")[0]
+            mid = f"55555555-5555-4555-8555-{len(self.media) + 1:012d}"
+            m = {"id": mid, "kind": kind, "mime_type": "image/webp" if kind == "image" else "audio/mpeg", "size_bytes": self.last_upload_size or 1000, "name": body.get("name"), "duration_seconds": body.get("duration_seconds")}
+            self.media[mid] = m
+            return ok({"media": m})
+        if a == "signed_urls":
+            urls = {}
+            for i in body["ids"]:
+                m = self.media.get(i) or {"kind": "audio" if i in ("m1",) else "image"}
+                urls[i] = PNG_URL if m["kind"] == "image" else WAV_URL
+            return ok({"urls": urls, "expires_in": 3600})
+        err(400, "Unknown action")
+
     def passages_list(self):
         return [{"id": x["id"], "title": x["title"], "excerpt": x["body"][:60], "question_count": x["question_count"]} for x in self.passages]
     def handle(self, route):
         req = route.request
         if req.method == "OPTIONS": return route.fulfill(status=204, body="")
         url = req.url
+        if "/functions/v1/media" in url:
+            return self.handle_media(route, req)
         if "/auth-me" in url:
             return route.fulfill(status=200, content_type="application/json", body=json.dumps({"user": {"id": "u1", "fullName": "Admin", "role": "admin"}}))
         body = json.loads(req.post_data or "{}"); a = body.get("action"); self.calls.append(body)
@@ -92,6 +123,7 @@ class Server:
             pa = next((x for x in self.passages if x["id"] == body["id"]), None)
             return ok({"passage": {**pa, "question_count": pa["question_count"], "media": []}}) if pa else route.fulfill(status=404, content_type="application/json", body=json.dumps({"error": "That reading text no longer exists.", "code": "not_found"}))
         if a == "passage_save":
+            self.saved_passages = getattr(self, "saved_passages", []) + [body]
             if body.get("id"):
                 pa = next(x for x in self.passages if x["id"] == body["id"]); pa.update(title=body["title"], body=body["body"]); return ok({"id": pa["id"]})
             pid = f"pa{len(self.passages) + 1}"

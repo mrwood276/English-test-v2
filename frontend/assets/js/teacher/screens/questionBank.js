@@ -3,6 +3,7 @@ import { plainText } from "../../shared/rich.js";
 import { icon } from "../../shared/icons.js";
 import { debounce, toast, confirmDialog } from "../../shared/ui.js";
 import { questionBank } from "../api/questionBank.js";
+import { attachMediaUrls } from "../api/media.js";
 import { questionView, TYPE_LABEL, DIFFICULTY_LABEL, usedText } from "../components/questionView.js";
 import { SessionExpiredError } from "../../core/auth.js";
 
@@ -180,7 +181,7 @@ export function renderQuestionBank(container) {
     preview.replaceChildren(h("p", { class: "hint" }, "Loading…"));
     if (matchMedia("(max-width: 900px)").matches) preview.scrollIntoView({ block: "nearest" });
     try {
-      const q = await questionBank.get(id);
+      const q = await questionBank.get(id).then(attachMediaUrls);
       if (state.selectedId !== id) return;
       renderPreview(q);
     } catch (err) {

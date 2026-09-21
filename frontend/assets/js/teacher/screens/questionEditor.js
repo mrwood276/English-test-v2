@@ -3,7 +3,9 @@ import { plainText, richFragment } from "../../shared/rich.js";
 import { icon } from "../../shared/icons.js";
 import { debounce, toast, confirmDialog, segmented } from "../../shared/ui.js";
 import { questionBank } from "../api/questionBank.js";
-import { questionView, TYPE_LABEL } from "../components/questionView.js";
+import { questionView, mediaBlock, TYPE_LABEL } from "../components/questionView.js";
+import { mediaPicker } from "../components/mediaPicker.js";
+import { attachMediaUrls } from "../api/media.js";
 import { richTextarea } from "../components/richTextarea.js";
 import { chipsInput } from "../components/chipsInput.js";
 import { passageDialog } from "../components/passageDialog.js";
@@ -36,7 +38,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
   let passages = [];
   try {
     [loaded, topics, passages] = await Promise.all([
-      isEdit ? questionBank.get(id) : Promise.resolve(null),
+      isEdit ? questionBank.get(id).then(attachMediaUrls) : Promise.resolve(null),
       questionBank.topics().catch(() => []),
       questionBank.passages().catch(() => []),
     ]);
@@ -58,6 +60,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
     guidance: loaded ? loaded.essay_guidance || "" : "",
     labels: loaded ? [...loaded.class_labels] : [...(carry.labels || [])],
     passage: loaded ? loaded.passage : carry.passage || null,
+    media: loaded ? loaded.media.map((m) => ({ ...m })) : [],
     mc: blankMc(),
     tf: null, // 0 = True is correct, 1 = False is correct
     accepted: [""],
@@ -80,6 +83,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
       essay_guidance: state.type === "essay" ? state.guidance.trim() : "",
       passage_id: state.passage ? state.passage.id : null,
       class_labels: state.labels,
+      media: state.media.map((m) => ({ id: m.id })),
       options: [],
       accepted_answers: [],
     };
@@ -113,6 +117,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
   explanationField.textarea.addEventListener("input", () => { state.explanation = explanationField.textarea.value; });
 
   const answersBox = h("div", { class: "answers" });
+  const filesPicker = mediaPicker({ items: state.media, id: "q-media", describedBy: "files-hint", onChange: (list) => { state.media = list; } });
 
   // passage
   const passageSelect = h("select", { class: "inp", id: "q-passage", "aria-label": "Reading text" });
@@ -137,14 +142,14 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
       const savedId = await passageDialog({ passage: full });
       if (savedId) await refreshPassages(savedId);
     });
-    const body = h("div", { class: "passage" }, h("strong", { class: "passage-title" }, state.passage.title), h("div", { class: "passage-body serif", "data-passage-body": "" }));
+    const body = h("div", { class: "passage" }, h("strong", { class: "passage-title" }, state.passage.title), mediaBlock(state.passage.media), h("div", { class: "passage-body serif", "data-passage-body": "" }));
     body.querySelector("[data-passage-body]").append(richFragment(state.passage.body));
     passageShown.append(body, edit, h("span", { class: "hint" }, "  Shared by every question that uses it."));
   }
   async function refreshPassages(selectId) {
     try { passages = await questionBank.passages(); } catch { /* keep the old list */ }
     if (selectId) {
-      try { state.passage = await questionBank.passage(selectId); } catch { /* ignore */ }
+      try { state.passage = await questionBank.passage(selectId); await attachMediaUrls({ media: state.passage.media }); } catch { /* ignore */ }
     }
     passageOptions();
     showPassage();
@@ -159,7 +164,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
       return;
     }
     if (!value) { state.passage = null; showPassage(); return; }
-    try { state.passage = await questionBank.passage(value); showPassage(); } catch (err) { if (!ignorable(err)) toast(err.message, "error"); passageOptions(); }
+    try { state.passage = await questionBank.passage(value); await attachMediaUrls({ media: state.passage.media }); showPassage(); } catch (err) { if (!ignorable(err)) toast(err.message, "error"); passageOptions(); }
   });
 
   // side controls
@@ -294,6 +299,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
 
   async function save(addAnother) {
     summary.hidden = true;
+    if (filesPicker.busy) { showSummary(["Wait for the files to finish uploading, then save."]); return; }
     ["body", "answers", "weight"].forEach((f) => setError(f, ""));
     const problems = validate();
     if (problems.length) {
@@ -332,7 +338,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
 
   previewBtn.addEventListener("click", () => {
     const q = draft();
-    const view = { ...q, weight: Number(q.weight) || 1, essay_guidance: q.essay_guidance || null, explanation: q.explanation || null, passage: state.passage, media: [], topic: q.topic || null, is_archived: loaded ? loaded.is_archived : false };
+    const view = { ...q, weight: Number(q.weight) || 1, essay_guidance: q.essay_guidance || null, explanation: q.explanation || null, passage: state.passage, media: state.media, topic: q.topic || null, is_archived: loaded ? loaded.is_archived : false };
     const close = h("button", { class: "btn", type: "button" }, "Close");
     const dialog = h("dialog", { class: "dialog wide", "aria-labelledby": "preview-title" }, h("h2", { id: "preview-title" }, "Preview"), h("div", { class: "preview-body" }, ...questionView(view)), h("div", { class: "dialog-actions" }, close));
     close.addEventListener("click", () => dialog.close());
@@ -359,7 +365,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
           h("section", { class: "card sec", "aria-labelledby": "h-passage" },
             h("h2", { id: "h-passage" }, "Reading text and media"),
             h("label", { class: "lbl", for: "q-passage" }, "Reading text (optional)"), passageSelect, passageShown,
-            h("div", { class: "drop", "aria-disabled": "true" }, icon("image"), h("span", {}, "Images and audio can be added in the next step."))),
+            h("div", { class: "lbl spaced", id: "files-hint" }, "Images and audio for this question (optional)"), filesPicker.el),
           h("section", { class: "card sec", "aria-labelledby": "h-question" },
             h("h2", { id: "h-question" }, "Question and answers"),
             h("label", { class: "lbl", for: "q-body" }, "Question"), bodyField.el, errEls.body,
