@@ -1,0 +1,62 @@
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+}
+h1, h2, h3, p { margin: 0; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--pen); outline-offset: 2px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Bubble: the answer-sheet motif */
+.bubble {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 2px solid #8391ab; display: inline-grid; place-items: center;
+  font-weight: 650; font-size: 13.5px; color: var(--ink-2); flex: none;
+}
+.bubble.fill { background: var(--pen); border-color: var(--pen); color: #fff; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: var(--tap); padding: 0 18px; border: 0; border-radius: 12px;
+  background: var(--pen); color: #fff; font-weight: 650; font-size: 15px; cursor: pointer;
+}
+.btn { text-decoration: none; }
+.btn:hover { background: var(--pen-strong); }
+.btn:disabled { opacity: .6; cursor: default; }
+.btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+.btn.ghost:hover { background: var(--card); }
+.btn.block { width: 100%; }
+
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+.input-wrap { position: relative; }
+.input {
+  width: 100%; min-height: 48px; border: 1.5px solid var(--line); background: var(--card);
+  border-radius: 12px; padding: 0 14px; font-size: 16px; /* 16px stops iOS from zooming in */
+}
+.input:focus { border-color: var(--pen); outline: none; box-shadow: 0 0 0 3px var(--pen-tint); }
+.input.invalid { border-color: var(--red); }
+.input-toggle {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  min-height: 36px; padding: 0 10px; border: 0; background: transparent; color: var(--pen); font-weight: 600; cursor: pointer; border-radius: 8px;
+}
+.hint { font-size: 12.5px; color: var(--ink-2); margin-top: 4px; }
+
+.notice { display: flex; gap: 10px; border-radius: var(--radius-m); padding: 12px 14px; font-size: 14px; margin-bottom: 16px; }
+.notice.error { background: var(--red-tint); border: 1.5px solid #f2b8c0; color: #7a1626; }
+.notice.info { background: var(--pen-tint); border: 1.5px solid #bfd0f7; color: var(--ink); }
+
+.pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; font-weight: 600; background: var(--pen-tint); color: var(--pen); }
+.pill.ok { background: var(--green-tint); color: var(--green); }
+.pill.warn { background: var(--mark-tint); color: #6b5400; }
+.pill.bad { background: var(--red-tint); color: var(--red); }
+
+/* The hidden attribute must always win over component display rules. */
+[hidden] { display: none !important; }

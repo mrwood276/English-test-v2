@@ -1,0 +1,25 @@
+/* Design tokens from the approved "answer sheet" direction (Fase 0). Change colors and type here only. */
+:root {
+  --ink: #16233b;          /* main text */
+  --ink-2: #4f5d78;        /* secondary text */
+  --paper: #f7f9fc;        /* page background */
+  --card: #ffffff;
+  --line: #dce3ef;
+  --pen: #2457d6;          /* ballpoint blue: actions and answers */
+  --pen-tint: #e8effd;
+  --pen-strong: #1b45ad;
+  --mark: #ffd84d;         /* highlighter: marked and "not final" */
+  --mark-tint: #fff5cc;
+  --red: #d9364a;          /* wrong and warnings */
+  --red-tint: #fce8eb;
+  --green: #1e8e5a;        /* correct and passed */
+  --green-tint: #e2f4ea;
+
+  --font-ui: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-read: "Source Serif 4", Georgia, "Times New Roman", serif;
+
+  --radius-s: 10px;
+  --radius-m: 14px;
+  --radius-l: 20px;
+  --tap: 44px;             /* minimum touch target */
+}
