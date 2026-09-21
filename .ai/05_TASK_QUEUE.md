@@ -5,8 +5,8 @@ Order follows dependencies. Completed tasks are listed at the end for history (a
 
 ## NEXT RECOMMENDED TASK
 
-**TASK-006, step 1: browser parsers for the import (CSV, XLSX, pasted text) with unit tests.**
-Reason: the backend half of the import is finished and tested; the parsers are pure functions and can be built and tested without touching Supabase. Steps 2–4 follow. In parallel, the owner can run TASK-007 and TASK-008 (they need real Supabase access, not code).
+**TASK-006, step 2: import review screen and mocked browser test.**
+Reason: step 1's dependency-free parser/validation modules and Deno tests are complete. The screen can reuse those modules and the existing question-bank page/router patterns without Supabase access.
 
 ---
 
@@ -26,7 +26,7 @@ Reason: the backend half of the import is finished and tested; the parsers are p
   - Defaults panel (class labels, topic, difficulty, points) applied to rows that leave them blank.
 - Review screen: table with import checkbox, row number, question text, type, answer summary, status pills (Ready, Fix, Duplicate in bank, Duplicate in file, Similar) and messages. Rows with errors cannot be imported; exact duplicates are unchecked by default; similar ones are checked with a warning. "Import N questions" then goes back to the list with a toast. Unsaved review triggers the leave guard.
 - Steps:
-  1. Parsers + row normalization + validation mirroring `save_question` rules, with Deno unit tests (pure JS) and a browser test for XLSX (generate a real `.xlsx` in the test).
+  1. **COMPLETED 2026-09-21 (Codex/GPT-5):** Parsers + row normalization + validation with Deno unit tests. Added `frontend/assets/js/teacher/import/{csv,zip,xlsx,text,rows,model}.js` and `frontend/tests/import.test.js`; 45 combined Deno tests passed. A Playwright test remains part of step 2 because no import screen exists yet.
   2. Import screen `#/questions/import`, route in `router.js`, "Import" button next to "Add question", API calls in `api/questionBank.js`, Playwright test with the mock server (extend `mock_server.py` with `import_check`/`import`).
   3. Deploy `question-bank` (repository code, includes import actions) — needs Supabase access; if unavailable mark this step BLOCKED.
   4. CSV and XLSX template files under `frontend/assets/templates/`, README updates, update `.ai/`.

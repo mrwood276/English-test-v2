@@ -5,9 +5,9 @@
 | Item | Value |
 |---|---|
 | Last updated | 2026-09-21 |
-| Last AI agent | Claude (Sonnet 5, claude.ai chat) |
+| Last AI agent | Codex/GPT-5 |
 | Development phase | Phase 2 (core), following `docs/design.md` section 5 (Phases 0 and 1 are done) |
-| Current focus | TASK-006: import questions from Excel/CSV and pasted text |
+| Current focus | TASK-006: import questions from Excel/CSV and pasted text (parser step complete; import screen next) |
 | Repository baseline | Delivered as git history `ad9b6d6` (media) → `b9b5001` (import backend, function not deployed) → the commit that adds `.ai/`, `AGENTS.md`, `CLAUDE.md`. The agent could not read the private GitHub remote, so it worked from its own copy; **NEEDS VERIFICATION** that GitHub matches once the owner has pulled and pushed |
 
 ## What was inspected to write `.ai/`
@@ -48,7 +48,7 @@
 
 ## Work in progress
 
-- **TASK-006 Import questions.** Backend part done and tested; browser parsers, import screen, templates, deployment of `question-bank` v3 remain.
+- **TASK-006 Import questions.** Backend and pure browser parser/validation layers are done and tested; import screen, templates, deployment of `question-bank` v3 remain.
 
 ## Pending work (see `05_TASK_QUEUE.md`)
 

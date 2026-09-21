@@ -96,7 +96,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 - Status: **IN_PROGRESS**. Protection: ACTIVE.
 - Done: SQL functions `find_similar_batch` and `import_questions` (migration `v2_12`, applied to the live database and tested with rolled-back DO blocks: all-or-nothing, "Row N:" messages, reading texts matched by normalized title, limit 200). Edge code `parseImportItems`, `parseImportCheckItems`, and actions `import_check` / `import` in `backend/functions/question-bank/` with unit tests (41 backend tests pass).
 - **Not deployed:** the live `question-bank` function is version 2 and does not have the import actions.
-- **Not built:** browser parsers (CSV, XLSX, pasted text), the import screen, template files, browser tests.
+- **Built and TESTED:** dependency-free browser parsers for CSV/TSV, first-sheet XLSX, and pasted text; shared header mapping, type inference, reading-text block support, and per-row validation. The import screen, templates, and Playwright coverage are not built yet.
 - Planned design (PROPOSED by Claude; the owner has not reviewed the file formats): see `05_TASK_QUEUE.md` TASK-006.
 
 ## F-09 Exams

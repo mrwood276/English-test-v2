@@ -3,6 +3,13 @@
 Newest first. Entries below the "Established" entry were reconstructed from git history and the live migration list only; nothing else is claimed.
 Add a new entry for every meaningful change (what, files, database changes, verification).
 
+## 2026-09-21 — Import questions: browser parser and validation layer (TASK-006 step 1)
+- Agent: Codex/GPT-5.
+- Added pure ES modules under `frontend/assets/js/teacher/import/`: CSV/TSV parsing, minimal ZIP/first-sheet XLSX extraction, pasted-text parsing (including reading-text blocks), spreadsheet header aliases/type inference, and per-row review-model validation.
+- Added `frontend/tests/import.test.js` covering CSV, aliases/types, pasted text, reading texts, and a minimal XLSX worksheet.
+- Database changes: none. No Edge Function deployment.
+- Verification: `deno test --allow-env frontend/tests/import.test.js backend/tests/` → 45 passed, 0 failed; `git diff --check` passed.
+
 ## 2026-09-21 — AI memory and handoff system established
 - Agent: Claude (Sonnet 5, claude.ai chat).
 - Added `.ai/` (10 files), root `AGENTS.md` and `CLAUDE.md` (short pointers to `.ai/`), and a pointer paragraph in `README.md`.
