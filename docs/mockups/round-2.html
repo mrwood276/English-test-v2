@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fase 0 — Mockup putaran 2</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Source+Serif+4:opsz,wght@8..60,400..650&display=swap">
+<style>
+/* ---------- Board chrome (theme-aware) ---------- */
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#F1F4F9; --surface:#FFFFFF; --text:#16233B; --muted:#56637C; --line:#D9E0EC; --accent:#2457D6; --accent-tint:#E8EFFD; --mark:#FFD84D;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1524; --surface:#172038; --text:#E8EDF7; --muted:#A3B0C8; --line:#2A3757; --accent:#86A6FF; --accent-tint:#1F2D55; --mark:#FFD84D;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1524; --surface:#172038; --text:#E8EDF7; --muted:#A3B0C8; --line:#2A3757; --accent:#86A6FF; --accent-tint:#1F2D55; --mark:#FFD84D;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.55}
+.wrap{max-width:1240px;margin:0 auto;padding:32px 20px 72px}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.08;margin:0 0 12px;font-weight:700;letter-spacing:-0.02em}
+h2{font-size:clamp(22px,3vw,28px);margin:56px 0 6px;font-weight:650;letter-spacing:-0.01em}
+h3{font-size:17px;margin:0 0 6px;font-weight:650}
+p{margin:0 0 12px;max-width:68ch}
+.muted{color:var(--muted)}
+.lead{font-size:18px;max-width:62ch}
+.tokens{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:24px 0}
+.swatch{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.swatch i{display:block;height:54px}
+.swatch b{display:block;padding:8px 10px 0;font-size:14px}
+.swatch span{display:block;padding:0 10px 9px;font-size:13px;color:var(--muted)}
+.principle{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-top:8px}
+@media (max-width:760px){.principle{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+.specimen-serif{font-family:'Source Serif 4',Georgia,serif;font-size:19px;line-height:1.5;margin:8px 0 0}
+.row-bubbles{display:flex;gap:10px;margin-top:10px}
+.devices{display:flex;flex-wrap:wrap;gap:36px 28px;align-items:flex-start;margin-top:22px}
+.device{margin:0;width:340px}
+.device figcaption{margin-top:12px;font-size:14px;color:var(--muted);max-width:340px}
+.device figcaption b{color:var(--text);font-weight:650}
+.scroller{overflow-x:auto;padding-bottom:12px;margin-top:18px}
+.desk-wrap{margin-bottom:34px}
+.desk-wrap .cap{font-size:14px;color:var(--muted);max-width:76ch;margin-top:12px}
+.desk-wrap .cap b{color:var(--text);font-weight:650}
+.checks{margin:0;padding-left:20px}
+.checks li{margin-bottom:6px;max-width:70ch}
+
+/* ---------- Mockup screens (always light, so what you see is the real app look) ---------- */
+.screen{
+  --paper:#F7F9FC; --card:#FFFFFF; --ink:#16233B; --ink2:#4F5D78; --line:#DCE3EF;
+  --pen:#2457D6; --pen-tint:#E8EFFD; --mark:#FFD84D; --mark-tint:#FFF5CC;
+  --red:#D9364A; --red-tint:#FCE8EB; --green:#1E8E5A; --green-tint:#E2F4EA;
+  font-family:'Bricolage Grotesque',system-ui,sans-serif; color:var(--ink); background:var(--paper); line-height:1.4; font-size:14px;
+}
+.screen svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.screen button{font:inherit;cursor:default}
+.phone{width:340px;height:730px;border:8px solid #16233B;border-radius:38px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.sbar{display:flex;justify-content:space-between;padding:8px 22px 4px;font-size:12px;font-weight:600;color:var(--ink2)}
+.pad{padding:0 20px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:0 16px;height:46px;font-weight:650;font-size:15px;background:var(--pen);color:#fff}
+.btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+.btn.small{height:38px;font-size:13.5px;padding:0 12px;border-radius:10px}
+.btn.mark{background:var(--mark-tint);border:1.5px solid var(--mark);color:#5A4700}
+.btn.danger{background:var(--red-tint);color:var(--red)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+.input{height:46px;border:1.5px solid var(--line);background:var(--card);border-radius:12px;padding:0 14px;display:flex;align-items:center;font-size:15.5px}
+.hint{font-size:12.5px;color:var(--ink2);margin-top:4px}
+.code{display:flex;gap:6px}
+.code span{flex:1;height:50px;border:1.5px solid var(--line);background:var(--card);border-radius:10px;display:grid;place-items:center;font-size:21px;font-weight:700;letter-spacing:0}
+.code span.on{border-color:var(--pen)}
+.bubble{width:30px;height:30px;border-radius:50%;border:2px solid #8391AB;display:grid;place-items:center;font-weight:650;font-size:13.5px;color:var(--ink2);flex:none;background:transparent}
+.bubble.fill{background:var(--pen);border-color:var(--pen);color:#fff}
+.bubble.mk{background:var(--mark);border-color:#E0B800;color:#4A3B00}
+.bubble.cur{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--ink)}
+.bubble.sm{width:28px;height:28px;font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:600;background:var(--pen-tint);color:var(--pen)}
+.pill.warn{background:var(--mark-tint);color:#6B5400}
+.pill.ok{background:var(--green-tint);color:var(--green)}
+.pill.bad{background:var(--red-tint);color:var(--red)}
+.pill.plain{background:#EDF0F6;color:var(--ink2)}
+.timer{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:15px;color:var(--pen);background:var(--pen-tint);border-radius:999px;padding:5px 12px;font-variant-numeric:tabular-nums}
+.serif{font-family:'Source Serif 4',Georgia,serif}
+
+/* exam screen */
+.qtop{display:flex;align-items:center;justify-content:space-between;padding:6px 20px 10px}
+.qtop .q{font-weight:650;font-size:15px}
+.bar{height:5px;background:#E3E9F3;margin:0 20px;border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--pen);border-radius:9px}
+.saved{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);padding:8px 20px 0}
+.saved .i{color:var(--green)}
+.qbody{flex:1;overflow:hidden;padding:12px 20px 0}
+.audio{display:flex;align-items:center;gap:12px;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:12px}
+.play{width:38px;height:38px;border-radius:50%;background:var(--pen);color:#fff;display:grid;place-items:center;flex:none}
+.screen .play svg.i{fill:#fff;stroke:#fff;width:16px;height:16px}
+.track{flex:1}
+.track .t{height:4px;border-radius:9px;background:#E3E9F3;overflow:hidden}
+.track .t i{display:block;height:100%;width:31%;background:var(--pen)}
+.track .n{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink2);margin-top:5px;font-variant-numeric:tabular-nums}
+.passage{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px;line-height:1.55;margin-bottom:14px}
+.qtext{font-size:17.5px;line-height:1.4;font-weight:600;margin:0 0 10px}
+.opt{display:flex;gap:12px;align-items:center;border:1.5px solid var(--line);background:var(--card);border-radius:14px;padding:9px 12px;margin-bottom:7px;font-size:15px;line-height:1.35}
+.opt.sel{border-color:var(--pen);background:var(--pen-tint)}
+.qnav{display:flex;gap:8px;align-items:center;padding:10px 16px 16px;border-top:1px solid var(--line);background:var(--card)}
+.icobtn{width:44px;height:44px;border-radius:12px;border:1.5px solid var(--line);display:grid;place-items:center;background:var(--card);color:var(--ink);flex:none}
+
+/* palette sheet */
+.dim{position:absolute;inset:0;background:rgba(22,35,59,.45)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:24px 24px 0 0;padding:10px 20px 18px}
+.grab{width:40px;height:4px;border-radius:9px;background:#C9D2E2;margin:0 auto 12px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:12.5px;color:var(--ink2);margin:8px 0 14px}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend .bubble{width:16px;height:16px;border-width:1.5px}
+.sheetgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:8px 6px;justify-items:center;margin-bottom:16px}
+
+/* result */
+.score{font-size:76px;line-height:1;font-weight:750;letter-spacing:-0.03em}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px}
+.kv{display:flex;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line);font-size:14.5px}
+.kv:last-child{border-bottom:0}
+.kv b{font-weight:650;white-space:nowrap}
+.note{display:flex;gap:10px;background:var(--mark-tint);border:1.5px solid var(--mark);border-radius:14px;padding:12px 14px;font-size:14px;color:#4F3F00}
+
+/* desktop frames */
+.desk{width:1160px;border:1px solid #C3CCDD;border-radius:16px;overflow:hidden;display:flex;background:var(--paper);box-shadow:none}
+.side{width:212px;background:var(--card);border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;flex:none}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;margin-bottom:22px;padding:0 4px}
+.brand .bubble{width:28px;height:28px;background:var(--pen);border-color:var(--pen);color:#fff}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;color:var(--ink2);font-weight:550;margin-bottom:2px;text-decoration:none}
+.nav a.on{background:var(--pen-tint);color:var(--pen);font-weight:650}
+.me{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 6px 0;border-top:1px solid var(--line);font-size:13.5px}
+.av{width:32px;height:32px;border-radius:50%;background:#DDE6FA;color:var(--pen);display:grid;place-items:center;font-weight:700;font-size:13px}
+.main{flex:1;padding:22px 26px 26px;min-width:0}
+.head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;gap:16px}
+.head h4{margin:0;font-size:23px;font-weight:700;letter-spacing:-0.01em}
+.head p{margin:2px 0 0;color:var(--ink2);font-size:14px}
+.now{display:grid;grid-template-columns:1.05fr 1fr;gap:0;border:1.5px solid var(--pen);border-radius:16px;background:var(--card);overflow:hidden;margin-bottom:16px}
+.now .l{padding:18px 20px;background:var(--pen-tint)}
+.now .r{padding:16px 20px}
+.bigcode{font-size:52px;font-weight:750;letter-spacing:.14em;line-height:1;margin:8px 0 10px;color:var(--ink);font-variant-numeric:tabular-nums}
+.row{display:flex;align-items:center;gap:10px}
+.live{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.live:last-child{border-bottom:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.list{padding:16px 18px}
+.list h5{margin:0 0 8px;font-size:15px;font-weight:650}
+.item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.item:last-child{border-bottom:0}
+.item small{display:block;color:var(--ink2);font-size:12.5px}
+.meter{width:110px;height:7px;background:#E3E9F3;border-radius:9px;overflow:hidden;display:inline-block;vertical-align:middle}
+.meter i{display:block;height:100%;background:var(--green)}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.search{flex:1;min-width:200px;height:40px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--ink2)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:550}
+.chip.on{border-color:var(--pen);background:var(--pen-tint);color:var(--pen)}
+.banner{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--mark-tint);border:1.5px solid var(--mark);border-radius:12px;padding:9px 14px;margin-bottom:12px;font-size:13.5px;color:#4F3F00}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+table.t th{text-align:left;font-weight:600;color:var(--ink2);font-size:12.5px;padding:9px 8px;border-bottom:1.5px solid var(--line)}
+table.t td:last-child{white-space:nowrap}
+table.t td{padding:11px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t tr.sel td{background:var(--pen-tint)}
+.qcell{max-width:250px}
+.qcell b{display:block;font-weight:600;line-height:1.35}
+.qcell small{color:var(--ink2);font-size:12px}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 264px;gap:16px}
+.prev{padding:14px 16px;align-self:start}
+.prev .cap2{font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.prev .opt{padding:8px 10px;font-size:13px;margin-bottom:6px}
+.prev .bubble{width:24px;height:24px;font-size:12px}
+.chk{width:16px;height:16px;border:1.5px solid #8391AB;border-radius:4px;display:inline-block}
+.chk.on{background:var(--pen);border-color:var(--pen)}
+.tag{display:inline-block;background:#EDF0F6;color:var(--ink2);border-radius:6px;padding:1px 7px;font-size:12px;margin:0 4px 3px 0}
+
+/* ---------- Round 2 additions ---------- */
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.lbl{font-size:12.5px;font-weight:600;margin-bottom:4px;display:block}
+.inp{height:40px;border:1.5px solid var(--line);background:var(--card);border-radius:10px;padding:0 12px;display:flex;align-items:center;font-size:14px}
+.ta{border:1.5px solid var(--line);background:var(--card);border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.5;min-height:60px}
+.sec{padding:16px 18px;margin-bottom:12px}
+.sec h5{margin:0 0 10px;font-size:15px;font-weight:650}
+.sec .sub{color:var(--ink2);font-size:13px;margin:-6px 0 10px}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.seg span{padding:7px 12px;font-size:13px;font-weight:600;color:var(--ink2);border-right:1.5px solid var(--line);white-space:nowrap}
+.seg span:last-child{border-right:0}
+.seg span.on{background:var(--pen-tint);color:var(--pen)}
+.tgl{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.tgl:last-child{border-bottom:0}
+.tgl small{display:block;color:var(--ink2);font-size:12.5px}
+.sw{width:38px;height:22px;border-radius:999px;background:#C9D2E2;position:relative;flex:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff}
+.sw.on{background:var(--pen)}.sw.on::after{left:19px}
+.drop{border:1.5px dashed #A9B5CC;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;color:var(--ink2);font-size:13.5px}
+.file{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);background:var(--card);border-radius:10px;padding:8px 12px;font-size:13.5px;margin-bottom:8px}
+.file small{margin-left:auto;color:var(--ink2)}
+.optrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.optrow .inp{flex:1}
+.bubble.ok{background:var(--green);border-color:var(--green);color:#fff}
+.bubble.ok .i{width:15px;height:15px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chipx{display:inline-flex;align-items:center;gap:6px;background:var(--pen-tint);color:var(--pen);border-radius:999px;padding:4px 6px 4px 11px;font-size:13px;font-weight:600}
+.chipx .i{width:14px;height:14px}
+.suggest{border:1.5px solid var(--line);background:var(--card);border-radius:10px;margin-top:6px;overflow:hidden;font-size:13.5px}
+.suggest div{padding:7px 12px;border-bottom:1px solid var(--line)}
+.suggest div:last-child{border-bottom:0}
+.suggest div.h{background:var(--pen-tint)}
+.hist{display:flex;align-items:flex-end;gap:10px;height:110px;padding:0 4px;border-bottom:1.5px solid var(--line)}
+.hist i{flex:1;background:var(--pen);border-radius:6px 6px 0 0}
+.hlbl{display:flex;gap:10px;padding:6px 4px 0;font-size:12px;color:var(--ink2)}
+.hlbl span{flex:1;text-align:center}
+.hbar{display:grid;grid-template-columns:minmax(0,1fr) 140px 46px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.hbar:last-child{border-bottom:0}
+.hbar small{display:block;color:var(--ink2);font-size:12px}
+.prog{height:7px;border-radius:9px;background:#E3E9F3;overflow:hidden;width:110px;display:inline-block;vertical-align:middle}
+.prog i{display:block;height:100%;background:var(--pen)}
+.prog.g i{background:var(--green)}.prog.r i{background:var(--red)}.prog.y i{background:#E8B800}
+.tl{position:relative;padding-left:18px}
+.tl div{position:relative;padding:8px 0;font-size:13.5px;border-bottom:1px solid var(--line)}
+.tl div:last-child{border-bottom:0}
+.tl div::before{content:"";position:absolute;left:-18px;top:14px;width:9px;height:9px;border-radius:50%;background:#C9D2E2}
+.tl div.w::before{background:var(--mark)}.tl div.b::before{background:var(--red)}
+.tl small{display:block;color:var(--ink2);font-size:12.5px}
+.qlist{width:230px;flex:none;overflow:hidden}
+.qitem{display:flex;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13.5px}
+.qitem.on{background:var(--pen-tint)}
+.qitem small{display:block;color:var(--ink2);font-size:12px}
+.qitem .pill{margin-left:auto}
+.answerbox{border:1.5px solid var(--line);background:var(--card);border-radius:12px;padding:14px 16px;font-size:15.5px;line-height:1.6}
+.pts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pts .bubble{width:38px;height:38px;font-size:15px}
+.tabs{display:flex;gap:4px;border-bottom:1.5px solid var(--line);margin-bottom:14px}
+.tabs span{padding:9px 14px;font-weight:600;color:var(--ink2);border-bottom:3px solid transparent;margin-bottom:-1.5px}
+.tabs span.on{color:var(--pen);border-bottom-color:var(--pen)}
+.strip{display:flex;gap:26px;flex-wrap:wrap;margin:0 0 16px;font-size:14px;color:var(--ink2)}
+.strip b{color:var(--ink);font-size:18px;font-weight:700;margin-right:5px}
+.modal{position:absolute;left:18px;right:18px;top:50%;transform:translateY(-50%);background:var(--card);border-radius:20px;padding:20px}
+.warnbar{display:flex;gap:8px;align-items:flex-start;background:var(--mark-tint);border-bottom:1.5px solid var(--mark);padding:9px 20px;font-size:13px;color:#4F3F00}
+.offbar{display:flex;gap:8px;align-items:flex-start;background:var(--red-tint);border-bottom:1.5px solid #F2B8C0;padding:9px 20px;font-size:13px;color:#8A1C2B}
+.errcard{display:flex;gap:10px;background:var(--red-tint);border:1.5px solid #F2B8C0;border-radius:14px;padding:12px 14px;font-size:14px;color:#7A1626;margin-top:14px}
+table.t.compact th,table.t.compact td{padding-left:6px;padding-right:6px}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4z"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 010-8 5 5 0 019.5-1A3.6 3.6 0 0117 18z"/><path d="M9.5 13.5l2 2 3.5-4"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17l5-4.5 3.5 3 2.5-2 4 3.5"/></symbol>
+    <symbol id="i-audio" viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="16" r="2"/></symbol>
+    <symbol id="i-dash" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="9" rx="1.5"/><rect x="13" y="4" width="7" height="5" rx="1.5"/><rect x="13" y="11" width="7" height="9" rx="1.5"/><rect x="4" y="15" width="7" height="5" rx="1.5"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h10"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="12" rx="2"/><path d="M5 16V6a2 2 0 012-2h9"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.2v.1"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.1"/></symbol>
+  
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-wifioff" viewBox="0 0 24 24"><path d="M2.5 9a14 14 0 0119 0M6 12.5a9 9 0 0112 0M9.5 16a4.5 4.5 0 015 0M4 4l16 16M12 19.5v.1"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M11 6l-6 6 6 6M5 12h14"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+<header>
+  <h1>Fase 0, mockup putaran 2</h1>
+  <p class="lead">Putaran 1 sudah kamu setujui, jadi arah "lembar jawaban" dipakai terus. Putaran ini melengkapi layar yang tersisa: 3 kondisi khusus di HP siswa dan 6 layar guru untuk membuat soal, membuat ujian, memantau, menilai esai, dan melihat hasil. Semua isi hanya contoh.</p>
+  <p class="muted">Setelah putaran ini disetujui, saya perbarui Dokumen Desain (Draf 4) dan kita masuk ke Fase 1.</p>
+</header>
+
+<section aria-labelledby="states">
+  <h2 id="states">Siswa, kondisi khusus di HP</h2>
+  <p class="muted">Ini tampilan dari aturan yang sudah kita putuskan: tingkat peringatan anti-cheating, simpan jawaban saat koneksi putus, dan batas 1 kali pengerjaan.</p>
+  <div class="devices">
+    <figure class="device"><div class="phone screen"><div class="sbar"><span>10:08</span><span>4G</span></div>
+<div class="qtop"><span class="q">Question 18 of 40</span><span class="timer"><svg class="i"><use href="#i-clock"/></svg>31:07</span></div><div class="bar"><i style="width:43%"></i></div>
+<div class="qbody"><div class="passage serif" style="opacity:.75">Dina found a brown wallet under the bench in front of the library…</div><p class="qtext serif" style="opacity:.75">What did Dina do first after she found the wallet?</p><div class="opt" style="opacity:.75"><span class="bubble">A</span><span>She kept the money.</span></div></div>
+<div class="dim"></div>
+<div class="modal"><div class="row" style="margin-bottom:10px"><span class="pill warn" style="padding:6px"><svg class="i"><use href="#i-alert"/></svg></span><b style="font-size:19px;letter-spacing:-0.01em">You left the test page</b></div>
+<p style="margin:0 0 14px;color:var(--ink2);font-size:14.5px">This was recorded and your teacher can see it. You have left the page 2 times. At 5 times, your test is submitted automatically.</p>
+<div class="btn">Back to the test</div></div>
+</div><figcaption><b>7. Peringatan keluar halaman.</b> Muncul setiap siswa pindah tab atau aplikasi. Pesannya jujur soal akibatnya (dicatat, dan batas kumpul otomatis) tanpa menakut-nakuti. Angka 5 berasal dari pengaturan guru per ujian.</figcaption></figure>
+    <figure class="device"><div class="phone screen"><div class="sbar"><span>10:09</span><span>4G</span></div>
+<div class="offbar"><svg class="i" style="margin-top:1px"><use href="#i-wifioff"/></svg><span><b>No connection.</b> Keep going. Your answers are kept on this phone and will be sent when you are back online.</span></div>
+<div class="qtop" style="padding-top:12px"><span class="q">Question 19 of 40</span><span class="timer"><svg class="i"><use href="#i-clock"/></svg>30:41</span></div><div class="bar"><i style="width:45%"></i></div>
+<div class="saved"><svg class="i" style="color:#B7791F"><use href="#i-wifioff"/></svg>Saved on this phone only</div>
+<div class="qbody"><div class="passage serif">Inside were some money and a student card. She looked around, but nobody was there.</div><p class="qtext serif">Where did Dina find the wallet?</p>
+<div class="opt"><span class="bubble">A</span><span>In the classroom.</span></div><div class="opt sel"><span class="bubble fill">B</span><span>Under the bench.</span></div><div class="opt"><span class="bubble">C</span><span>In the canteen.</span></div><div class="opt"><span class="bubble">D</span><span>On the bus.</span></div></div>
+<div class="qnav"><div class="icobtn"><svg class="i"><use href="#i-grid"/></svg></div><div class="btn mark small" style="flex:1"><svg class="i"><use href="#i-flag"/></svg>Mark</div><div class="icobtn"><svg class="i"><use href="#i-left"/></svg></div><div class="btn small" style="flex:1">Next<svg class="i"><use href="#i-right"/></svg></div></div>
+</div><figcaption><b>8. Koneksi putus.</b> Siswa tetap bisa menjawab. Pita merah menjelaskan apa yang terjadi, dan baris di bawah timer berubah dari "All answers saved" menjadi "Saved on this phone only". Saat koneksi kembali, jawaban dikirim otomatis.</figcaption></figure>
+    <figure class="device"><div class="phone screen"><div class="sbar"><span>09:47</span><span>4G</span></div>
+<div class="pad" style="padding-top:18px">
+<div class="row" style="margin-bottom:26px"><span class="bubble fill">E</span><b style="font-size:15px">English Daily Test</b></div>
+<div style="font-size:31px;font-weight:700;letter-spacing:-0.02em;line-height:1.08;margin-bottom:8px">Join your test</div>
+<p style="color:var(--ink2);margin:0 0 20px;font-size:14.5px">Type your name and class, then the code your teacher wrote on the board.</p>
+<div class="field"><label>Full name</label><div class="input">Bima Saputra</div></div>
+<div class="field"><label>Class</label><div class="input">xii tkj a</div></div>
+<div class="field"><label>Test code</label><div class="code"><span class="on">K</span><span class="on">7</span><span class="on">M</span><span class="on">2</span><span class="on">Q</span><span class="on">X</span></div></div>
+<div class="errcard"><svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><span><b>You already took this test.</b><br>If you need another try, ask your teacher to allow it.</span></div>
+<div class="btn" style="margin-top:18px">Start test</div></div>
+</div><figcaption><b>9. Tidak bisa masuk.</b> Contoh pesan untuk batas 1 kali. Pesan lain dengan bentuk yang sama: kode salah, atau ujian belum dibuka / sudah ditutup. Nama dan kelas tetap dikenali walau ditulis dengan huruf kecil.</figcaption></figure>
+  </div>
+</section>
+
+<section aria-labelledby="guru2">
+  <h2 id="guru2">Guru, di laptop</h2>
+  <p class="muted">Lebar contoh 1160 px; di layar sempit kotaknya bisa digeser ke samping.</p>
+
+  <div class="desk-wrap"><div class="scroller"><div class="desk screen"><aside class="side"><div class="brand"><span class="bubble">E</span>English Daily Test</div><nav class="nav"><a><svg class="i"><use href="#i-dash"/></svg>Dashboard</a><a class="on"><svg class="i"><use href="#i-book"/></svg>Question bank</a><a><svg class="i"><use href="#i-doc"/></svg>Exams</a><a><svg class="i"><use href="#i-check"/></svg>Grading<span class="pill warn" style="margin-left:auto;padding:1px 8px">9</span></a><a><svg class="i"><use href="#i-chart"/></svg>Results</a></nav><div class="me"><span class="av">RS</span><div><b style="display:block;font-weight:650">Ms. Rina</b><span style="color:var(--ink2);font-size:12.5px">Teacher</span></div></div></aside><div class="main">
+<div class="head"><div><div class="row" style="color:var(--ink2);font-size:13.5px;margin-bottom:6px"><svg class="i"><use href="#i-back"/></svg>Question bank</div><h4>Edit question</h4><p>Used in 3 exams. Changes will not affect tests that already started.</p></div>
+<div class="row"><div class="btn small ghost">Preview</div><div class="btn small">Save question</div></div></div>
+<div class="cols" style="grid-template-columns:minmax(0,1fr) 300px;align-items:start">
+<div>
+  <div class="card sec"><h5>Type</h5><div class="seg"><span class="on">Multiple choice</span><span>True or false</span><span>Short answer</span><span>Essay</span></div></div>
+  <div class="card sec"><h5>Reading text and media</h5>
+    <div class="ta serif" style="min-height:0;margin-bottom:10px"><b style="font-family:'Bricolage Grotesque',sans-serif">The Lost Wallet</b> (used by 4 questions). Dina found a brown wallet under the bench in front of the library. Inside were some money and a student card…</div>
+    <div class="file"><svg class="i"><use href="#i-audio"/></svg>lost-wallet.mp3<small>2.1 MB, students can play it as many times as they like</small></div>
+    <div class="drop"><svg class="i"><use href="#i-upload"/></svg>Add an image or audio file. Images up to about 1 MB, audio up to 10 MB.</div>
+  </div>
+  <div class="card sec"><h5>Question and answers</h5>
+    <span class="lbl">Question</span><div class="ta serif" style="margin-bottom:12px">What did Dina do first after she found the wallet?</div>
+    <span class="lbl">Answers (select the bubble of the correct one)</span>
+    <div class="optrow"><span class="bubble">A</span><div class="inp">She kept the money.</div></div>
+    <div class="optrow"><span class="bubble ok"><svg class="i"><use href="#i-check"/></svg></span><div class="inp" style="border-color:var(--green)">She looked around for the owner.</div></div>
+    <div class="optrow"><span class="bubble">C</span><div class="inp">She called the police.</div></div>
+    <div class="optrow"><span class="bubble">D</span><div class="inp">She left it under the bench.</div></div>
+    <span class="lbl" style="margin-top:12px">Explanation (shown after the test only if you allow it)</span><div class="ta">The passage says she looked around, but nobody was there.</div>
+  </div>
+</div>
+<div>
+  <div class="card sec"><h5>Class labels</h5>
+    <div class="chips" style="margin-bottom:8px"><span class="chipx">XII TKJ A<svg class="i"><use href="#i-x"/></svg></span><span class="chipx">XII TKJ B<svg class="i"><use href="#i-x"/></svg></span></div>
+    <div class="inp" style="color:var(--ink2)">XII TKJ</div>
+    <div class="suggest"><div class="h">XII TKJ C</div><div>XII TKJ A</div><div>Add "XII TKJ" as a new label</div></div>
+  </div>
+  <div class="card sec"><h5>Details</h5>
+    <span class="lbl">Topic</span><div class="inp" style="margin-bottom:12px">Narrative Text</div>
+    <span class="lbl">Difficulty</span><div class="seg" style="margin-bottom:12px"><span>Easy</span><span class="on">Medium</span><span>HOTS</span></div>
+    <span class="lbl">Points</span><div class="inp" style="width:90px">1</div>
+  </div>
+  <div class="banner" style="display:block;margin:0"><div class="row" style="margin-bottom:6px"><svg class="i"><use href="#i-alert"/></svg><b>Looks similar to another question</b></div>"What did Dina do first when she found the wallet?" is already in the bank, used in Daily Test 1.<div class="row" style="margin-top:8px"><b style="text-decoration:underline">Open it</b><b style="text-decoration:underline">It is different</b></div></div>
+</div>
+</div>
+</div></div></div><p class="cap"><b>10. Editor soal.</b> Semua keputusan soal dalam satu layar: jenis soal, teks bacaan dan media (dengan batas ukuran), pilihan jawaban (bulatan hijau menandai kunci), label kelas yang diketik bebas dengan saran otomatis, materi, kesulitan Easy/Medium/HOTS, bobot, dan pembahasan. Peringatan soal ganda muncul di samping dan tidak menghalangi. Untuk jenis lain, bagian jawaban berubah: isian singkat menampilkan daftar jawaban yang diterima, esai menampilkan panduan penilaian.</p></div>
+
+  <div class="desk-wrap"><div class="scroller"><div class="desk screen"><aside class="side"><div class="brand"><span class="bubble">E</span>English Daily Test</div><nav class="nav"><a><svg class="i"><use href="#i-dash"/></svg>Dashboard</a><a><svg class="i"><use href="#i-book"/></svg>Question bank</a><a class="on"><svg class="i"><use href="#i-doc"/></svg>Exams</a><a><svg class="i"><use href="#i-check"/></svg>Grading<span class="pill warn" style="margin-left:auto;padding:1px 8px">9</span></a><a><svg class="i"><use href="#i-chart"/></svg>Results</a></nav><div class="me"><span class="av">RS</span><div><b style="display:block;font-weight:650">Ms. Rina</b><span style="color:var(--ink2);font-size:12.5px">Teacher</span></div></div></aside><div class="main">
+<div class="head"><div><h4>New exam</h4><p>Nothing is visible to students until you open it.</p></div><div class="row"><div class="btn small ghost">Save draft</div><div class="btn small">Open exam</div></div></div>
+<div class="cols" style="grid-template-columns:minmax(0,1fr) 290px;align-items:start">
+<div>
+  <div class="card sec"><h5>Basics</h5>
+    <span class="lbl">Title</span><div class="inp" style="margin-bottom:12px">Narrative Text, Daily Test 3</div>
+    <div class="f2"><div><span class="lbl">Duration (minutes)</span><div class="inp">45</div></div><div><span class="lbl">Passing grade</span><div class="inp">75</div></div></div>
+  </div>
+  <div class="card sec"><h5>Questions</h5>
+    <div class="seg" style="margin-bottom:12px"><span>Pick by hand</span><span class="on">Pick by filter</span></div>
+    <div class="f3" style="margin-bottom:10px"><div><span class="lbl">Class label</span><div class="inp">XII TKJ A</div></div><div><span class="lbl">Topic</span><div class="inp">Narrative Text</div></div><div><span class="lbl">Difficulty</span><div class="inp">Any</div></div></div>
+    <div class="f2"><div><span class="lbl">How many questions</span><div class="inp">40 of 62 matching</div></div><div><span class="lbl">Points</span><div class="inp">Use each question's points (40 in total)</div></div></div>
+    <div class="tgl" style="margin-top:6px"><span>Draw again for each student<small>Every student gets a different set of 40 from the 62 matching questions.</small></span><span class="sw on"></span></div>
+  </div>
+  <div class="card sec"><h5>When students can take it</h5>
+    <div class="seg" style="margin-bottom:12px"><span>Open and close by hand</span><span class="on">Scheduled</span></div>
+    <div class="f3" style="margin-bottom:12px"><div><span class="lbl">Date</span><div class="inp">22 Sep 2026</div></div><div><span class="lbl">Opens</span><div class="inp">09:45</div></div><div><span class="lbl">Closes</span><div class="inp">10:30</div></div></div>
+    <span class="lbl">If a student starts late</span><div class="seg"><span>Full 45 minutes</span><span class="on">Stop at closing time</span></div>
+  </div>
+  <div class="card sec"><h5>Test code</h5>
+    <div class="row" style="justify-content:space-between"><div><div style="font-size:34px;font-weight:750;letter-spacing:.14em;line-height:1">K7M2QX</div><div class="hint" style="margin-top:6px">Students type this code to join. It only works while the exam is open.</div></div><div class="row"><div class="btn small ghost">Make a new one</div><div class="btn small ghost">Type my own</div></div></div>
+  </div>
+  <div class="card sec"><h5>Rules and results</h5>
+    <div class="tgl"><span>Shuffle question order</span><span class="sw on"></span></div>
+    <div class="tgl"><span>Shuffle answer choices</span><span class="sw on"></span></div>
+    <div class="tgl"><span>Each student can take it once<small>You can allow a retake for one student later.</small></span><span class="sw on"></span></div>
+    <div style="padding:10px 0 4px"><span class="lbl">When a student leaves the test page</span>
+      <div class="f3"><div class="inp"><span class="pill warn" style="margin-right:8px">Warn</span>from 1st</div><div class="inp"><span class="pill bad" style="margin-right:8px">Flag</span>from 3rd</div><div class="inp"><span class="pill plain" style="margin-right:8px">Submit</span>at 5th</div></div></div>
+    <div style="padding:10px 0 4px;border-top:1px solid var(--line);margin-top:8px"><span class="lbl">After submitting, the student sees</span><div class="seg"><span>Nothing</span><span>Score</span><span class="on">Score and answers</span></div></div>
+    <div style="padding:10px 0 0"><span class="lbl">If an essay is not graded yet</span><div class="seg"><span>Hide the score</span><span class="on">Show the score so far</span></div></div>
+  </div>
+</div>
+<div>
+  <div class="card sec"><h5>Ready to open?</h5>
+    <div class="tgl"><span class="row"><span class="pill ok"><svg class="i" style="width:14px;height:14px"><use href="#i-check"/></svg></span>Title and duration</span></div>
+    <div class="tgl"><span class="row"><span class="pill ok"><svg class="i" style="width:14px;height:14px"><use href="#i-check"/></svg></span>40 questions found</span></div>
+    <div class="tgl"><span class="row"><span class="pill ok"><svg class="i" style="width:14px;height:14px"><use href="#i-check"/></svg></span>Test code is unique</span></div>
+    <div class="tgl"><span class="row"><span class="pill warn" style="padding:3px 8px">!</span>2 questions are essays. Scores stay "not final" until you grade them.</span></div>
+  </div>
+  <div class="card sec"><h5>Summary</h5>
+    <div class="kv" style="padding:8px 0"><span>Questions</span><b>40</b></div><div class="kv" style="padding:8px 0"><span>Total points</span><b>44</b></div><div class="kv" style="padding:8px 0"><span>Duration</span><b>45 min</b></div><div class="kv" style="padding:8px 0"><span>Opens</span><b>22 Sep, 09:45</b></div>
+  </div>
+  <div class="btn ghost" style="margin-bottom:8px">Preview as a student</div>
+  <div class="btn">Open exam</div>
+</div>
+</div>
+</div></div></div><p class="cap"><b>11. Membuat ujian.</b> Berisi semua aturan yang kita putuskan: pilih soal manual atau dari filter, jadwal atau buka/tutup manual, aturan siswa terlambat, kode ujian, 1 kali pengerjaan, batas keluar halaman 1/3/5, dan apa yang siswa lihat setelah kumpul (termasuk untuk esai yang belum dinilai). Panel kanan mengecek apakah ujian siap dibuka.</p></div>
+
+  <div class="desk-wrap"><div class="scroller"><div class="desk screen"><aside class="side"><div class="brand"><span class="bubble">E</span>English Daily Test</div><nav class="nav"><a><svg class="i"><use href="#i-dash"/></svg>Dashboard</a><a><svg class="i"><use href="#i-book"/></svg>Question bank</a><a class="on"><svg class="i"><use href="#i-doc"/></svg>Exams</a><a><svg class="i"><use href="#i-check"/></svg>Grading<span class="pill warn" style="margin-left:auto;padding:1px 8px">9</span></a><a><svg class="i"><use href="#i-chart"/></svg>Results</a></nav><div class="me"><span class="av">RS</span><div><b style="display:block;font-weight:650">Ms. Rina</b><span style="color:var(--ink2);font-size:12.5px">Teacher</span></div></div></aside><div class="main">
+<div class="head"><div><div class="row" style="margin-bottom:6px"><span class="pill">Open now</span><span style="color:var(--ink2);font-size:13.5px">Code K7M2QX, closes at 10:30</span></div><h4>Narrative Text, Daily Test 3</h4></div>
+<div class="row"><div class="btn small ghost">Add time to everyone</div><div class="btn small danger">Close exam</div></div></div>
+<div class="strip"><span><b>28</b>working</span><span><b>6</b>submitted</span><span><b>1</b>offline</span><span><b>2</b>need a look</span><span><b>35</b>joined so far</span></div>
+<div class="cols" style="grid-template-columns:minmax(0,1fr) 300px;align-items:start">
+<div class="card" style="overflow:hidden"><table class="t compact" style="white-space:nowrap">
+<thead><tr><th>Student</th><th>Class</th><th>Progress</th><th>Time left</th><th>Exits</th><th>Status</th></tr></thead><tbody>
+<tr><td><b style="font-weight:600">Aisyah Putri</b></td><td>XII TKJ A</td><td><span class="prog" style="width:54px"><i style="width:67%"></i></span> 27/40</td><td>38:12</td><td>0</td><td><span class="pill ok">Saved</span></td></tr><tr class="sel"><td><b style="font-weight:600">Bima Saputra</b></td><td>XII TKJ A</td><td><span class="prog" style="width:54px"><i style="width:77%"></i></span> 31/40</td><td>37:40</td><td><b style="color:#8A6A00">2</b></td><td><span class="pill warn">Left the page</span></td></tr><tr><td><b style="font-weight:600">Citra Lestari</b></td><td>XII TKJ B</td><td><span class="prog" style="width:54px"><i style="width:45%"></i></span> 18/40</td><td>38:02</td><td>0</td><td><span class="pill bad">Offline</span></td></tr><tr><td><b style="font-weight:600">Erik Hidayat</b></td><td>XII TKJ A</td><td><span class="prog" style="width:54px"><i style="width:55%"></i></span> 22/40</td><td>35:10</td><td><b style="color:#8A6A00">3</b></td><td><span class="pill bad">Need a look</span></td></tr><tr><td><b style="font-weight:600">Farah Nabila</b></td><td>XII TKJ C</td><td><span class="prog" style="width:54px"><i style="width:100%"></i></span> 40/40</td><td>Done</td><td>0</td><td><span class="pill plain">Submitted</span></td></tr><tr><td><b style="font-weight:600">Gilang Ramadhan</b></td><td>XII TKJ B</td><td><span class="prog" style="width:54px"><i style="width:30%"></i></span> 12/40</td><td>38:20</td><td>1</td><td><span class="pill ok">Saved</span></td></tr><tr><td><b style="font-weight:600">Hana Salsabila</b></td><td>XII TKJ A</td><td><span class="prog" style="width:54px"><i style="width:87%"></i></span> 35/40</td><td>36:47</td><td>0</td><td><span class="pill ok">Saved</span></td></tr></tbody></table></div>
+<aside class="card sec" style="margin:0">
+  <h5>Bima Saputra</h5><div class="sub" style="margin-top:-6px;color:var(--ink2);font-size:13px;margin-bottom:8px">XII TKJ A, 31 of 40 answered</div>
+  <div class="tl"><div>Started<small>09:46</small></div><div class="w">Left the test page (warning, 1st)<small>09:52, back after 12 seconds</small></div><div class="w">Left the test page (warning, 2nd)<small>10:01, back after 4 seconds</small></div><div>Answers saved<small>10:03</small></div></div>
+  <div class="stack" style="margin-top:12px"><div class="btn small ghost" style="width:100%">Add 5 minutes</div><div class="btn small ghost" style="width:100%">Reopen session</div><div class="btn small ghost" style="width:100%">Allow a retake</div></div>
+</aside>
+</div>
+</div></div></div><p class="cap"><b>12. Memantau ujian.</b> Guru melihat siapa yang mengerjakan, progres, sisa waktu, dan jumlah keluar halaman. Klik satu siswa untuk melihat riwayat kejadian dan tindakan: tambah waktu, buka kembali sesi, atau izinkan mengulang. Semua tindakan ini tercatat di audit log.</p></div>
+
+  <div class="desk-wrap"><div class="scroller"><div class="desk screen"><aside class="side"><div class="brand"><span class="bubble">E</span>English Daily Test</div><nav class="nav"><a><svg class="i"><use href="#i-dash"/></svg>Dashboard</a><a><svg class="i"><use href="#i-book"/></svg>Question bank</a><a><svg class="i"><use href="#i-doc"/></svg>Exams</a><a class="on"><svg class="i"><use href="#i-check"/></svg>Grading<span class="pill warn" style="margin-left:auto;padding:1px 8px">9</span></a><a><svg class="i"><use href="#i-chart"/></svg>Results</a></nav><div class="me"><span class="av">RS</span><div><b style="display:block;font-weight:650">Ms. Rina</b><span style="color:var(--ink2);font-size:12.5px">Teacher</span></div></div></aside><div class="main">
+<div class="head"><div><h4>Grade essays</h4><p>Narrative Text, Daily Test 2, question 38</p></div><div class="row"><span class="prog"><i style="width:22%"></i></span><span style="font-size:13.5px;color:var(--ink2)">2 of 9 graded</span></div></div>
+<div class="row" style="align-items:flex-start;gap:16px">
+<div class="card qlist">
+  <div class="qitem"><span class="av" style="width:28px;height:28px;font-size:12px">AP</span><span>Aisyah Putri<small>Graded</small></span><span class="pill ok">3 / 4</span></div>
+  <div class="qitem"><span class="av" style="width:28px;height:28px;font-size:12px">BS</span><span>Bima Saputra<small>Graded</small></span><span class="pill ok">4 / 4</span></div>
+  <div class="qitem on"><span class="av" style="width:28px;height:28px;font-size:12px">CL</span><span>Citra Lestari<small>Grading now</small></span></div>
+  <div class="qitem"><span class="av" style="width:28px;height:28px;font-size:12px">DP</span><span>Dimas Pratama<small>Waiting</small></span><span class="pill warn">Wait</span></div>
+  <div class="qitem"><span class="av" style="width:28px;height:28px;font-size:12px">EH</span><span>Erik Hidayat<small>Waiting</small></span><span class="pill warn">Wait</span></div>
+  <div class="qitem"><span class="av" style="width:28px;height:28px;font-size:12px">FN</span><span>Farah Nabila<small>Waiting</small></span><span class="pill warn">Wait</span></div>
+</div>
+<div style="flex:1;min-width:0">
+  <div class="card sec"><h5>Question</h5><div class="serif" style="font-size:16.5px;font-weight:600;line-height:1.45">Explain why the orientation part is important in a narrative text.</div>
+    <div class="banner" style="margin:12px 0 0;background:var(--pen-tint);border-color:#BFD0F7;color:var(--ink)"><span><b>Your guide.</b> Full marks: says the orientation introduces the characters, place, and time. One mark per idea, up to 4.</span></div></div>
+  <div class="card sec"><h5>Citra Lestari's answer</h5><div class="answerbox serif">The orientation is important because it tells the reader who is in the story and where it happens. Without it, the reader will be confused when the problem starts.</div></div>
+  <div class="card sec"><h5>Your grade</h5>
+    <div class="pts" style="margin-bottom:12px"><span class="bubble">0</span><span class="bubble">1</span><span class="bubble fill">2</span><span class="bubble">3</span><span class="bubble">4</span><span style="color:var(--ink2);font-size:13.5px;margin-left:6px">out of 4 points</span></div>
+    <span class="lbl">Comment for the student (optional)</span><div class="ta">Good on who and where. Add when the story happens.</div>
+    <div class="row" style="justify-content:space-between;margin-top:14px"><div class="btn small ghost">Skip for now</div><div class="btn small">Save and next student</div></div>
+  </div>
+</div>
+</div>
+</div></div></div><p class="cap"><b>13. Menilai esai.</b> Guru menilai satu soal esai untuk semua siswa berurutan, dengan panduan penilaian di atas jawaban dan tombol nilai berbentuk bulatan seperti lembar jawaban. Setelah semua esai dinilai, status "not final" di hasil siswa hilang.</p></div>
+
+  <div class="desk-wrap"><div class="scroller"><div class="desk screen"><aside class="side"><div class="brand"><span class="bubble">E</span>English Daily Test</div><nav class="nav"><a><svg class="i"><use href="#i-dash"/></svg>Dashboard</a><a><svg class="i"><use href="#i-book"/></svg>Question bank</a><a><svg class="i"><use href="#i-doc"/></svg>Exams</a><a><svg class="i"><use href="#i-check"/></svg>Grading<span class="pill warn" style="margin-left:auto;padding:1px 8px">9</span></a><a class="on"><svg class="i"><use href="#i-chart"/></svg>Results</a></nav><div class="me"><span class="av">RS</span><div><b style="display:block;font-weight:650">Ms. Rina</b><span style="color:var(--ink2);font-size:12.5px">Teacher</span></div></div></aside><div class="main">
+<div class="head"><div><h4>Narrative Text, Daily Test 2</h4><p>34 students took it on 15 September</p></div>
+<div class="row"><div class="btn small ghost"><svg class="i"><use href="#i-download"/></svg>Excel</div><div class="btn small ghost">CSV</div><div class="btn small ghost">PDF class summary</div></div></div>
+<div class="tabs"><span class="on">Scores</span><span>Questions</span><span>Classes</span></div>
+<div class="strip"><span><b>78</b>average</span><span><b>96</b>highest</span><span><b>45</b>lowest</span><span><b>28 of 34</b>passed (82%)</span><span><span class="pill warn">2 not final</span></span></div>
+<div class="card sec" style="display:flex;gap:28px;align-items:flex-end;flex-wrap:wrap"><div style="width:340px"><h5>Score spread</h5>
+<div class="hist" style="height:68px"><i style="height:5px"></i><i style="height:10px"></i><i style="height:17px"></i><i style="height:47px"></i><i style="height:62px"></i><i style="height:36px"></i></div>
+<div class="hlbl"><span>under 50</span><span>50s</span><span>60s</span><span>70s</span><span>80s</span><span>90s</span></div></div>
+<p class="hint" style="max-width:340px;margin:0 0 4px">Passing grade is 75, so the 70s group is split between passed and failed. "Not final" scores are waiting for an essay to be graded.</p></div>
+<div class="toolbar"><div class="search"><svg class="i"><use href="#i-search"/></svg>Search student</div><span class="chip on">All classes</span><span class="chip">Score, high to low</span></div>
+<div class="card" style="overflow:hidden"><table class="t" style="white-space:nowrap"><thead><tr><th>Name</th><th>Class</th><th>Score</th><th>Right / wrong</th><th>Time</th><th>Exits</th><th>Status</th><th></th></tr></thead><tbody>
+<tr><td><b style="font-weight:600">Citra Lestari</b></td><td>XII TKJ B</td><td><b>96</b></td><td>38 / 2</td><td>39m 10s</td><td>0</td><td><span class="pill ok">Passed</span></td><td><b style="color:var(--pen)">Details</b></td></tr><tr><td><b style="font-weight:600">Aisyah Putri</b></td><td>XII TKJ A</td><td><b>88</b></td><td>35 / 5</td><td>41m 12s</td><td>0</td><td><span class="pill ok">Passed</span></td><td><b style="color:var(--pen)">Details</b></td></tr><tr><td><b style="font-weight:600">Hana Salsabila</b></td><td>XII TKJ A</td><td><b>81</b></td><td>32 / 8</td><td>43m 30s</td><td>1</td><td><span class="pill ok">Passed</span></td><td><b style="color:var(--pen)">Details</b></td></tr><tr><td><b style="font-weight:600">Bima Saputra</b></td><td>XII TKJ A</td><td><b>72</b></td><td>29 / 11</td><td>44m 03s</td><td><b style="color:#8A6A00">3</b></td><td><span class="pill bad">Failed</span></td><td><b style="color:var(--pen)">Details</b></td></tr><tr><td><b style="font-weight:600">Erik Hidayat</b></td><td>XII TKJ A</td><td><b>64</b></td><td>25 / 13</td><td>44m 50s</td><td><b style="color:#8A6A00">4</b></td><td><span class="pill warn">Not final</span></td><td><b style="color:var(--pen)">Details</b></td></tr><tr><td><b style="font-weight:600">Gilang Ramadhan</b></td><td>XII TKJ B</td><td><b>45</b></td><td>18 / 22</td><td>36m 21s</td><td>0</td><td><span class="pill bad">Failed</span></td><td><b style="color:var(--pen)">Details</b></td></tr></tbody></table></div>
+</div></div></div><p class="cap"><b>14. Hasil, tab Scores.</b> Ringkasan satu baris, sebaran nilai, dan tabel siswa dengan status Passed, Failed, atau Not final. Ekspor Excel, CSV, dan PDF rekap per kelas ada di kanan atas.</p></div>
+
+  <div class="desk-wrap"><div class="scroller"><div class="desk screen"><aside class="side"><div class="brand"><span class="bubble">E</span>English Daily Test</div><nav class="nav"><a><svg class="i"><use href="#i-dash"/></svg>Dashboard</a><a><svg class="i"><use href="#i-book"/></svg>Question bank</a><a><svg class="i"><use href="#i-doc"/></svg>Exams</a><a><svg class="i"><use href="#i-check"/></svg>Grading<span class="pill warn" style="margin-left:auto;padding:1px 8px">9</span></a><a class="on"><svg class="i"><use href="#i-chart"/></svg>Results</a></nav><div class="me"><span class="av">RS</span><div><b style="display:block;font-weight:650">Ms. Rina</b><span style="color:var(--ink2);font-size:12.5px">Teacher</span></div></div></aside><div class="main">
+<div class="head"><div><h4>Narrative Text, Daily Test 2</h4><p>34 students took it on 15 September</p></div>
+<div class="row"><div class="btn small ghost"><svg class="i"><use href="#i-download"/></svg>Excel</div><div class="btn small ghost">CSV</div><div class="btn small ghost">PDF class summary</div></div></div>
+<div class="tabs"><span>Scores</span><span class="on">Questions</span><span>Classes</span></div>
+<div class="cols" style="grid-template-columns:minmax(0,1fr) 330px;align-items:start">
+<div class="card sec"><h5>Hardest questions</h5><div class="sub">Share of students who answered correctly. Select a question to see what they picked.</div>
+<div class="hbar" style="background:var(--pen-tint);margin:0 -18px;padding:9px 18px"><span>Q31. Which sentence is in the past perfect?<small>Multiple choice, Grammar, HOTS</small></span><span class="prog r"><i style="width:32%"></i></span><b>32%</b></div>
+<div class="hbar"><span>Q12. What did Dina do first after she found the wallet?<small>Multiple choice, Narrative Text, Medium</small></span><span class="prog y"><i style="width:41%"></i></span><b>41%</b></div>
+<div class="hbar"><span>Q38. Explain why the orientation part is important.<small>Essay, average 2.1 of 4 points</small></span><span class="prog y"><i style="width:53%"></i></span><b>53%</b></div>
+<div class="hbar"><span>Q07. The story was told in the ____ tense.<small>Short answer, Simple Past</small></span><span class="prog"><i style="width:68%"></i></span><b>68%</b></div>
+<div class="hbar"><span>Q02. Look at the picture. Where is the boy standing?<small>Multiple choice, Prepositions, Easy</small></span><span class="prog g"><i style="width:94%"></i></span><b>94%</b></div>
+</div>
+<div>
+<div class="card sec"><h5>Q31, what students chose</h5>
+<div class="hbar" style="grid-template-columns:24px 1fr 40px"><span class="bubble sm">A</span><span class="prog" style="width:100%"><i style="width:12%"></i></span><b>12%</b></div>
+<div class="hbar" style="grid-template-columns:24px 1fr 40px"><span class="bubble sm ok" style="background:var(--green);border-color:var(--green);color:#fff">B</span><span class="prog g" style="width:100%"><i style="width:32%"></i></span><b>32%</b></div>
+<div class="hbar" style="grid-template-columns:24px 1fr 40px"><span class="bubble sm">C</span><span class="prog r" style="width:100%"><i style="width:41%"></i></span><b>41%</b></div>
+<div class="hbar" style="grid-template-columns:24px 1fr 40px"><span class="bubble sm">D</span><span class="prog" style="width:100%"><i style="width:15%"></i></span><b>15%</b></div>
+<p class="hint" style="margin-top:8px">More students chose C than the correct answer B. Check whether C is misleading.</p></div>
+<div class="card sec"><h5>Average score by class</h5><div class="sub">"XII TKJ A" and "xii tkj a" are counted together. You merged "12 TKJ A" into it.</div>
+<div class="hbar" style="grid-template-columns:90px 1fr 34px"><span>XII TKJ A</span><span class="prog g" style="width:100%"><i style="width:81%"></i></span><b>81</b></div>
+<div class="hbar" style="grid-template-columns:90px 1fr 34px"><span>XII TKJ B</span><span class="prog" style="width:100%"><i style="width:76%"></i></span><b>76</b></div>
+<div class="hbar" style="grid-template-columns:90px 1fr 34px"><span>XII TKJ C</span><span class="prog y" style="width:100%"><i style="width:72%"></i></span><b>72</b></div></div>
+</div>
+</div>
+</div></div></div><p class="cap"><b>15. Hasil, tab Questions.</b> Soal tersulit berdasarkan persentase yang menjawab benar, ditambah pilihan yang dipilih siswa untuk soal terpilih (di contoh, jawaban salah C lebih populer daripada kunci B, tanda soal perlu dicek). Perbandingan antar kelas memakai nama kelas yang sudah digabung.</p></div>
+</section>
+
+<section aria-labelledby="minta2">
+  <h2 id="minta2">Yang perlu kamu nilai</h2>
+  <ol class="checks">
+    <li>Apakah editor soal dan layar membuat ujian memuat semua yang kamu butuhkan, dan tidak ada yang terasa berlebihan?</li>
+    <li>Apakah tiga kondisi di HP siswa (peringatan, offline, tidak bisa masuk) jelas dan tidak menakutkan?</li>
+    <li>Apakah monitor, penilaian esai, dan hasil menampilkan informasi yang paling kamu perlukan saat ujian berlangsung?</li>
+  </ol>
+</section>
+</div>
+</body>
+</html>

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fase 0 — Mockup putaran 1</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Source+Serif+4:opsz,wght@8..60,400..650&display=swap">
+<style>
+/* ---------- Board chrome (theme-aware) ---------- */
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#F1F4F9; --surface:#FFFFFF; --text:#16233B; --muted:#56637C; --line:#D9E0EC; --accent:#2457D6; --accent-tint:#E8EFFD; --mark:#FFD84D;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1524; --surface:#172038; --text:#E8EDF7; --muted:#A3B0C8; --line:#2A3757; --accent:#86A6FF; --accent-tint:#1F2D55; --mark:#FFD84D;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1524; --surface:#172038; --text:#E8EDF7; --muted:#A3B0C8; --line:#2A3757; --accent:#86A6FF; --accent-tint:#1F2D55; --mark:#FFD84D;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.55}
+.wrap{max-width:1240px;margin:0 auto;padding:32px 20px 72px}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.08;margin:0 0 12px;font-weight:700;letter-spacing:-0.02em}
+h2{font-size:clamp(22px,3vw,28px);margin:56px 0 6px;font-weight:650;letter-spacing:-0.01em}
+h3{font-size:17px;margin:0 0 6px;font-weight:650}
+p{margin:0 0 12px;max-width:68ch}
+.muted{color:var(--muted)}
+.lead{font-size:18px;max-width:62ch}
+.tokens{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:24px 0}
+.swatch{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.swatch i{display:block;height:54px}
+.swatch b{display:block;padding:8px 10px 0;font-size:14px}
+.swatch span{display:block;padding:0 10px 9px;font-size:13px;color:var(--muted)}
+.principle{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-top:8px}
+@media (max-width:760px){.principle{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+.specimen-serif{font-family:'Source Serif 4',Georgia,serif;font-size:19px;line-height:1.5;margin:8px 0 0}
+.row-bubbles{display:flex;gap:10px;margin-top:10px}
+.devices{display:flex;flex-wrap:wrap;gap:36px 28px;align-items:flex-start;margin-top:22px}
+.device{margin:0;width:340px}
+.device figcaption{margin-top:12px;font-size:14px;color:var(--muted);max-width:340px}
+.device figcaption b{color:var(--text);font-weight:650}
+.scroller{overflow-x:auto;padding-bottom:12px;margin-top:18px}
+.desk-wrap{margin-bottom:34px}
+.desk-wrap .cap{font-size:14px;color:var(--muted);max-width:76ch;margin-top:12px}
+.desk-wrap .cap b{color:var(--text);font-weight:650}
+.checks{margin:0;padding-left:20px}
+.checks li{margin-bottom:6px;max-width:70ch}
+
+/* ---------- Mockup screens (always light, so what you see is the real app look) ---------- */
+.screen{
+  --paper:#F7F9FC; --card:#FFFFFF; --ink:#16233B; --ink2:#4F5D78; --line:#DCE3EF;
+  --pen:#2457D6; --pen-tint:#E8EFFD; --mark:#FFD84D; --mark-tint:#FFF5CC;
+  --red:#D9364A; --red-tint:#FCE8EB; --green:#1E8E5A; --green-tint:#E2F4EA;
+  font-family:'Bricolage Grotesque',system-ui,sans-serif; color:var(--ink); background:var(--paper); line-height:1.4; font-size:14px;
+}
+.screen svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.screen button{font:inherit;cursor:default}
+.phone{width:340px;height:730px;border:8px solid #16233B;border-radius:38px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.sbar{display:flex;justify-content:space-between;padding:8px 22px 4px;font-size:12px;font-weight:600;color:var(--ink2)}
+.pad{padding:0 20px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:0 16px;height:46px;font-weight:650;font-size:15px;background:var(--pen);color:#fff}
+.btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+.btn.small{height:38px;font-size:13.5px;padding:0 12px;border-radius:10px}
+.btn.mark{background:var(--mark-tint);border:1.5px solid var(--mark);color:#5A4700}
+.btn.danger{background:var(--red-tint);color:var(--red)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+.input{height:46px;border:1.5px solid var(--line);background:var(--card);border-radius:12px;padding:0 14px;display:flex;align-items:center;font-size:15.5px}
+.hint{font-size:12.5px;color:var(--ink2);margin-top:4px}
+.code{display:flex;gap:6px}
+.code span{flex:1;height:50px;border:1.5px solid var(--line);background:var(--card);border-radius:10px;display:grid;place-items:center;font-size:21px;font-weight:700;letter-spacing:0}
+.code span.on{border-color:var(--pen)}
+.bubble{width:30px;height:30px;border-radius:50%;border:2px solid #8391AB;display:grid;place-items:center;font-weight:650;font-size:13.5px;color:var(--ink2);flex:none;background:transparent}
+.bubble.fill{background:var(--pen);border-color:var(--pen);color:#fff}
+.bubble.mk{background:var(--mark);border-color:#E0B800;color:#4A3B00}
+.bubble.cur{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--ink)}
+.bubble.sm{width:28px;height:28px;font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:600;background:var(--pen-tint);color:var(--pen)}
+.pill.warn{background:var(--mark-tint);color:#6B5400}
+.pill.ok{background:var(--green-tint);color:var(--green)}
+.pill.bad{background:var(--red-tint);color:var(--red)}
+.pill.plain{background:#EDF0F6;color:var(--ink2)}
+.timer{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:15px;color:var(--pen);background:var(--pen-tint);border-radius:999px;padding:5px 12px;font-variant-numeric:tabular-nums}
+.serif{font-family:'Source Serif 4',Georgia,serif}
+
+/* exam screen */
+.qtop{display:flex;align-items:center;justify-content:space-between;padding:6px 20px 10px}
+.qtop .q{font-weight:650;font-size:15px}
+.bar{height:5px;background:#E3E9F3;margin:0 20px;border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--pen);border-radius:9px}
+.saved{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);padding:8px 20px 0}
+.saved .i{color:var(--green)}
+.qbody{flex:1;overflow:hidden;padding:12px 20px 0}
+.audio{display:flex;align-items:center;gap:12px;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:12px}
+.play{width:38px;height:38px;border-radius:50%;background:var(--pen);color:#fff;display:grid;place-items:center;flex:none}
+.screen .play svg.i{fill:#fff;stroke:#fff;width:16px;height:16px}
+.track{flex:1}
+.track .t{height:4px;border-radius:9px;background:#E3E9F3;overflow:hidden}
+.track .t i{display:block;height:100%;width:31%;background:var(--pen)}
+.track .n{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink2);margin-top:5px;font-variant-numeric:tabular-nums}
+.passage{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px;line-height:1.55;margin-bottom:14px}
+.qtext{font-size:17.5px;line-height:1.4;font-weight:600;margin:0 0 10px}
+.opt{display:flex;gap:12px;align-items:center;border:1.5px solid var(--line);background:var(--card);border-radius:14px;padding:9px 12px;margin-bottom:7px;font-size:15px;line-height:1.35}
+.opt.sel{border-color:var(--pen);background:var(--pen-tint)}
+.qnav{display:flex;gap:8px;align-items:center;padding:10px 16px 16px;border-top:1px solid var(--line);background:var(--card)}
+.icobtn{width:44px;height:44px;border-radius:12px;border:1.5px solid var(--line);display:grid;place-items:center;background:var(--card);color:var(--ink);flex:none}
+
+/* palette sheet */
+.dim{position:absolute;inset:0;background:rgba(22,35,59,.45)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:24px 24px 0 0;padding:10px 20px 18px}
+.grab{width:40px;height:4px;border-radius:9px;background:#C9D2E2;margin:0 auto 12px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:12.5px;color:var(--ink2);margin:8px 0 14px}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend .bubble{width:16px;height:16px;border-width:1.5px}
+.sheetgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:8px 6px;justify-items:center;margin-bottom:16px}
+
+/* result */
+.score{font-size:76px;line-height:1;font-weight:750;letter-spacing:-0.03em}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px}
+.kv{display:flex;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line);font-size:14.5px}
+.kv:last-child{border-bottom:0}
+.kv b{font-weight:650;white-space:nowrap}
+.note{display:flex;gap:10px;background:var(--mark-tint);border:1.5px solid var(--mark);border-radius:14px;padding:12px 14px;font-size:14px;color:#4F3F00}
+
+/* desktop frames */
+.desk{width:1160px;border:1px solid #C3CCDD;border-radius:16px;overflow:hidden;display:flex;background:var(--paper);box-shadow:none}
+.side{width:212px;background:var(--card);border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;flex:none}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;margin-bottom:22px;padding:0 4px}
+.brand .bubble{width:28px;height:28px;background:var(--pen);border-color:var(--pen);color:#fff}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;color:var(--ink2);font-weight:550;margin-bottom:2px;text-decoration:none}
+.nav a.on{background:var(--pen-tint);color:var(--pen);font-weight:650}
+.me{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 6px 0;border-top:1px solid var(--line);font-size:13.5px}
+.av{width:32px;height:32px;border-radius:50%;background:#DDE6FA;color:var(--pen);display:grid;place-items:center;font-weight:700;font-size:13px}
+.main{flex:1;padding:22px 26px 26px;min-width:0}
+.head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;gap:16px}
+.head h4{margin:0;font-size:23px;font-weight:700;letter-spacing:-0.01em}
+.head p{margin:2px 0 0;color:var(--ink2);font-size:14px}
+.now{display:grid;grid-template-columns:1.05fr 1fr;gap:0;border:1.5px solid var(--pen);border-radius:16px;background:var(--card);overflow:hidden;margin-bottom:16px}
+.now .l{padding:18px 20px;background:var(--pen-tint)}
+.now .r{padding:16px 20px}
+.bigcode{font-size:52px;font-weight:750;letter-spacing:.14em;line-height:1;margin:8px 0 10px;color:var(--ink);font-variant-numeric:tabular-nums}
+.row{display:flex;align-items:center;gap:10px}
+.live{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.live:last-child{border-bottom:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.list{padding:16px 18px}
+.list h5{margin:0 0 8px;font-size:15px;font-weight:650}
+.item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.item:last-child{border-bottom:0}
+.item small{display:block;color:var(--ink2);font-size:12.5px}
+.meter{width:110px;height:7px;background:#E3E9F3;border-radius:9px;overflow:hidden;display:inline-block;vertical-align:middle}
+.meter i{display:block;height:100%;background:var(--green)}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.search{flex:1;min-width:200px;height:40px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--ink2)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:550}
+.chip.on{border-color:var(--pen);background:var(--pen-tint);color:var(--pen)}
+.banner{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--mark-tint);border:1.5px solid var(--mark);border-radius:12px;padding:9px 14px;margin-bottom:12px;font-size:13.5px;color:#4F3F00}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+table.t th{text-align:left;font-weight:600;color:var(--ink2);font-size:12.5px;padding:9px 8px;border-bottom:1.5px solid var(--line)}
+table.t td:last-child{white-space:nowrap}
+table.t td{padding:11px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t tr.sel td{background:var(--pen-tint)}
+.qcell{max-width:250px}
+.qcell b{display:block;font-weight:600;line-height:1.35}
+.qcell small{color:var(--ink2);font-size:12px}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 264px;gap:16px}
+.prev{padding:14px 16px;align-self:start}
+.prev .cap2{font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.prev .opt{padding:8px 10px;font-size:13px;margin-bottom:6px}
+.prev .bubble{width:24px;height:24px;font-size:12px}
+.chk{width:16px;height:16px;border:1.5px solid #8391AB;border-radius:4px;display:inline-block}
+.chk.on{background:var(--pen);border-color:var(--pen)}
+.tag{display:inline-block;background:#EDF0F6;color:var(--ink2);border-radius:6px;padding:1px 7px;font-size:12px;margin:0 4px 3px 0}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4z"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 010-8 5 5 0 019.5-1A3.6 3.6 0 0117 18z"/><path d="M9.5 13.5l2 2 3.5-4"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17l5-4.5 3.5 3 2.5-2 4 3.5"/></symbol>
+    <symbol id="i-audio" viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="16" r="2"/></symbol>
+    <symbol id="i-dash" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="9" rx="1.5"/><rect x="13" y="4" width="7" height="5" rx="1.5"/><rect x="13" y="11" width="7" height="9" rx="1.5"/><rect x="4" y="15" width="7" height="5" rx="1.5"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h10"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="12" rx="2"/><path d="M5 16V6a2 2 0 012-2h9"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.2v.1"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.1"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<header>
+  <h1>Fase 0, mockup putaran 1</h1>
+  <p class="lead">Ini usulan arah desain baru untuk English Daily Test, dengan 4 layar siswa (di HP) dan 2 layar guru (di laptop). Semua isi hanya contoh; belum ada yang berfungsi. Teks di dalam layar memakai Bahasa Inggris sesuai keputusanmu, catatan di sekitarnya Bahasa Indonesia.</p>
+  <p class="muted">Putaran 2 akan berisi editor soal, pembuatan ujian, monitor ujian yang berlangsung, penilaian esai, dan hasil/statistik.</p>
+</header>
+
+<section aria-labelledby="arah">
+  <h2 id="arah">Arah desain: lembar jawaban</h2>
+  <p>Ulangan di sekolah punya bahasa visualnya sendiri: pulpen biru, stabilo kuning, dan lembar jawaban dengan bulatan A, B, C, D. Desain ini meminjam itu dan hanya itu. Bulatan jawaban adalah satu-satunya elemen yang dibuat "berkarakter"; sisanya sengaja tenang supaya siswa fokus pada soal dan guru fokus pada data.</p>
+  <div class="tokens">
+    <div class="swatch"><i style="background:#16233B"></i><b>Tinta</b><span>#16233B, teks utama</span></div>
+    <div class="swatch"><i style="background:#2457D6"></i><b>Pulpen biru</b><span>#2457D6, aksi dan jawaban</span></div>
+    <div class="swatch"><i style="background:#FFD84D"></i><b>Stabilo</b><span>#FFD84D, ditandai dan belum final</span></div>
+    <div class="swatch"><i style="background:#D9364A"></i><b>Pulpen merah</b><span>#D9364A, salah dan peringatan</span></div>
+    <div class="swatch"><i style="background:#1E8E5A"></i><b>Lulus</b><span>#1E8E5A, benar dan lulus</span></div>
+    <div class="swatch"><i style="background:#F7F9FC;border-bottom:1px solid #DCE3EF"></i><b>Kertas</b><span>#F7F9FC, latar layar</span></div>
+  </div>
+  <div class="principle">
+    <div class="panel">
+      <h3>Huruf</h3>
+      <div style="font-size:30px;font-weight:700;letter-spacing:-0.01em;line-height:1.15">Bricolage Grotesque</div>
+      <p class="muted" style="margin-top:4px">Untuk antarmuka, judul, angka, dan tabel.</p>
+      <div class="specimen-serif">Source Serif 4 dipakai untuk teks bacaan dan soal, seperti lembar ujian yang dicetak.</div>
+    </div>
+    <div class="panel">
+      <h3>Bulatan jawaban</h3>
+      <p class="muted">Dipakai di pilihan jawaban dan di daftar nomor soal (lembar jawaban), sehingga siswa langsung paham artinya.</p>
+      <div class="row-bubbles screen" style="background:#F7F9FC;padding:12px 14px;border-radius:12px;width:max-content;max-width:100%">
+        <span class="bubble">A</span><span class="bubble fill">B</span><span class="bubble">C</span><span class="bubble">D</span>
+        <span class="bubble mk sm">5</span><span class="bubble cur sm" style="margin-left:6px">12</span>
+      </div>
+      <p class="muted" style="margin-top:12px;font-size:14px">Kosong berarti belum dijawab, biru berarti dijawab, kuning berarti ditandai untuk dicek ulang, cincin hitam berarti soal yang sedang dibuka.</p>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="siswa">
+  <h2 id="siswa">Siswa, di HP</h2>
+  <p class="muted">Ukuran layar 360 px. Semua tombol setinggi minimal 44 px supaya mudah ditekan.</p>
+
+  <div class="devices">
+
+    <!-- S1: Join -->
+    <figure class="device">
+      <div class="phone screen">
+        <div class="sbar"><span>09:41</span><span>4G</span></div>
+        <div class="pad" style="padding-top:18px">
+          <div class="row" style="margin-bottom:26px"><span class="bubble fill">E</span><b style="font-size:15px">English Daily Test</b></div>
+          <div style="font-size:31px;font-weight:700;letter-spacing:-0.02em;line-height:1.08;margin-bottom:8px">Join your test</div>
+          <p style="color:var(--ink2);margin:0 0 20px;font-size:14.5px">Type your name and class, then the code your teacher wrote on the board.</p>
+          <div class="field"><label>Full name</label><div class="input">Aisyah Putri</div></div>
+          <div class="field"><label>Class</label><div class="input">XII TKJ A</div><div class="hint">Type it the same way every time.</div></div>
+          <div class="field"><label>Test code</label>
+            <div class="code"><span class="on">K</span><span class="on">7</span><span class="on">M</span><span class="on">2</span><span class="on">Q</span><span class="on">X</span></div>
+          </div>
+          <div class="btn" style="margin-top:22px">Start test</div>
+          <p style="font-size:12.5px;color:var(--ink2);margin:14px 0 0">Your teacher can see your name, class, and score. Trouble joining? Ask your teacher.</p>
+        </div>
+      </div>
+      <figcaption><b>1. Masuk.</b> Nama, kelas, dan kode ujian dalam satu layar (keputusan kode wajib). Kode ditulis guru di papan, jadi kolomnya besar dan terpisah per huruf. Kelas diketik bebas dengan petunjuk singkat.</figcaption>
+    </figure>
+
+    <!-- S2: Question -->
+    <figure class="device">
+      <div class="phone screen">
+        <div class="sbar"><span>09:53</span><span>4G</span></div>
+        <div class="qtop"><span class="q">Question 12 of 40</span><span class="timer"><svg class="i"><use href="#i-clock"/></svg>38:12</span></div>
+        <div class="bar"><i style="width:28%"></i></div>
+        <div class="saved"><svg class="i"><use href="#i-cloud"/></svg>All answers saved</div>
+        <div class="qbody">
+          <div class="audio">
+            <div class="play"><svg class="i"><use href="#i-play"/></svg></div>
+            <div class="track"><div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Listen to the story</div><div class="t"><i></i></div><div class="n"><span>0:42</span><span>2:15</span></div></div>
+          </div>
+          <div class="passage serif">Dina found a brown wallet under the bench in front of the library. Inside were some money and a student card. She looked around, but nobody was there.</div>
+          <p class="qtext serif">What did Dina do first after she found the wallet?</p>
+          <div class="opt"><span class="bubble">A</span><span>She kept the money.</span></div>
+          <div class="opt sel"><span class="bubble fill">B</span><span>She looked around for the owner.</span></div>
+          <div class="opt"><span class="bubble">C</span><span>She called the police.</span></div>
+          <div class="opt"><span class="bubble">D</span><span>She left it under the bench.</span></div>
+        </div>
+        <div class="qnav">
+          <div class="icobtn"><svg class="i"><use href="#i-grid"/></svg></div>
+          <div class="btn mark small" style="flex:1"><svg class="i"><use href="#i-flag"/></svg>Mark</div>
+          <div class="icobtn"><svg class="i"><use href="#i-left"/></svg></div>
+          <div class="btn small" style="flex:1">Next<svg class="i"><use href="#i-right"/></svg></div>
+        </div>
+      </div>
+      <figcaption><b>2. Mengerjakan soal.</b> Pilihan berbentuk bulatan lembar jawaban. Pemutar audio tanpa batas putar (keputusan D-04). Baris "All answers saved" memberi tahu apakah jawaban aman di server; saat koneksi putus berubah menjadi peringatan kuning dan jawaban disimpan di HP.</figcaption>
+    </figure>
+
+    <!-- S3: Palette sheet -->
+    <figure class="device">
+      <div class="phone screen">
+        <div class="sbar"><span>09:53</span><span>4G</span></div>
+        <div class="qtop"><span class="q">Question 12 of 40</span><span class="timer"><svg class="i"><use href="#i-clock"/></svg>38:12</span></div>
+        <div class="bar"><i style="width:28%"></i></div>
+        <div class="qbody"><div class="passage serif" style="opacity:.7">Dina found a brown wallet under the bench in front of the library…</div></div>
+        <div class="dim"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div style="font-size:20px;font-weight:700;letter-spacing:-0.01em">Answer sheet</div>
+          <div style="color:var(--ink2);font-size:13.5px">37 answered, 3 still empty.</div>
+          <div class="legend"><span><i class="bubble fill"></i>Answered</span><span><i class="bubble"></i>Empty</span><span><i class="bubble mk"></i>Marked</span></div>
+          <div class="sheetgrid" id="sheetgrid"></div>
+          <div class="btn ghost" style="margin-bottom:8px">Back to question</div>
+          <div class="btn">Submit test</div>
+          <div style="font-size:12.5px;color:var(--ink2);margin-top:10px;text-align:center">You will be asked to confirm before it is sent.</div>
+        </div>
+      </div>
+      <figcaption><b>3. Daftar nomor soal.</b> Berupa lembar jawaban yang muncul dari bawah, jadi tidak memakan layar HP. Nomor 5 dan 21 ditandai stabilo, nomor 7, 19, dan 33 masih kosong.</figcaption>
+    </figure>
+
+    <!-- S4: Result partial -->
+    <figure class="device">
+      <div class="phone screen">
+        <div class="sbar"><span>10:26</span><span>4G</span></div>
+        <div class="pad" style="padding-top:20px">
+          <div class="row" style="margin-bottom:22px"><span class="bubble fill"><svg class="i" style="width:16px;height:16px"><use href="#i-check"/></svg></span><b style="font-size:15px">Test submitted</b></div>
+          <div style="color:var(--ink2);font-size:14px">Aisyah Putri, XII TKJ A</div>
+          <div class="row" style="align-items:flex-end;gap:12px;margin:8px 0 6px"><span class="score">72</span><span class="pill warn" style="margin-bottom:14px">Not final</span></div>
+          <div style="color:var(--ink2);font-size:14px;margin-bottom:16px">Score so far. Passing grade is 75.</div>
+          <div class="note" style="margin-bottom:16px"><svg class="i" style="margin-top:2px"><use href="#i-info"/></svg><span>1 essay question is waiting for your teacher. Your final score can go up or down.</span></div>
+          <div class="card">
+            <div class="kv"><span>Auto-graded questions</span><b>29 of 36</b></div>
+            <div class="kv"><span>Essay</span><b>Waiting</b></div>
+            <div class="kv"><span>Time used</span><b>39m 40s</b></div>
+          </div>
+          <div class="btn" style="margin-top:22px">Done</div>
+          <p style="font-size:12.5px;color:var(--ink2);margin:12px 0 0;text-align:center">You can close this page now.</p>
+        </div>
+      </div>
+      <figcaption><b>4. Hasil.</b> Contoh ujian yang punya esai, dengan pilihan guru "tampilkan nilai sementara" (D-10). Pilihan lain yang bisa dipilih guru per ujian: nilai final langsung, atau hanya tulisan "waiting for your teacher" tanpa angka.</figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<section aria-labelledby="guru">
+  <h2 id="guru">Guru, di laptop</h2>
+  <p class="muted">Lebar contoh 1160 px. Di layar yang lebih sempit, kotak di bawah bisa digeser ke samping. Menu di kiri sama untuk semua layar guru.</p>
+
+  <div class="desk-wrap">
+    <div class="scroller">
+    <div class="desk screen">
+      <aside class="side">
+        <div class="brand"><span class="bubble">E</span>English Daily Test</div>
+        <nav class="nav">
+          <a class="on"><svg class="i"><use href="#i-dash"/></svg>Dashboard</a>
+          <a><svg class="i"><use href="#i-book"/></svg>Question bank</a>
+          <a><svg class="i"><use href="#i-doc"/></svg>Exams</a>
+          <a><svg class="i"><use href="#i-check"/></svg>Grading<span class="pill warn" style="margin-left:auto;padding:1px 8px">9</span></a>
+          <a><svg class="i"><use href="#i-chart"/></svg>Results</a>
+        </nav>
+        <div class="me"><span class="av">RS</span><div><b style="display:block;font-weight:650">Ms. Rina</b><span style="color:var(--ink2);font-size:12.5px">Teacher</span></div></div>
+      </aside>
+      <div class="main">
+        <div class="head">
+          <div><h4>Dashboard</h4><p>Tuesday, 22 September</p></div>
+          <div class="btn small" style="height:40px"><svg class="i"><use href="#i-plus"/></svg>New exam</div>
+        </div>
+
+        <div class="now">
+          <div class="l">
+            <span class="pill">Open now</span>
+            <div style="font-weight:650;font-size:16px;margin-top:10px">Narrative Text, Daily Test 3</div>
+            <div style="color:var(--ink2);font-size:13.5px">40 questions, 45 minutes, closes at 10:30</div>
+            <div class="bigcode">K7M2QX</div>
+            <div class="row">
+              <div class="btn small ghost" style="background:var(--card)"><svg class="i"><use href="#i-copy"/></svg>Copy code</div>
+              <div class="btn small ghost" style="background:var(--card)">Change code</div>
+              <div class="btn small danger">Close exam</div>
+            </div>
+          </div>
+          <div class="r">
+            <div class="row" style="justify-content:space-between;margin-bottom:6px"><b style="font-size:15px">28 of 35 working</b><span class="pill plain">XII TKJ A</span></div>
+            <div class="live"><span>Aisyah Putri<small style="display:block;color:var(--ink2);font-size:12.5px">27 of 40 answered</small></span><span class="pill ok">Saved</span></div>
+            <div class="live"><span>Bima Saputra<small style="display:block;color:var(--ink2);font-size:12.5px">31 of 40 answered</small></span><span class="pill warn">Left the page 2x</span></div>
+            <div class="live"><span>Citra Lestari<small style="display:block;color:var(--ink2);font-size:12.5px">18 of 40 answered</small></span><span class="pill bad">Offline</span></div>
+            <div class="live"><span>Dimas Pratama<small style="display:block;color:var(--ink2);font-size:12.5px">Submitted 09:58</small></span><span class="pill plain">Done</span></div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card list">
+            <h5>Needs your attention</h5>
+            <div class="item"><span>9 essays to grade<small>Narrative Text, Daily Test 2</small></span><div class="btn small" style="height:34px">Grade</div></div>
+            <div class="item"><span>2 sessions with many page exits<small>Daily Test 3, review before grading</small></span><div class="btn small ghost" style="height:34px">Review</div></div>
+            <div class="item"><span>"XII TKJ A" and "12 tkj a" look like the same class<small>Merge them so results stay together</small></span><div class="btn small ghost" style="height:34px">Merge</div></div>
+          </div>
+          <div class="card list">
+            <h5>Recent exams</h5>
+            <div class="item"><span>Daily Test 2<small>Average 78, 34 students</small></span><span><span class="meter"><i style="width:82%"></i></span> 82% passed</span></div>
+            <div class="item"><span>Daily Test 1<small>Average 71, 35 students</small></span><span><span class="meter"><i style="width:63%"></i></span> 63% passed</span></div>
+            <div class="item"><span>Vocabulary Quiz<small>Average 84, 33 students</small></span><span><span class="meter"><i style="width:91%"></i></span> 91% passed</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+    <p class="cap"><b>5. Dashboard guru.</b> Yang paling penting ada di paling atas: ujian yang sedang berjalan, dengan kode ujian sebesar mungkin supaya mudah ditulis di papan. Di bawahnya hanya hal yang perlu tindakan guru. Perhatikan baris ketiga di "Needs your attention": itu tempat guru menggabungkan variasi nama kelas (BR-15).</p>
+  </div>
+
+  <div class="desk-wrap">
+    <div class="scroller">
+    <div class="desk screen">
+      <aside class="side">
+        <div class="brand"><span class="bubble">E</span>English Daily Test</div>
+        <nav class="nav">
+          <a><svg class="i"><use href="#i-dash"/></svg>Dashboard</a>
+          <a class="on"><svg class="i"><use href="#i-book"/></svg>Question bank</a>
+          <a><svg class="i"><use href="#i-doc"/></svg>Exams</a>
+          <a><svg class="i"><use href="#i-check"/></svg>Grading<span class="pill warn" style="margin-left:auto;padding:1px 8px">9</span></a>
+          <a><svg class="i"><use href="#i-chart"/></svg>Results</a>
+        </nav>
+        <div class="me"><span class="av">RS</span><div><b style="display:block;font-weight:650">Ms. Rina</b><span style="color:var(--ink2);font-size:12.5px">Teacher</span></div></div>
+      </aside>
+      <div class="main">
+        <div class="head">
+          <div><h4>Question bank</h4><p>146 questions</p></div>
+          <div class="row"><div class="btn small ghost"><svg class="i"><use href="#i-upload"/></svg>Import</div><div class="btn small"><svg class="i"><use href="#i-plus"/></svg>Add question</div></div>
+        </div>
+        <div class="toolbar">
+          <div class="search"><svg class="i"><use href="#i-search"/></svg>Search questions</div>
+          <span class="chip on">XII TKJ A</span><span class="chip">Narrative Text</span><span class="chip">Any difficulty</span><span class="chip">All types</span>
+        </div>
+        <div class="banner"><span class="row"><svg class="i"><use href="#i-alert"/></svg>2 questions look like duplicates of each other.</span><b style="text-decoration:underline">Review</b></div>
+        <div class="cols">
+          <div class="card" style="overflow:hidden">
+            <table class="t">
+              <thead><tr><th style="width:26px"><span class="chk"></span></th><th>Question</th><th>Class</th><th>Difficulty</th><th>Media</th><th>Used</th></tr></thead>
+              <tbody>
+                <tr class="sel"><td><span class="chk on"></span></td><td class="qcell"><b>What did Dina do first after she found the wallet?</b><small>Multiple choice, Narrative Text</small></td><td><span class="tag">XII TKJ A</span><span class="tag">XII TKJ B</span></td><td>Medium</td><td><svg class="i"><use href="#i-audio"/></svg></td><td>3 exams</td></tr>
+                <tr><td><span class="chk"></span></td><td class="qcell"><b>The story was told in the ____ tense.</b><small>Short answer, Simple Past</small></td><td><span class="tag">XII TKJ A</span></td><td>Easy</td><td></td><td>2 exams</td></tr>
+                <tr><td><span class="chk"></span></td><td class="qcell"><b>Explain why the orientation part is important in a narrative text.</b><small>Essay, Narrative Text</small></td><td><span class="tag">XII TKJ A</span><span class="tag">XII TKJ C</span></td><td>HOTS</td><td></td><td>1 exam</td></tr>
+                <tr><td><span class="chk"></span></td><td class="qcell"><b>Look at the picture. Where is the boy standing?</b><small>Multiple choice, Prepositions</small></td><td><span class="tag">XII TKJ A</span><span class="tag">XII TKJ B</span></td><td>Easy</td><td><svg class="i"><use href="#i-image"/></svg></td><td>Not used</td></tr>
+                <tr><td><span class="chk"></span></td><td class="qcell"><b>True or false: The complication comes at the end of the story.</b><small>True or false, Narrative Text</small></td><td><span class="tag">XII TKJ A</span></td><td>Medium</td><td></td><td>2 exams</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <aside class="card prev">
+            <div class="cap2">What students will see</div>
+            <div class="audio" style="margin-bottom:10px;padding:8px 10px"><div class="play" style="width:32px;height:32px"><svg class="i"><use href="#i-play"/></svg></div><div class="track"><div class="t"><i></i></div><div class="n"><span>0:00</span><span>2:15</span></div></div></div>
+            <div class="serif" style="font-size:14px;font-weight:600;line-height:1.4;margin-bottom:10px">What did Dina do first after she found the wallet?</div>
+            <div class="opt"><span class="bubble">A</span>She kept the money.</div>
+            <div class="opt sel"><span class="bubble fill">B</span>She looked around for the owner.</div>
+            <div class="opt"><span class="bubble">C</span>She called the police.</div>
+            <div class="opt"><span class="bubble">D</span>She left it under the bench.</div>
+            <div class="row" style="margin-top:10px"><div class="btn small" style="flex:1;height:36px">Edit</div><div class="btn small ghost" style="flex:1;height:36px;white-space:nowrap;padding:0 8px">Add to exam</div></div>
+          </aside>
+        </div>
+      </div>
+    </div>
+    </div>
+    <p class="cap"><b>6. Bank soal.</b> Filter memakai label kelas yang diketik bebas (D-03), dengan saran otomatis. Kolom Media menampilkan ikon gambar atau audio, dan kolom Used menunjukkan soal sudah dipakai di berapa ujian sebelum guru mengubahnya. Panel kanan adalah preview seperti tampilan siswa. Peringatan soal ganda muncul di atas tabel dan tidak menghalangi pekerjaan.</p>
+  </div>
+</section>
+
+<section aria-labelledby="minta">
+  <h2 id="minta">Yang perlu kamu nilai</h2>
+  <ol class="checks">
+    <li>Apakah arah "lembar jawaban" (bulatan A-D, biru pulpen, stabilo kuning) terasa cocok untuk siswa dan gurumu, atau terlalu ramai/terlalu kaku?</li>
+    <li>Layar siswa: apakah ada informasi yang kurang atau berlebihan, terutama di layar mengerjakan soal?</li>
+    <li>Layar guru: apakah dashboard dan bank soal menampilkan hal yang paling sering kamu butuhkan?</li>
+    <li>Ada warna, huruf, atau bagian yang ingin diganti? Sebutkan saja, saya perbaiki di putaran berikutnya.</li>
+  </ol>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var g=document.getElementById('sheetgrid');
+  if(!g) return;
+  var empty={7:1,19:1,33:1}, marked={5:1,21:1}, cur=12, html='';
+  for(var n=1;n<=40;n++){
+    var cls='bubble sm';
+    if(n===cur) cls+=' fill cur';
+    else if(marked[n]) cls+=' mk';
+    else if(!empty[n]) cls+=' fill';
+    html+='<span class="'+cls+'">'+n+'</span>';
+  }
+  g.innerHTML=html;
+})();
+</script>
+</body>
+</html>
