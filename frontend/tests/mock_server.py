@@ -118,6 +118,12 @@ class Server:
             if "EXACT" in text: return ok({"matches": [{"id": "00000000-0000-4000-8000-00000000000a", "body": "What did Dina do first?", "similarity": 1.0, "exact": True, "is_archived": False, "used_in_exams": 1}]})
             if "wallet" in text.lower(): return ok({"matches": [{"id": "00000000-0000-4000-8000-000000000009", "body": "What did Dina do first when she found the wallet?", "similarity": 0.91, "exact": False, "is_archived": False, "used_in_exams": 2}]})
             return ok({"matches": []})
+        if a == "import_check":
+            self.import_checks = getattr(self, "import_checks", []) + [body]
+            return ok({"results": [{"i": item.get("i", i), "matches": []} for i, item in enumerate(body.get("items", []))]})
+        if a == "import":
+            self.imported = getattr(self, "imported", []) + [body]
+            return ok({"created": len(body.get("items", [])), "passages_created": 0, "ids": []})
         if a == "passages": return ok({"passages": self.passages_list()})
         if a == "passage_get":
             pa = next((x for x in self.passages if x["id"] == body["id"]), None)

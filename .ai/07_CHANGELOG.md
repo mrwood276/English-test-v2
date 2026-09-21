@@ -3,6 +3,12 @@
 Newest first. Entries below the "Established" entry were reconstructed from git history and the live migration list only; nothing else is claimed.
 Add a new entry for every meaningful change (what, files, database changes, verification).
 
+## 2026-09-21 — Import questions: review screen wiring (TASK-006 step 2, IN PROGRESS)
+- Agent: Codex/GPT-5.
+- Added `#/questions/import`, its Question bank entry point, browser calls for `import_check` and `import`, and mocked endpoint support.
+- Database changes: none. No Edge Function deployment.
+- Verification: syntax check and 45 Deno parser/backend tests passed. Dedicated Playwright coverage is still required before step 2 is complete.
+
 ## 2026-09-21 — Import questions: browser parser and validation layer (TASK-006 step 1)
 - Agent: Codex/GPT-5.
 - Added pure ES modules under `frontend/assets/js/teacher/import/`: CSV/TSV parsing, minimal ZIP/first-sheet XLSX extraction, pasted-text parsing (including reading-text blocks), spreadsheet header aliases/type inference, and per-row review-model validation.

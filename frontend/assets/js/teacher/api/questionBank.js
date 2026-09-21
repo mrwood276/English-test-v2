@@ -13,6 +13,8 @@ export const questionBank = {
   restore: (id) => call({ action: "restore", id }),
   save: (question) => call({ action: "save", ...question }).then((r) => r.id),
   checkDuplicates: ({ body, options, excludeId }) => call({ action: "check_duplicates", body, options, exclude_id: excludeId }).then((r) => r.matches),
+  importCheck: (items) => call({ action: "import_check", items }).then((r) => r.results),
+  import: (items) => call({ action: "import", items }),
   passages: (q) => call({ action: "passages", q }).then((r) => r.passages),
   passage: (id) => call({ action: "passage_get", id }).then((r) => r.passage),
   savePassage: ({ id, title, body, media }) => call({ action: "passage_save", id, title, body, media }).then((r) => r.id),

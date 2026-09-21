@@ -43,7 +43,7 @@ export function renderQuestionBank(container) {
   const pager = h("div", { class: "pager" });
   const preview = h("aside", { class: "card preview", "aria-label": "Question preview", hidden: true });
 
-  const addButton = h("a", { class: "btn", href: "#/questions/new" }, icon("plus"), "Add question");
+  const addButton = h("span", { class: "head-actions" }, h("a", { class: "btn ghost", href: "#/questions/import" }, "Import"), h("a", { class: "btn", href: "#/questions/new" }, icon("plus"), "Add question"));
 
   mount(
     container,

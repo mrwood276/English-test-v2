@@ -15,9 +15,10 @@ Codex/GPT-5 (local checkout with GitHub access; no Supabase connector available 
 - Then: creation of this `.ai/` system (no application behavior changed).
 
 ## What Was Changed (latest session)
-1. Codex added pure import modules: CSV/TSV, first-sheet XLSX, pasted text, row/header normalization, and review-model validation in `frontend/assets/js/teacher/import/`.
-2. Codex added Deno tests at `frontend/tests/import.test.js`; 45 combined parser/backend tests passed.
-3. No database changes and no deployment occurred.
+1. Codex began TASK-006 step 2: added `questionImport.js`, the `#/questions/import` route, an Import link in Question bank, API methods, and mock-server import actions. A dedicated Playwright test and owner review of the proposed formats remain before this step is complete.
+2. Codex previously added pure import modules: CSV/TSV, first-sheet XLSX, pasted text, row/header normalization, and review-model validation in `frontend/assets/js/teacher/import/`.
+3. Codex added Deno tests at `frontend/tests/import.test.js`; 45 combined parser/backend tests passed.
+4. No database changes and no deployment occurred.
 
 ## What Was Changed (previous session, after TASK-005)
 1. Database (live project): migration `v2_12_import_questions` added `find_similar_batch(jsonb, real)` and `import_questions(jsonb, uuid)`. `import_questions` saves up to 200 questions in one transaction through `save_question`, resolves reading texts by normalized title (creating them when text is supplied), prefixes errors with `Row N:`, and writes one audit entry.
