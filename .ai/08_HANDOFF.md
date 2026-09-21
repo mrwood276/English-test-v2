@@ -15,7 +15,7 @@ Codex/GPT-5 (local checkout with GitHub access; no Supabase connector available 
 - Then: creation of this `.ai/` system (no application behavior changed).
 
 ## What Was Changed (latest session)
-1. Codex began TASK-006 step 2: added `questionImport.js`, the `#/questions/import` route, an Import link in Question bank, API methods, and mock-server import actions. A dedicated Playwright test and owner review of the proposed formats remain before this step is complete.
+1. Codex completed TASK-006 step 2: added `questionImport.js`, the `#/questions/import` route, an Import link in Question bank, API methods, mock-server import actions, and `question_import_e2e.py` (mocked browser test passed). Owner review of the proposed formats remains before import formats are final.
 2. Codex previously added pure import modules: CSV/TSV, first-sheet XLSX, pasted text, row/header normalization, and review-model validation in `frontend/assets/js/teacher/import/`.
 3. Codex added Deno tests at `frontend/tests/import.test.js`; 45 combined parser/backend tests passed.
 4. No database changes and no deployment occurred.

@@ -7,7 +7,7 @@
 | Last updated | 2026-09-21 |
 | Last AI agent | Codex/GPT-5 |
 | Development phase | Phase 2 (core), following `docs/design.md` section 5 (Phases 0 and 1 are done) |
-| Current focus | TASK-006: import questions from Excel/CSV and pasted text (review screen wired; dedicated browser test and owner format review remain) |
+| Current focus | TASK-006: import questions from Excel/CSV and pasted text (review screen TESTED; owner format review remains) |
 | Repository baseline | Delivered as git history `ad9b6d6` (media) → `b9b5001` (import backend, function not deployed) → the commit that adds `.ai/`, `AGENTS.md`, `CLAUDE.md`. The agent could not read the private GitHub remote, so it worked from its own copy; **NEEDS VERIFICATION** that GitHub matches once the owner has pulled and pushed |
 
 ## What was inspected to write `.ai/`
