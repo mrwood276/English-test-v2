@@ -4,7 +4,7 @@ import { requireStaff, type StaffDb } from "../_shared/auth.ts";
 import { callRpc, type RpcDb } from "../_shared/rpc.ts";
 import { asArray, asEnum, asObject, asPlain, asString, asUuid, optional } from "../_shared/validate.ts";
 import { sanitizeInlineHtml } from "../_shared/text.ts";
-import { parseListFilters, parsePassageInput, parseQuestionInput } from "./parse.ts";
+import { parseImportCheckItems, parseImportItems, parseListFilters, parsePassageInput, parseQuestionInput } from "./parse.ts";
 
 export type Db = StaffDb & RpcDb;
 
@@ -12,6 +12,7 @@ const ACTIONS = [
   "list", "get", "save", "remove", "archive", "restore", "check_duplicates",
   "topics", "class_labels",
   "passages", "passage_get", "passage_save", "passage_remove",
+  "import_check", "import",
 ] as const;
 
 /** Similarity from which a question is shown as "looks similar" (0 to 1). */
@@ -26,7 +27,7 @@ export function createHandler(getDb: () => Db) {
     if (req.method !== "POST") throw methodNotAllowed();
     const db = getDb();
     const me = await requireStaff(req, db);
-    const b = asObject(await readJson(req, 300_000));
+    const b = asObject(await readJson(req, 1_000_000));
     const action = asEnum(b.action, "action", ACTIONS);
 
     switch (action) {
@@ -83,6 +84,17 @@ export function createHandler(getDb: () => Db) {
       case "passage_save": {
         const { id, payload } = parsePassageInput(b);
         return { id: await callRpc<string>(db, "save_passage", { p_id: id ?? null, p: payload, p_actor: me.userId }) };
+      }
+
+      case "import_check": {
+        const items = parseImportCheckItems(b.items);
+        const results = await callRpc(db, "find_similar_batch", { p_items: items, p_threshold: SIMILARITY_THRESHOLD });
+        return { results };
+      }
+
+      case "import": {
+        const items = parseImportItems(b.items);
+        return await callRpc(db, "import_questions", { p_items: items, p_actor: me.userId });
       }
 
       case "passage_remove":

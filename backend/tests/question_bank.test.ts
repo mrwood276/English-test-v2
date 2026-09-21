@@ -198,3 +198,66 @@ Deno.test("unknown actions and malformed bodies are refused", async () => {
   assert.equal((await h(new Request("http://x/", { method: "POST", headers: { authorization: "Bearer good" }, body: "{bad" }))).status, 400);
   assert.equal(calls.length, 0);
 });
+
+// ---------- import ----------
+import { parseImportItems, parseImportCheckItems } from "../functions/question-bank/parse.ts";
+
+const importRow = { row: 4, type: "multiple_choice", body: "Who <b>found</b> it?<script>x</script>", difficulty: "easy", options: [{ body: "Dina", is_correct: true }, { body: "Budi", is_correct: false }], class_labels: ["XII TKJ A"] };
+
+Deno.test("parseImportItems cleans each question and keeps its row number", () => {
+  const [item] = parseImportItems([importRow]);
+  assert.equal(item.row, 4);
+  assert.equal(item.body, "Who <b>found</b> it?");
+  assert.equal(item.type, "multiple_choice");
+  assert.deepEqual(item.class_labels, ["XII TKJ A"]);
+  assert.equal("media" in item, false, "files cannot be imported");
+  assert.equal("id" in item, false);
+});
+
+Deno.test("parseImportItems handles reading texts by title", () => {
+  const items = parseImportItems([
+    { ...importRow, passage: { title: "The Lost Wallet", body: "Dina <u>found</u> a wallet.<script>x</script>" } },
+    { ...importRow, row: 5, passage: { title: "The Lost Wallet" } },
+  ]);
+  assert.deepEqual(items[0].passage, { title: "The Lost Wallet", body: "Dina <u>found</u> a wallet." });
+  assert.deepEqual(items[1].passage, { title: "The Lost Wallet" }, "a title alone links to an existing text");
+  assert.equal(items[0].passage_id, null);
+  assert.throws(() => parseImportItems([{ ...importRow, passage: { title: "" } }]), /Row 4: .*title/);
+});
+
+Deno.test("parseImportItems names the row of a problem and limits the batch", () => {
+  assert.throws(() => parseImportItems([importRow, { ...importRow, row: 9, difficulty: "hard" }]), (e: ApiError) => e.status === 400 && /^Row 9: Difficulty/.test(e.message));
+  assert.throws(() => parseImportItems([{ ...importRow, body: "   " }]), (e: ApiError) => e.message === "Row 4: The question is required.");
+  assert.throws(() => parseImportItems([]), /needs at least 1/);
+  assert.throws(() => parseImportItems(new Array(201).fill(importRow)), /at most 200/);
+  assert.throws(() => parseImportItems(["text"]), /must be an object/);
+  assert.equal(parseImportItems([{ ...importRow, row: undefined }, { ...importRow, row: undefined }])[1].row, 2, "rows without a number use their position");
+});
+
+Deno.test("parseImportCheckItems keeps only what the duplicate check needs", () => {
+  const [a] = parseImportCheckItems([{ i: 7, body: "Q <script>x</script>text", options: ["<b>A</b>", " B "], extra: "ignored" }]);
+  assert.deepEqual(a, { i: 7, body: "Q text", options: ["<b>A</b>", "B"] });
+  assert.throws(() => parseImportCheckItems([{ body: "" }]), /required/);
+});
+
+Deno.test("the import endpoints check first and save all-or-nothing", async () => {
+  const { db, calls } = fakeDb((name) => (name === "find_similar_batch" ? { data: [{ i: 0, matches: [] }] } : { data: { created: 1, passages_created: 0, ids: [QID] } }));
+  const h = createHandler(() => db);
+  const chk = await h(post({ action: "import_check", items: [{ body: "Who found it?", options: ["Dina", "Budi"] }] }));
+  assert.equal(chk.status, 200);
+  assert.deepEqual(await chk.json(), { results: [{ i: 0, matches: [] }] });
+  assert.equal(calls.at(-1)!.name, "find_similar_batch");
+  const imp = await h(post({ action: "import", items: [importRow] }));
+  assert.equal(imp.status, 200);
+  assert.equal((await imp.json()).created, 1);
+  assert.equal(calls.at(-1)!.name, "import_questions");
+  assert.equal(calls.at(-1)!.args.p_actor, TEACHER);
+  assert.equal((calls.at(-1)!.args.p_items as { row: number }[])[0].row, 4);
+  const bad = await h(post({ action: "import", items: [{ ...importRow, difficulty: "nope" }] }));
+  assert.equal(bad.status, 400);
+  assert.match((await bad.json()).error, /^Row 4:/);
+  const dbErr = createHandler(() => fakeDb(() => ({ error: { message: "Row 7: Choose exactly one correct answer.", hint: "validation" } })).db);
+  const refused = await dbErr(post({ action: "import", items: [importRow] }));
+  assert.equal(refused.status, 400);
+  assert.equal((await refused.json()).error, "Row 7: Choose exactly one correct answer.");
+});

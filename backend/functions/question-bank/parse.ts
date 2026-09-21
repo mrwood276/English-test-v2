@@ -1,4 +1,5 @@
 import { asArray, asBool, asEnum, asInt, asNumber, asObject, asPlain, asString, asUuid, optional } from "../_shared/validate.ts";
+import { ApiError } from "../_shared/errors.ts";
 import { sanitizeInlineHtml } from "../_shared/text.ts";
 
 export const QUESTION_TYPES = ["multiple_choice", "true_false", "short_answer", "essay"] as const;
@@ -71,4 +72,45 @@ export function parsePassageInput(b: Record<string, unknown>): { id: string | un
   };
   if (b.media !== undefined && b.media !== null) payload.media = mediaList(b.media);
   return { id: optional(b.id, (v) => asUuid(v, "id")), payload };
+}
+
+/**
+ * Questions read from a file or pasted text, one entry per question, ready for public.import_questions.
+ * Each entry has the same fields as a question from the editor, plus `row` (its row or number in the source, for
+ * error messages) and optionally `passage: { title, body? }` (a reading text by title; the text is only needed when
+ * it does not exist yet). Files cannot be imported. Problems are reported with the row number.
+ */
+export function parseImportItems(list: unknown): Record<string, unknown>[] {
+  return asArray(list, "Questions", { max: 200, min: 1 }).map((raw, i) => {
+    const o = asObject(raw, `Question ${i + 1}`);
+    const row = optional(o.row, (v) => asInt(v, "row", { min: 1, max: 100000 })) ?? i + 1;
+    try {
+      const { payload } = parseQuestionInput({ ...o, id: undefined, media: undefined });
+      const item: Record<string, unknown> = { ...payload, row };
+      if (o.passage !== undefined && o.passage !== null) {
+        const p = asObject(o.passage, "Reading text");
+        item.passage = {
+          title: asPlain(p.title, "The reading text title", { min: 1, max: 200 }),
+          ...(isBlank(p.body) ? {} : { body: rich(p.body, "The reading text", 20000, 1) }),
+        };
+        item.passage_id = null;
+      }
+      return item;
+    } catch (e) {
+      if (e instanceof ApiError) throw new ApiError(e.status, e.code, `Row ${row}: ${e.message}`);
+      throw e;
+    }
+  });
+}
+
+/** What the duplicate check needs from each question: its number (i), text, and answers. */
+export function parseImportCheckItems(list: unknown): { i: number; body: string; options: string[] }[] {
+  return asArray(list, "Questions", { max: 200, min: 1 }).map((raw, i) => {
+    const o = asObject(raw, `Question ${i + 1}`);
+    return {
+      i: optional(o.i, (v) => asInt(v, "i", { min: 0, max: 100000 })) ?? i,
+      body: sanitizeInlineHtml(asString(o.body, "The question", { min: 1, max: 5000 })),
+      options: asArray(o.options ?? [], "Answers", { max: 10 }).map((v, k) => sanitizeInlineHtml(asString(v, `Answer ${k + 1}`, { max: 1000 })).trim()),
+    };
+  });
 }
