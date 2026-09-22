@@ -3,6 +3,14 @@
 Newest first. Entries below the "Established" entry were reconstructed from git history and the live migration list only; nothing else is claimed.
 Add a new entry for every meaningful change (what, files, database changes, verification).
 
+## 2026-09-22 — Live verification of v2 (read-only) + owner verification checklist — git `ai-development`
+- Agent: Buffy (Freebuff desktop agent, third session). Branch: `ai-development`. The owner provided the **v2** publishable key (`lbhnadqmokloyfarrzfv`, matches `config.js`); publishable keys are public by design and cannot deploy or run SQL, so it was used strictly for read-only probes.
+- **Live facts established** (no login, tokenless where possible): anon REST read of `questions` → 401 `permission denied` (Postgres 42501) — zero-policy lockdown holds; tokenless `question-bank` call → 401 `"Please sign in."`, byte-identical to `_shared/errors.ts` — the in-code auth wall works in production; anon `storage/v1/bucket` list → "Bucket not found" — the private bucket leaks nothing; CORS preflight from `http://localhost:8000` → `Access-Control-Allow-Origin: *` (`ALLOWED_ORIGIN` secret unset, expected pre-hosting); `auth/v1/settings` → **email sign-ups still ENABLED** — ISSUE-007 moves NEEDS_VERIFICATION → OPEN with a concrete owner action.
+- **New `docs/verification-checklist.md`**: five owner steps with verification commands — (1) disable public sign-up (urgent), (2) deploy `question-bank` v3 + how to verify in-app, (3) real media upload check, (4) `supabase db pull` / migrations into git, (5) optional hardening (leaked-password protection, `ALLOWED_ORIGIN` later).
+- `.ai/` updated: ISSUE-002/003 annotated with live evidence, ISSUE-007 rewritten, TASK-006 queue note points at the checklist, handoff and state refreshed.
+- Database changes: none. Deployment: none. No code changed this session.
+- Verification: probes are read-only by nature (GET/POST to public endpoints with the publishable key; nothing written anywhere); repository state unchanged except docs.
+
 ## 2026-09-22 — CI for frontend tests (TASK-018) + test-environment fixes (ISSUE-014, editor flake) — git `ai-development`
 - Agent: Buffy (Freebuff desktop agent, second session; direct git access, no Supabase access). Branch: `ai-development`.
 - **TASK-018 / ISSUE-006**: new `.github/workflows/frontend-tests.yml` — job `unit` (Deno, the import parser tests incl. the xlsx fixture) and job `browser` (Python 3.12, Playwright + Chromium, Pillow; generates media fixtures, starts `dev-server.py 8123`, runs all five browser suites). ISSUE-006 closed, TASK-018 done pending the owner's first CI run on GitHub.

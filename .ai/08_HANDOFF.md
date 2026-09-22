@@ -16,20 +16,28 @@ Before doing anything: `git checkout ai-development` (or confirm you're on it), 
 `origin/main` contains Codex/GPT-5's own parallel implementation of the import parsers + screen (commits `d21f82d`, `1606aed`, `9c293fc`, 2026-09-21), which conflicts file-by-file with the `ai-development` implementation. The owner decided (DEC-021, 2026-09-22): **continue with `ai-development`'s version; Codex's `main` commits stay untouched and get superseded at the next deliberate merge.** Do not port Codex's variant back, and do not "reconcile" the two on your own initiative.
 
 ## Last Agent
-Buffy (Freebuff desktop agent, second session — first was the import screen; direct git access to `origin`, **no Supabase access**).
+Buffy (Freebuff desktop agent, third session — second was CI/test fixes; direct git access to `origin`; **read-only Supabase access via the v2 publishable key, no dashboard/CLI**).
 
 ## Date
-2026-09-22 (second session)
+2026-09-22 (third session)
 
 ## Last Completed Task
-- **TASK-018 done / ISSUE-006 closed**: `.github/workflows/frontend-tests.yml` (unit job + browser job running all five suites).
-- **ISSUE-014 fixed** (portable fixtures dir, disk-size assertion) and a rare **editor-suite flake** (ISSUE-016).
-- Earlier the same day: **TASK-006 steps 1–2 complete** (import screen, zip/xlsx tests, mock handlers, browser suite, templates) — commit `4493577`.
+- **Read-only live verification of the v2 project** (third session, publishable key only): anon lockdown confirmed (REST 401 `permission denied`), `question-bank` auth wall confirmed (401 "Please sign in."), private bucket leaks nothing, CORS `*` as expected, and **public email sign-up is still ON** (ISSUE-007 now OPEN, not NEEDS_VERIFICATION).
+- **`docs/verification-checklist.md` written** — step-by-step owner instructions for the Supabase-side work (sign-up off, deploy v3, media upload check, migrations export).
+- Second session: **TASK-018 done / ISSUE-006 closed** (`.github/workflows/frontend-tests.yml`), **ISSUE-014 fixed**, editor flake fixed (ISSUE-016).
+- First session the same day: **TASK-006 steps 1–2 complete** (import screen, zip/xlsx tests, mock handlers, browser suite, templates) — commit `4493577`.
 
 ## Owner Credentials Warning
-The owner sent a Supabase URL + publishable key (`dtrgbjqfnkjiengpvbym`) during the second session — that is the **v1 project (`Exam_Data_Base`)**, NOT v2 (`lbhnadqmokloyfarrzfv`, the one in `frontend/assets/js/core/config.js`). Do not touch v1 (DEC-001/DEC-015), and do not treat these credentials as v2 access: TASK-006 step 3 (deploy `question-bank` v3) still needs real v2 Supabase access.
+- Second session: the owner sent URL + publishable key for `dtrgbjqfnkjiengpvbym` — the **v1 project (`Exam_Data_Base`)**, NOT v2. Do not touch v1 (DEC-001/DEC-015).
+- Third session: the owner then sent the **v2** publishable key (`sb_publishable_WewR6gpQy3SdaoBaJxxDyg_l5gt-R7E` for `lbhnadqmokloyfarrzfv`, matching `config.js`). A publishable key is designed to be public: it can **read** public auth settings and **is refused** by anything protected — it **cannot** deploy functions or run SQL. It was used only for read-only probes (results above and in `docs/verification-checklist.md`).
+- TASK-006 step 3 (deploy `question-bank` v3), TASK-007 (live media upload) and TASK-008 (migrations into git) still need dashboard/CLI access on v2 — the owner's checklist covers each one.
 
-## What Was Changed (this session)
+## What Was Changed (third session, 2026-09-22)
+1. **Read-only live probes** of the v2 project using the publishable key (no login): `auth/v1/settings` (email sign-ups still enabled), tokenless REST read of `questions` (401 `permission denied`, Postgres 42501 — zero-policy lockdown holds), tokenless `question-bank` call (401 `"Please sign in."` — matches `_shared/errors.ts`), `storage/v1/bucket` anon list ("Bucket not found" — nothing leaks), CORS preflight from `http://localhost:8000` (`Access-Control-Allow-Origin: *`, `ALLOWED_ORIGIN` secret not set — expected pre-hosting).
+2. **`docs/verification-checklist.md`** — owner-facing steps 1–5 (disable sign-up, deploy v3 with verify commands, media upload check, migrations export, optional hardening).
+3. `.ai/` updated: ISSUE-002/003 annotated with live facts, ISSUE-007 rewritten (OPEN, still enabled), TASK-006 queue note, changelog, this file.
+
+## What Was Changed (second session)
 1. **Import screen** — new `frontend/assets/js/teacher/screens/questionImport.js`, route `#/questions/import` in `router.js`, "Import" button next to "Add question" in `screens/questionBank.js`. Flow: choose a `.xlsx`/`.csv` file or paste text → optional defaults (class labels, topic, difficulty, points) → review table (Ready / Fix / Duplicate in bank / Duplicate in file / Similar, per-row problems) → all-or-nothing `import` of the checked rows → back to `#/questions` with a toast. In-file duplicates are detected with `dupKey`; `import_check` runs once per review; a refused batch (HTTP 400 `Row N: ...`) keeps the review open and saves nothing; an unsaved review triggers the leave guard.
 2. **API** — `api/questionBank.js` gained `importCheck(items)` (returns the results list) and `import(items)`.
 3. **ISSUE-013 closed** — 5 new Deno unit tests for `zip.js`/`xlsx.js` in `frontend/tests/unit/import.test.ts`, run against `frontend/tests/unit/fixtures/import-sample.xlsx`, a real OOXML package built by the committed `frontend/tests/unit/make_xlsx_fixture.py`. Unit tests now need `deno test --allow-env --allow-read --no-check frontend/tests/unit/` (the `--allow-read` is for the fixture; `npm:linkedom` provides the DOM in Deno — dev-only, DEC-007 untouched).
@@ -58,7 +66,7 @@ None this session. (Live database still at migration `v2_12_import_questions`; m
 - First session: backend 41, unit 21, all five suites green (see the changelog entry for details).
 
 ## Remaining Work
-1. **TASK-006 step 3**: deploy `question-bank` (repository code) so `import_check`/`import` go live — needs Supabase access (owner or an agent with the connector/CLI). If you lack it, keep the step BLOCKED, do not work around it.
+1. **TASK-006 step 3**: deploy `question-bank` (repository code) so `import_check`/`import` go live — needs Supabase access (owner or an agent with the connector/CLI). If you lack it, keep the step BLOCKED, do not work around it. The owner's steps are in `docs/verification-checklist.md`; **ISSUE-007 (disable public sign-up) is the one urgent dashboard flip**.
 2. **TASK-006 step 4**: the owner has not reviewed the proposed formats yet; the screen's help text, example button, and template files make them easy to review — collect feedback and adjust.
 3. Then: TASK-007 (media live verification), TASK-008 (migrations into git), TASK-009 (exams) — see `05_TASK_QUEUE.md`.
 
@@ -66,7 +74,7 @@ None this session. (Live database still at migration `v2_12_import_questions`; m
 See `09_KNOWN_ISSUES.md`. Most important now: ISSUE-001 (no migrations in git), ISSUE-002 (media upload never run live), ISSUE-003 (deployed `question-bank` behind the repository — this is exactly TASK-006 step 3), ISSUE-013 (closed with a caveat), ISSUE-014 (new, minor test-environment quirks in `media_e2e`).
 
 ## Recommended Next Task
-**TASK-006 step 3 — deploy `question-bank` v3** if you have Supabase access (then verify the screen live with the admin account: import a small file, confirm the toast, check the bank). If you do not, verify nothing else broke, and work TASK-018 (CI for browser tests — repository only) or help TASK-008 prep while marking step 3 BLOCKED.
+**TASK-006 step 3 — deploy `question-bank` v3** if you have Supabase access (then verify the screen live with the admin account: import a small file, confirm the toast, check the bank). If you do not, verify nothing else broke and pick from `05_TASK_QUEUE.md` — repository-only items left: ISSUE-010 (duplicate banner), ISSUE-011 (reading-text UI), TASK-009 prep. Do not redo the CI work (TASK-018) or the import screen.
 
 ## Suggested Work For Next AI
 1. `git checkout ai-development && git pull`. Read `.ai/00_AI_RULES.md`, this file, `05_TASK_QUEUE.md` TASK-006, then the relevant source.

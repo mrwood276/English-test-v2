@@ -4,8 +4,8 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-22 (second session) |
-| Last AI agent | Buffy (Freebuff desktop agent, direct git access; no Supabase access) |
+| Last updated | 2026-09-22 (third session) |
+| Last AI agent | Buffy (Freebuff desktop agent; read-only Supabase access via the v2 publishable key — no dashboard/CLI) |
 | Development phase | Phase 2 (core), following `docs/design.md` section 5 (Phases 0 and 1 are done) |
 | Current focus | TASK-006: import questions from Excel/CSV and pasted text — **browser work finished (steps 1–2)**; only the `question-bank` v3 deploy (step 3) is left |
 | Branch model | `main` = stable branch. `ai-development` = shared branch where Claude and Codex/GPT do normal work, one agent at a time. See `00_AI_RULES.md` section 12 and DEC-020. `ai-development` is **not yet stable enough to merge into `main`** — TASK-006 step 3 (deploy) is still open and the import screen is invisible until it happens. |
@@ -30,6 +30,14 @@
 | Storage | bucket `question-media`, private, 10 MB limit |
 | Data | 40 questions (0 archived), 5 passages, 13 topics, 0 media files, 0 exams, 0 sessions, 1 profile (admin), 4 audit rows |
 | Auth users | 1 admin (email known to the owner; not repeated here). No teacher account |
+
+## Live system facts (re-verified 2026-09-22, third session, read-only probes with the publishable key)
+
+- Anon REST read of `questions` → HTTP 401, `permission denied` (Postgres 42501) — the zero-policy lockdown holds on the live data.
+- Tokenless call to the deployed `question-bank` → HTTP 401, body exactly `"Please sign in."` — the in-code auth wall (`verify_jwt=false` + `requireStaff`) works in production; live version is still v2 without `import_check`/`import` (ISSUE-003).
+- Anon `storage/v1/bucket` list → `"Bucket not found"` — the private `question-media` bucket leaks nothing, not even its name.
+- CORS preflight from `http://localhost:8000` → `Access-Control-Allow-Origin: *` — the `ALLOWED_ORIGIN` secret is not set (expected until hosting exists; TASK-017).
+- `auth/v1/settings` → **email sign-ups are still ENABLED** — the owner's requested dashboard flip has not happened (ISSUE-007, now OPEN with a concrete step in `docs/verification-checklist.md`).
 
 ## Drift between repository and live system (important)
 
