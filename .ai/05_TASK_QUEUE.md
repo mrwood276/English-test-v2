@@ -75,8 +75,10 @@ Depends on TASK-006 completion. Needs a decision on how to generate PDF/Word wit
 ## TASK-017 — Hosting and Auth URLs
 - Priority: MEDIUM. Status: PLANNED (needs an owner decision). Choose static hosting for v2; then set the `ALLOWED_ORIGIN` function secret, Supabase Auth Site URL/redirect URLs (password reset), self-host or preload fonts (audit M-7).
 
-## TASK-018 — Run frontend browser tests in CI
-- Priority: LOW. Status: PLANNED. Issue: ISSUE-006. Add a GitHub Actions job that installs Playwright, runs `make_fixtures.py`, starts `dev-server.py 8123`, and runs the four suites.
+## TASK-018 — Run frontend tests in CI
+- Priority: LOW. Status: **DONE (2026-09-22, awaiting the owner's first CI run)**. Issue: ISSUE-006 (now closed).
+- What was done: new `.github/workflows/frontend-tests.yml` with two jobs — `unit` (Deno: the import parser tests, `--allow-read` for the xlsx fixture) and `browser` (Python 3.12 + Playwright/Chromium + Pillow, generates the media fixtures with the new portable `fixtures_dir.py`, starts `dev-server.py 8123`, then runs all five suites: teacher, bank, editor, media, import). The whole sequence was simulated locally in order and passes.
+- Note for the first real run: `playwright install --with-deps chromium` needs the runner's apt packages (handled by the flag); if the browser job is slow, cache `~/.cache/ms-playwright` later — not needed to start.
 
 ## TASK-019 — v1 cutover
 - Priority: LOW (after Phases 3–4). Status: PLANNED. Export v1 results (CSV/Excel) and archive (D-13), switch students to v2, retire v1. Nothing to do in v1 until then (D-15).

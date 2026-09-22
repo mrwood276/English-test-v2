@@ -41,8 +41,8 @@ Only teachers and admins may see student scores.
 | Database | Supabase Postgres (v2 server version not checked; the v1 project runs 17) with extensions `pgcrypto` and `pg_trgm`; business rules as PL/pgSQL functions |
 | Auth | Supabase Auth (email + password) for staff; students have no accounts |
 | File storage | Supabase Storage, private bucket `question-media` |
-| Tests | Deno tests (backend), Playwright + Python (frontend, mocked network), SQL DO-block tests run against the live database |
-| CI | GitHub Actions: backend Deno tests only (`.github/workflows/backend-tests.yml`) |
+| Tests | Deno tests (backend + frontend unit), Playwright + Python (frontend, mocked network), SQL DO-block tests run against the live database |
+| CI | GitHub Actions: backend Deno tests (`.github/workflows/backend-tests.yml`) and frontend unit + browser tests (`.github/workflows/frontend-tests.yml`, since 2026-09-22) |
 
 ## Important constraints
 

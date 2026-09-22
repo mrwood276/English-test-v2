@@ -37,7 +37,7 @@ Key property: **the browser never reads or writes a table directly.** Everything
 | `frontend/assets/js/shared/` | `dom.js` (element builder, no innerHTML), `rich.js` (safe display of teacher-written rich text), `icons.js`, `ui.js` (toast, confirm dialog, segmented control, debounce), `imageCompress.js` (shrink photos in the browser) |
 | `frontend/assets/js/teacher/` | `app.js` (boot, sign-in/out, session events), `router.js` (hash routes), `guard.js` (unsaved-changes guard), `api/` (`questionBank.js`, `media.js`), `components/`, `screens/` |
 | `frontend/assets/css/` | `tokens.css` (design tokens), `base.css`, `teacher.css` (sign in, shell), `questions.css` (bank, editor, dialogs, files) |
-| `frontend/tests/` | Playwright tests with a mocked server: `teacher_e2e.py`, `question_bank_e2e.py`, `question_editor_e2e.py`, `media_e2e.py`, plus `mock_server.py`, `make_fixtures.py` |
+| `frontend/tests/` | Playwright tests with a mocked server: `teacher_e2e.py`, `question_bank_e2e.py`, `question_editor_e2e.py`, `media_e2e.py`, `question_import_e2e.py`, plus `mock_server.py`, `make_fixtures.py`, `fixtures_dir.py`, and the Deno unit tests in `tests/unit/` (import parsers, incl. zip/xlsx) |
 | `frontend/dev-server.py` | Local static server that disables caching (needed because ES modules are cached aggressively) |
 | `backend/functions/_shared/` | Shared library: `errors.ts`, `http.ts`, `validate.ts`, `auth.ts`, `rpc.ts`, `db.ts`, `text.ts`, `audit.ts`, `codes.ts`, `ratelimit.ts` |
 | `backend/functions/<name>/` | One Edge Function each: `auth-me`, `question-bank` (`handler.ts` routing, `parse.ts` input parsing), `media` |

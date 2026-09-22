@@ -1,0 +1,45 @@
+name: Frontend tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      # The import parser unit tests need a DOM (Deno has none): linkedom is fetched
+      # as a dev-only npm dependency by the test file itself, so no install step is needed.
+      - run: deno test --allow-env --allow-read --no-check frontend/tests/unit/
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: |
+          pip install playwright pillow
+          playwright install --with-deps chromium
+      - name: Create the media sample files
+        run: python frontend/tests/make_fixtures.py
+      - name: Start the local server
+        run: |
+          python frontend/dev-server.py 8123 &
+          sleep 2
+      - name: Sign-in and app shell
+        run: python frontend/tests/teacher_e2e.py
+      - name: Question bank
+        run: python frontend/tests/question_bank_e2e.py
+      - name: Question editor
+        run: python frontend/tests/question_editor_e2e.py
+      - name: Media (images and audio, mocked Storage)
+        run: python frontend/tests/media_e2e.py
+      - name: Question import
+        run: python frontend/tests/question_import_e2e.py

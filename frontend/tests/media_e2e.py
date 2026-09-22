@@ -1,13 +1,17 @@
 """Browser test of attaching images and audio in the editor, with a mocked server and mocked Storage.
 
-Needs sample files in /tmp/media_fixtures (see make_fixtures.py in this folder), and dev-server.py 8123 running.
+Needs the sample files from make_fixtures.py (in the system temp folder, see fixtures_dir.py),
+and dev-server.py 8123 running.
 """
-import json, sys, time
+import json, os, sys, time
 from playwright.sync_api import sync_playwright
 from mock_server import Server
+from fixtures_dir import fixtures_dir
 
 BASE = "http://127.0.0.1:8123/teacher/index.html"
-FIX = "/tmp/media_fixtures/"
+FIX = fixtures_dir()
+if not os.path.exists(os.path.join(FIX, "small.png")):
+    raise SystemExit(f"Sample files are missing in {FIX}. Run once:  python frontend/tests/make_fixtures.py")
 failures = []
 
 def check(name, cond, detail=""):
@@ -42,7 +46,7 @@ def items(page): return page.query_selector_all(".media-item[data-media-id]")
 def creates(srv): return [c for c in srv.media_calls if c.get("action") == "create_upload"]
 
 def up(page, *names):
-    page.set_input_files("#q-media", [FIX + n for n in names])
+    page.set_input_files("#q-media", [os.path.join(FIX, n) for n in names])
 
 with sync_playwright() as pw:
     browser = pw.chromium.launch()
@@ -77,7 +81,8 @@ with sync_playwright() as pw:
     # ---- a small picture is kept as it is
     up(page, "small.png"); page.wait_for_function("document.querySelectorAll('.media-item[data-media-id]').length === 2")
     c = creates(srv)[-1]
-    check("a small picture is uploaded untouched", c["mime_type"] == "image/png" and c["size_bytes"] == 467)
+    small_disk = os.path.getsize(os.path.join(FIX, "small.png"))
+    check("a small picture is uploaded untouched", c["mime_type"] == "image/png" and c["size_bytes"] == small_disk, f"announced {c['size_bytes']} vs {small_disk} bytes on disk")
 
     # ---- audio
     up(page, "story.mp3"); page.wait_for_function("document.querySelectorAll('.media-item[data-media-id]').length === 3")
@@ -135,7 +140,7 @@ with sync_playwright() as pw:
     page.wait_for_selector(".toast:has-text('Question saved.')")
     check("after the upload finishes the question saves with both files", len(srv.saved[-1]["media"]) == 2)
     page.click("a:has-text('Add question')"); page.wait_for_selector("#q-media")
-    page.set_input_files("#q-media", [FIX + "small.png"]); page.wait_for_function("document.querySelectorAll('.media-item[data-media-id]').length === 1")
+    page.set_input_files("#q-media", [os.path.join(FIX, "small.png")]); page.wait_for_function("document.querySelectorAll('.media-item[data-media-id]').length === 1")
 
     # ---- unsaved files count as unsaved changes
     page.click("a.back"); page.wait_for_selector("dialog[open]")
@@ -159,7 +164,7 @@ with sync_playwright() as pw:
     # ---- reading text files
     page.select_option("#q-passage", "__new"); page.wait_for_selector("dialog[open] #passage-title")
     page.fill("#passage-title", "The Bell"); page.fill("#passage-body", "The bell rang.")
-    page.set_input_files("#passage-media", [FIX + "story.mp3"]); page.wait_for_function("document.querySelectorAll('dialog .media-item[data-media-id]').length === 1")
+    page.set_input_files("#passage-media", [os.path.join(FIX, "story.mp3")]); page.wait_for_function("document.querySelectorAll('dialog .media-item[data-media-id]').length === 1")
     page.click("dialog button:has-text('Save reading text')"); page.wait_for_function("document.querySelector('dialog') === null")
     ps = srv.saved_passages[-1]
     check("a reading text keeps its files", ps["title"] == "The Bell" and len(ps["media"]) == 1)

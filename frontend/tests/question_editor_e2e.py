@@ -237,6 +237,8 @@ with sync_playwright() as pw:
     # ---- session ended while saving
     page.fill("#q-body", "Session test"); page.fill("[aria-label='Answer A']", "A1"); page.fill("[aria-label='Answer B']", "B1"); page.click("[aria-label='Mark answer A as the correct one']")
     srv.status_all = 401; page.click("button:has-text('Save question')"); page.wait_for_selector(".login")
+    # the sign-in screen appears before its notice text is filled in, so wait for the words
+    page.wait_for_function("document.querySelector('.notice.info') && document.querySelector('.notice.info').textContent.includes('session has expired')")
     check("an ended session while saving goes back to sign in", "session has expired" in page.inner_text(".notice.info"))
 
     check("no JavaScript errors in the console", not errors, "; ".join(errors[:3]))

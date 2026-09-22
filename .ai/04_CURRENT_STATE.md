@@ -4,7 +4,7 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-22 |
+| Last updated | 2026-09-22 (second session) |
 | Last AI agent | Buffy (Freebuff desktop agent, direct git access; no Supabase access) |
 | Development phase | Phase 2 (core), following `docs/design.md` section 5 (Phases 0 and 1 are done) |
 | Current focus | TASK-006: import questions from Excel/CSV and pasted text — **browser work finished (steps 1–2)**; only the `question-bank` v3 deploy (step 3) is left |
@@ -77,15 +77,15 @@ None from this session. One pre-existing environment quirk was found and left al
 1. Migrations only in the live project (ISSUE-001).
 2. Media upload untested against real Storage (ISSUE-002).
 3. GitHub sync is manual; two copies of the code can diverge (ISSUE-004).
-4. Only backend tests run in CI; frontend browser tests do not (ISSUE-006).
-5. v1 keeps serving real students with its known weaknesses (`docs/audit-v1.md`); owner decided not to patch it (DEC-015).
+4. v1 keeps serving real students with its known weaknesses (`docs/audit-v1.md`); owner decided not to patch it (DEC-015). (ISSUE-006 — frontend not in CI — was closed on 2026-09-22 by TASK-018; the new workflow's first real run still needs to be watched.)
 
 ## Current priorities
 
-1. TASK-006 step 3: deploy `question-bank` v3 (owner or an agent with Supabase access) — then the import screen actually works.
+1. TASK-006 step 3: deploy `question-bank` v3 (owner or an agent with **v2** Supabase access) — then the import screen actually works. Note: the URL/key the owner sent on 2026-09-22 point at the v1 project (`dtrgbjqfnkjiengpvbym`), which must not be touched (DEC-015); v2 access (`lbhnadqmokloyfarrzfv`) is what this needs.
 2. Owner reviews the proposed import file formats (see TASK-006 in `05_TASK_QUEUE.md`); the screen ships an example and templates that match them.
-3. TASK-007 and TASK-008 (verification and reproducibility) as soon as the owner can run them.
-4. TASK-009 (exams), which unblocks the student-facing phases.
+3. Check the first CI run of `.github/workflows/frontend-tests.yml` (TASK-018) after this push.
+4. TASK-007 and TASK-008 (verification and reproducibility) as soon as the owner can run them.
+5. TASK-009 (exams), which unblocks the student-facing phases.
 
 ## How SQL business rules were tested (technique)
 

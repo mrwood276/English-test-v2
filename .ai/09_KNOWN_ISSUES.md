@@ -53,11 +53,15 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 - What was done: `frontend/tests/unit/import.test.ts` gained 5 tests for `zip.js` and `xlsx.js` against `frontend/tests/unit/fixtures/import-sample.xlsx` — a real OOXML package (OPC zip, deflate, rich-text shared strings, inline strings, boolean and decimal cells, skipped columns) built by the committed `frontend/tests/unit/make_xlsx_fixture.py` (Python `zipfile`, no dependencies). The browser suite `question_import_e2e.py` uploads the same file through the real file picker. Writing the tests caught and fixed a real fixture bug (malformed XML that the lenient test DOM accepted and the browser refused).
 - Remaining caveat (NEEDS_VERIFICATION, LOW): the fixture still was not produced by Excel or Google Sheets themselves. Before telling teachers that spreadsheet import works, open one real Excel-saved file (and ideally a Google Sheets export) through the import screen once — TASK-007-style, needs a human with the app running.
 
-## ISSUE-014 — Pre-existing test-environment quirks in `media_e2e.py` (not caused by the import work)
-- Severity: LOW. Status: OPEN. Related: TASK-007 / TASK-018.
-- Description: two things only affect fresh clones, not the media feature. (1) `make_fixtures.py` writes to `/tmp/media_fixtures`, which is a path convention that needs a POSIX-ish setup on Windows; the first run can fail with `FileNotFoundError` until the directory exists in the location Python resolves `/tmp` to. (2) The installed Pillow (11.x) writes the `small.png` fixture as 468 bytes, but `media_e2e.py` asserts exactly 467 (`size_bytes == 467`), so that one check fails after regenerating fixtures locally.
-- Affected: `frontend/tests/make_fixtures.py`, `frontend/tests/media_e2e.py`. The media code itself (`mediaPicker.js`, `api/media.js`, `media` function) is untouched and its other 27 checks pass.
-- Suggested fix (TASK-018 territory): assert a byte range instead of an exact size, and make `make_fixtures.py` resolve a temp directory with `tempfile.gettempdir()`.
+## ISSUE-014 — Pre-existing test-environment quirks in `media_e2e.py`
+- Severity: LOW. Status: **FIXED (2026-09-22)**. Related: TASK-018.
+- What was wrong: (1) `make_fixtures.py` wrote to a literal `/tmp/media_fixtures`, which Windows Python resolves unpredictably (drive-relative `D:\tmp`), so fresh clones could hit `FileNotFoundError`; (2) `media_e2e.py` asserted the generated `small.png` as exactly 467 bytes while the installed Pillow writes 468.
+- What was done: a shared `frontend/tests/fixtures_dir.py` (uses `tempfile.gettempdir()`, override with `MEDIA_FIXTURES_DIR`) is now used by `make_fixtures.py` and `media_e2e.py`; the size check compares against the file's real size on disk instead of a hard-coded number; `media_e2e.py` exits with a friendly message when the fixtures have not been generated. All 29 media checks pass on Windows after regenerating fixtures. The root cause (Pillow's byte-exact output varying by version) remains version-dependent by nature, but the test no longer depends on it.
+
+## ISSUE-016 — Rare flake in `question_editor_e2e.py`: session-expired notice read before its text is set
+- Severity: LOW. Status: **FIXED (2026-09-22)**.
+- Description: the last check of the editor suite clicked Save with a 401-forcing mock, waited only for the `.login` selector, then read the notice text — which can be filled a tick later, so an occasional run failed "an ended session while saving goes back to sign in" (observed once during CI-sequence simulation on 2026-09-22).
+- Fix: the test now `wait_for_function`s for the notice text itself before asserting. Three consecutive full-suite runs pass.
 
 ## ISSUE-015 — Two parallel implementations of the TASK-006 import screen exist (`main` by Codex, `ai-development` by Buffy)
 - Severity: MEDIUM (process), resolved by DEC-021. Status: **RESOLVED-BY-DECISION (2026-09-22)**; the file divergence persists until the next deliberate merge.

@@ -1,9 +1,20 @@
-"""Creates the sample files used by media_e2e.py in /tmp/media_fixtures."""
-import os, random
-from PIL import Image
+"""Creates the sample files used by media_e2e.py (see fixtures_dir.py for where).
 
-os.makedirs("/tmp/media_fixtures", exist_ok=True)
-os.chdir("/tmp/media_fixtures")
+Run once:  python frontend/tests/make_fixtures.py
+"""
+import os
+import random
+
+try:
+    from PIL import Image
+except ImportError:
+    raise SystemExit("Pillow is missing. Install it with:  pip install pillow")
+
+from fixtures_dir import fixtures_dir
+
+FIX = fixtures_dir()
+os.makedirs(FIX, exist_ok=True)
+os.chdir(FIX)
 random.seed(7)
 w, h = 2400, 1600
 img = Image.new("RGB", (w, h))
@@ -19,4 +30,4 @@ Image.new("RGB", (100, 80)).save("anim.gif")
 open("story.mp3", "wb").write(b"ID3\x03\x00\x00\x00\x00\x00\x00" + os.urandom(300_000))
 open("huge.mp3", "wb").write(b"ID3" + bytes(10_500_000))
 open("notes.pdf", "wb").write(b"%PDF-1.4 fake")
-print("sample files written to /tmp/media_fixtures")
+print("sample files written to", FIX)
