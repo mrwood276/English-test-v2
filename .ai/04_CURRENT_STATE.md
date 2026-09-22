@@ -4,10 +4,10 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-22 (fourth session) |
-| Last AI agent | Buffy (Freebuff desktop agent; read-only Supabase access via the v2 publishable key — no dashboard/CLI) |
+| Last updated | 2026-09-22 (fifth session — owner supplied a Supabase access token) |
+| Last AI agent | Buffy (Freebuff desktop agent; deployed live via the Supabase CLI with the owner's access token; token was session-only and not stored in the repo) |
 | Development phase | Phase 2 (core), following `docs/design.md` section 5 (Phases 0 and 1 are done) |
-| Current focus | TASK-009 exams — teacher side (list + editor + Edge Function + tests) built on `ai-development`; the exam SQL in `docs/sql-exams.md` still needs one live run, then live verification. TASK-006 step 3 (deploy `question-bank` v3) also still awaits Supabase access. |
+| Current focus | Everything teacher-side is live: `question-bank` v3 (import actions live), the new `exams` function (whole flow live-verified with the admin account), exam SQL applied as the first migration in git (`supabase/migrations/20260922000000_exams_functions.sql`). Next milestone: TASK-010 student side. |
 | Branch model | `main` = stable branch. `ai-development` = shared branch where Claude and Codex/GPT do normal work, one agent at a time. See `00_AI_RULES.md` section 12 and DEC-020. `ai-development` is **not yet stable enough to merge into `main`** — TASK-006 step 3 (deploy) is still open and the import screen is invisible until it happens. |
 | Current branch / commit | Work is on **`ai-development`**, which holds `6f5c223` (parsers) → this session's commit (import screen + xlsx tests + templates; see `git log` and `08_HANDOFF.md`). `main` itself is unchanged and still points at `46803f0`. |
 | Repository baseline | GitHub is the source. `origin/ai-development` = `6f5c223` + this session's commit. **`origin/main` is NOT at `46803f0` anymore**: Codex/GPT-5 pushed its own parallel TASK-006 implementation straight to `main` on 2026-09-21 (`d21f82d`, `1606aed`, `9c293fc`) — see ISSUE-015 and DEC-021 for the owner's resolution (the `ai-development` implementation is the one that continues; `main`'s variant is superseded at the next deliberate merge) |
@@ -31,21 +31,24 @@
 | Data | 40 questions (0 archived), 5 passages, 13 topics, 0 media files, 0 exams, 0 sessions, 1 profile (admin), 4 audit rows |
 | Auth users | 1 admin (email known to the owner; not repeated here). No teacher account |
 
-## Live system facts (re-verified 2026-09-22, third session, read-only probes with the publishable key)
+## Live system facts (re-verified 2026-09-22, fifth session, via the CLI + admin sign-in)
 
-- Anon REST read of `questions` → HTTP 401, `permission denied` (Postgres 42501) — the zero-policy lockdown holds on the live data.
-- Tokenless call to the deployed `question-bank` → HTTP 401, body exactly `"Please sign in."` — the in-code auth wall (`verify_jwt=false` + `requireStaff`) works in production; live version is still v2 without `import_check`/`import` (ISSUE-003).
-- Anon `storage/v1/bucket` list → `"Bucket not found"` — the private `question-media` bucket leaks nothing, not even its name.
+- Anon REST read of `questions` → HTTP 401, `permission denied` (Postgres 42501) — the zero-policy lockdown holds on the live data (re-checked).
+- Tokenless calls to `question-bank` **and** `exams` → HTTP 401, body exactly `"Please sign in."` — the in-code auth wall works in production for both functions.
+- Anon `storage/v1/bucket` list → `"Bucket not found"` — the private `question-media` bucket leaks nothing (unchanged).
 - CORS preflight from `http://localhost:8000` → `Access-Control-Allow-Origin: *` — the `ALLOWED_ORIGIN` secret is not set (expected until hosting exists; TASK-017).
-- `auth/v1/settings` → **email sign-ups are still ENABLED** — the owner's requested dashboard flip has not happened (ISSUE-007, now OPEN with a concrete step in `docs/verification-checklist.md`).
+- `auth/v1/settings` → **email sign-ups are still ENABLED** (checked in the third session; the owner has not flipped it yet — ISSUE-007).
+- Admin sign-in via the API works (HTTP 200, `expires_in` 3600); `profiles` has exactly one row (admin, `is_active`).
+- Live schema facts discovered while applying the exam SQL: `exams.status`/`availability_mode`/`late_start_policy`/`selection_mode`/`result_visibility`/`essay_pending_display` are Postgres **enums**; `exam_questions.position` has `CHECK (position > 0)` + deferred `UNIQUE (exam_id, position)`; `exams.access_code` has `CHECK (^[A-Z0-9]{4,12}$)`; `auto_filter` is NOT NULL default `'{}'`. Full list in `docs/sql-exams.md`.
 
 ## Drift between repository and live system (important)
 
 | Area | Repository | Live | Consequence |
 |---|---|---|---|
 | `question-bank` | has actions `import_check`, `import` (`handler.ts`, `parse.ts`, tests) | version 2 **without** those actions | Deploying it (TASK-006 step 3) is now the **only** thing between the finished import screen and a working feature: the screen calls the actions and fails with "Nothing was saved" until they are live. Safe: it only adds actions |
-| `exams` (new function) | full handler + parser + 24 Deno tests; SQL functions spec'd in `docs/sql-exams.md` | function does not exist; exam tables DO exist (verified read-only) | Teacher exam screens work against the mock only; saving fails live until the SQL is run and the function deployed (TASK-009 remainder) |
-| SQL migrations | none stored; exam SQL in `docs/sql-exams.md` | `v2_01`..`v2_12` applied | Cannot rebuild the database from git (ISSUE-001) |
+| `exams` | full handler + parser + 24 Deno tests; screens list + editor | **v1 live** (deployed 2026-09-22); SQL functions applied live; whole flow live-verified with the admin account (save/get/list/update/open/code-rules/duplicate/remove + refusals + 401 wall) | The exam screens work against the real backend; student join is TASK-010 |
+| `question-bank` | has actions `import_check`, `import` | **v3 live** (deployed 2026-09-22); `import_check` answered live, `list` regression-checked | The import screen works against the real backend; left: owner format review + a real Excel file check |
+| SQL migrations | first migration in git: `supabase/migrations/20260922000000_exams_functions.sql` (applied live) | `v2_01`..`v2_12` + the exams functions | ISSUE-001 partially closed; `supabase db pull` can bring the older ones in |
 | Frontend | `APP_BUILD` = "Phase 2, question import" | not deployed | The owner runs it locally with `frontend/dev-server.py` |
 
 ## Recently completed work (newest first)

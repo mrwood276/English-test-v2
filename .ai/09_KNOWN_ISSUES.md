@@ -3,9 +3,10 @@
 Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Only issues that are real or explicitly uncertain are listed.
 
 ## ISSUE-001 — Database migrations are not stored in git
-- Severity: HIGH. Status: OPEN. Related: TASK-008.
+- Severity: HIGH. Status: **PARTIALLY FIXED (2026-09-22)**. Related: TASK-008.
 - Description: the SQL of `v2_01`..`v2_12` exists only in the live Supabase project. The database cannot be rebuilt from the repository, and Codex/GPT cannot see the schema in code.
-- Affected: `supabase/`. Workaround: read the schema from the live project (`list_tables`, `pg_proc`, `supabase_migrations.schema_migrations`). Investigation: `supabase db pull`.
+- Progress: the exam functions are now the **first migration in git**: `supabase/migrations/20260922000000_exams_functions.sql` (applied live 2026-09-22, includes the live-schema discoveries: enum columns, position > 0, access_code CHECK). What is still missing: `v2_01`..`v2_12` (owner runs `supabase db pull`, checklist step 4 in `docs/verification-checklist.md`).
+- Affected: `supabase/`. Workaround: read the schema from the live project (now also possible via the CLI: `npx supabase db query --linked ...`).
 
 ## ISSUE-002 — Real image/audio upload has never been run
 - Severity: HIGH. Status: NEEDS_VERIFICATION. Related: TASK-007, F-07.
@@ -14,9 +15,9 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 - Partially verified live (2026-09-22, read-only): the private `question-media` bucket leaks nothing to anon (list_buckets says "Bucket not found"), and `rest/v1/questions` refuses anon reads with 401 `permission denied` (Postgres 42501) — the zero-policy lockdown holds. What still needs a human: an actual signed upload + playback through the app (TASK-007).
 
 ## ISSUE-003 — Deployed `question-bank` is behind the repository
-- Severity: MEDIUM. Status: OPEN. Related: TASK-006 step 3.
-- Description: live version 2 lacks `import_check` / `import`. Harmless until the import screen exists; deploying is additive.
-- LIVE-VERIFIED (2026-09-22, read-only): the deployed function answers a tokenless call with exactly 401 `"Please sign in."` — the in-code auth wall (`verify_jwt=false` + `requireStaff`) works in production. Deploying v3 remains the owner's checklist step 2.
+- Severity: MEDIUM. Status: **FIXED (2026-09-22)**. Related: TASK-006 step 3.
+- Description: live version 2 lacked `import_check` / `import`. Harmless until the import screen exists; deploying is additive.
+- Resolution: **question-bank v3 deployed live on 2026-09-22** (via `npx supabase functions deploy question-bank --no-verify-jwt --use-api`). `import_check` verified live against the 40-question bank (answered `{"results":[]}` for a non-matching row — no more "Unknown action"), `list` regression-checked (total: 40).
 
 ## ISSUE-004 — Repository sync is manual
 - Severity: MEDIUM. Status: OPEN.

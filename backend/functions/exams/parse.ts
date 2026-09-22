@@ -89,7 +89,7 @@ export function parseExamInput(b: Record<string, unknown>): { id: string | undef
     selection_mode: selectionMode,
     auto_filter: autoFilter,
     pool_size: selectionMode === "auto" ? asInt(b.pool_size, "How many questions", { min: 1, max: 200 }) : null,
-    draw_per_student: selectionMode === "auto" ? asBool(b.draw_per_student, "Draw again for each student") : false,
+    draw_per_student: selectionMode === "auto" ? asBool(b.draw_per_student ?? false, "Draw again for each student") : false,
     questions,
     randomize_questions: asBool(b.randomize_questions ?? false, "Shuffle question order"),
     randomize_options: asBool(b.randomize_options ?? false, "Shuffle answer choices"),

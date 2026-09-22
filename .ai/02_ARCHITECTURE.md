@@ -77,7 +77,7 @@ Every Edge Function: `Deno.serve(handle(handler))`.
 | Accounts/system | `profiles` (id = auth.users.id, role teacher/admin, is_active), `app_settings`, `rate_limits`, `audit_logs`, `backups` | `profiles`, `audit_logs` yes; `rate_limits` only via SQL function (no endpoint uses it yet); `app_settings`, `backups` not yet |
 | Master data | `topics`, `class_aliases` | `topics` yes; `class_aliases` not yet |
 | Question bank | `passages`, `questions`, `question_options`, `accepted_answers`, `question_class_labels`, `media_files`, `question_media` | yes |
-| Exams | `exams`, `exam_questions`, `retake_permissions` | `exams` Edge Function built (repo, not deployed); SQL contract in `docs/sql-exams.md` **not yet run live** (TASK-009 remainder) |
+| Exams | `exams`, `exam_questions`, `retake_permissions` | **live-verified (2026-09-22)**: SQL functions applied (`supabase/migrations/20260922000000_exams_functions.sql`) + `exams` function deployed; whole teacher flow verified with the admin account. Schema facts (enum columns, position > 0, code CHECK) in `docs/sql-exams.md` |
 | Sessions/results | `exam_sessions`, `session_answers`, `answer_grades`, `exam_results`, `session_events` | **no code yet** (Phase 3+) |
 
 Key constraints (all verified by SQL tests): one correct option per question; unique exam code among **open** exams; scheduled exams need valid dates; tab-switch limits ordered; unique `(exam_id, normalized name, normalized class, attempt_no)` for the 1-attempt rule; one result per session; result status consistent with pass status; media size cap; question media attached to exactly one of question or passage.
