@@ -1,0 +1,5 @@
+﻿type,question,option_a,option_b,option_c,option_d,correct,guide,explanation,topic,difficulty,points,class,reading_text,reading_text_body
+multiple_choice,Choose the correct sentence.,He go to school.,He goes to school.,He going to school.,,B,,Third person singular takes -s.,Simple Present,Easy,1,XII TKJ A,,
+true_false,The sun rises in the east.,,,,,True,,,Simple Present,Easy,1,XII TKJ A,,
+short_answer,She ___ to school yesterday. (go),,,,,went,,,Simple Past,Medium,1,,,
+essay,Explain why the orientation matters in a narrative text.,,,,,,"One mark per idea: characters, place, time.",,Narrative Text,HOTS,4,,The Lost Wallet,Dina found a brown wallet under the bench in front of the library.

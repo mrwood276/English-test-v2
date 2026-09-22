@@ -8,4 +8,4 @@ export const REQUEST_TIMEOUT_MS = 15000;
 export const STAFF_SESSION_KEY = "ENGLISH_TEST_V2_STAFF_SESSION";
 
 // Shown at the bottom of the menu, so it is easy to see which version of the app is loaded.
-export const APP_BUILD = "Phase 2, images and audio";
+export const APP_BUILD = "Phase 2, question import";

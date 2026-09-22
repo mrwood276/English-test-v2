@@ -44,10 +44,11 @@ export function renderQuestionBank(container) {
   const preview = h("aside", { class: "card preview", "aria-label": "Question preview", hidden: true });
 
   const addButton = h("a", { class: "btn", href: "#/questions/new" }, icon("plus"), "Add question");
+  const importButton = h("a", { class: "btn ghost", href: "#/questions/import" }, "Import");
 
   mount(
     container,
-    h("div", { class: "head" }, h("div", {}, h("h1", {}, "Question bank"), countText), addButton),
+    h("div", { class: "head" }, h("div", {}, h("h1", {}, "Question bank"), countText), h("div", { class: "head-actions" }, importButton, addButton)),
     h(
       "div",
       { class: "toolbar" },

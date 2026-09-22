@@ -4,19 +4,19 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-21 |
-| Last AI agent | Claude (Sonnet 5, claude.ai chat) |
+| Last updated | 2026-09-22 |
+| Last AI agent | Buffy (Freebuff desktop agent, direct git access; no Supabase access) |
 | Development phase | Phase 2 (core), following `docs/design.md` section 5 (Phases 0 and 1 are done) |
-| Current focus | TASK-006: import questions from Excel/CSV and pasted text |
-| Branch model | **New as of this entry.** `main` = stable branch. `ai-development` = shared branch where Claude and Codex/GPT do normal work, one agent at a time. See `00_AI_RULES.md` section 12 and DEC-020. `ai-development` is **not yet stable enough to merge into `main`** — TASK-006 is mid-flight on it. |
-| Current branch / commit | Work is on **`ai-development`**, commit `6f5c223` ("TASK-006 step 1: browser import parsers..."), branched from `main` at `46803f0`. `main` itself is unchanged and still points at `46803f0`. |
-| Repository baseline | Delivered as git history `ad9b6d6` (media) → `b9b5001` (import backend, function not deployed) → `46803f0` (adds `.ai/`, `AGENTS.md`, `CLAUDE.md`, on `main`) → branch `ai-development` created from `46803f0` → `6f5c223` (import parsers, on `ai-development`). The agent could not read the private GitHub remote (no `origin` configured in its sandbox, and cloning asked for credentials), so it worked from its own local copy; **NEEDS VERIFICATION** that GitHub's `main` matches `46803f0` and that `ai-development` gets created there once the owner has pulled and pushed both branches |
+| Current focus | TASK-006: import questions from Excel/CSV and pasted text — **browser work finished (steps 1–2)**; only the `question-bank` v3 deploy (step 3) is left |
+| Branch model | `main` = stable branch. `ai-development` = shared branch where Claude and Codex/GPT do normal work, one agent at a time. See `00_AI_RULES.md` section 12 and DEC-020. `ai-development` is **not yet stable enough to merge into `main`** — TASK-006 step 3 (deploy) is still open and the import screen is invisible until it happens. |
+| Current branch / commit | Work is on **`ai-development`**, which holds `6f5c223` (parsers) → this session's commit (import screen + xlsx tests + templates; see `git log` and `08_HANDOFF.md`). `main` itself is unchanged and still points at `46803f0`. |
+| Repository baseline | GitHub is the source. `origin/ai-development` = `6f5c223` + this session's commit. **`origin/main` is NOT at `46803f0` anymore**: Codex/GPT-5 pushed its own parallel TASK-006 implementation straight to `main` on 2026-09-21 (`d21f82d`, `1606aed`, `9c293fc`) — see ISSUE-015 and DEC-021 for the owner's resolution (the `ai-development` implementation is the one that continues; `main`'s variant is superseded at the next deliberate merge) |
 
 ## What was inspected to write `.ai/`
 
 - All files of the repository copy (65 tracked files before `.ai/`), including code, tests, docs, workflow.
 - The **live Supabase project**: migrations list, Edge Function list and versions, tables and RLS state, policies count, functions count, storage buckets, row counts, extensions.
-- Test runs (2026-09-21, from the repository copy): backend `deno test` = 41 passed, 0 failed; Playwright suites (mocked network) all green: `teacher_e2e` 34 checks, `question_bank_e2e` 57, `question_editor_e2e` 75, `media_e2e` 29.
+- Test runs (2026-09-22, from this clone): backend `deno test` = 41 passed, 0 failed; import parser unit tests = 21 passed (was 16; 5 new zip/xlsx tests); Playwright suites (mocked network) all green: `teacher_e2e`, `question_bank_e2e`, `question_editor_e2e`, `media_e2e` (see the media note below), and the new `question_import_e2e` = 43 checks.
 - No TODO/FIXME comments exist in the code (scan returned nothing).
 
 ## Live system facts (verified 2026-09-21)
@@ -35,22 +35,24 @@
 
 | Area | Repository | Live | Consequence |
 |---|---|---|---|
-| `question-bank` | has actions `import_check`, `import` (`handler.ts`, `parse.ts`, tests) | version 2 **without** those actions | Deploying it (TASK-006 step 3) is required before the future import screen can work. Safe: it only adds actions |
+| `question-bank` | has actions `import_check`, `import` (`handler.ts`, `parse.ts`, tests) | version 2 **without** those actions | Deploying it (TASK-006 step 3) is now the **only** thing between the finished import screen and a working feature: the screen calls the actions and fails with "Nothing was saved" until they are live. Safe: it only adds actions |
 | SQL migrations | none stored | `v2_01`..`v2_12` applied | Cannot rebuild the database from git (ISSUE-001) |
-| Frontend | `APP_BUILD` = "Phase 2, images and audio" | not deployed | The owner runs it locally with `frontend/dev-server.py` |
+| Frontend | `APP_BUILD` = "Phase 2, question import" | not deployed | The owner runs it locally with `frontend/dev-server.py` |
 
 ## Recently completed work (newest first)
 
-1. Import backend: SQL `find_similar_batch`, `import_questions` (live, tested); Edge code + tests (repo only).
-2. Images and audio: bucket, SQL, `media` function (deployed), file picker, previews, tests. Not yet verified with real Storage.
-3. Question editor, reading texts, question bank screens (live-verified basics by the owner).
-4. Sign in, app shell, shared backend library, `auth-me`.
-5. Database schema, dev Supabase project, migration of the 40 v1 questions (fingerprint-verified against v1).
-6. Design document Draft 4, audit of v1, two rounds of approved mockups.
+1. **TASK-006 steps 1–2, import browser work is done**: the import screen `#/questions/import` (file or paste → defaults → review table with statuses → all-or-nothing import), wired into the router and the question bank; zip/xlsx readers now tested against a real .xlsx fixture (ISSUE-013 closed); template files under `frontend/assets/templates/`; new Playwright suite `question_import_e2e.py` (43 checks). Verified only against the mock server — see the XLSX and live caveats below.
+2. Import parsers for CSV, XLSX, and pasted text with 21 Deno unit tests.
+3. Import backend: SQL `find_similar_batch`, `import_questions` (live, tested); Edge code + tests (repo only, not deployed).
+4. Images and audio: bucket, SQL, `media` function (deployed), file picker, previews, tests. Not yet verified with real Storage.
+5. Question editor, reading texts, question bank screens (live-verified basics by the owner).
+6. Sign in, app shell, shared backend library, `auth-me`.
+7. Database schema, dev Supabase project, migration of the 40 v1 questions (fingerprint-verified against v1).
+8. Design document Draft 4, audit of v1, two rounds of approved mockups.
 
 ## Work in progress
 
-- **TASK-006 Import questions**, on branch `ai-development`. Done: SQL backend (live, tested) and browser parsers for CSV, XLSX, and pasted text (`frontend/assets/js/teacher/import/`, 16 Deno unit tests passing — run with `--no-check`, see note in `05_TASK_QUEUE.md`). Remaining: the import screen (`#/questions/import`), wiring the parsers to it, a Playwright test, template files, and deploying `question-bank` v3.
+- **TASK-006 Import questions**, on branch `ai-development`: browser work complete (parsers, screen, tests, templates). Remaining: step 3 — deploy `question-bank` with the import actions (needs Supabase access, else BLOCKED) and step 4 — show the owner the proposed file formats before calling the feature done for teachers.
 
 ## Pending work (see `05_TASK_QUEUE.md`)
 
@@ -58,7 +60,7 @@ Verify media upload live (TASK-007), store migrations in git (TASK-008), exams (
 
 ## Blocked work
 
-None formally blocked. TASK-007 needs the owner to run the app against real Supabase (an agent without access to it cannot verify). Any task needing a migration or function deployment is blocked for an agent without Supabase access (NEEDS VERIFICATION which agents have it).
+TASK-006 step 3 (deploy `question-bank` v3) is BLOCKED for an agent without Supabase access — this agent has none. TASK-007 needs the owner to run the app against real Supabase. Any task needing a migration or function deployment is blocked for an agent without Supabase access.
 
 ## What the owner has verified live
 
@@ -68,7 +70,7 @@ None formally blocked. TASK-007 needs the owner to run the app against real Supa
 
 ## Known regressions
 
-None known. Automated suites were green at the last run.
+None from this session. One pre-existing environment quirk was found and left alone: `media_e2e.py` expects the generated `small.png` fixture to be exactly 467 bytes, but the installed Pillow writes 468 bytes, so that single check fails locally after running `make_fixtures.py`. It is unrelated to the import work (media code untouched). See `09_KNOWN_ISSUES.md` ISSUE-014 for the exact description.
 
 ## Current risks
 
@@ -80,9 +82,10 @@ None known. Automated suites were green at the last run.
 
 ## Current priorities
 
-1. Finish TASK-006 (import).
-2. TASK-007 and TASK-008 (verification and reproducibility) as soon as the owner can run them.
-3. TASK-009 (exams), which unblocks the student-facing phases.
+1. TASK-006 step 3: deploy `question-bank` v3 (owner or an agent with Supabase access) — then the import screen actually works.
+2. Owner reviews the proposed import file formats (see TASK-006 in `05_TASK_QUEUE.md`); the screen ships an example and templates that match them.
+3. TASK-007 and TASK-008 (verification and reproducibility) as soon as the owner can run them.
+4. TASK-009 (exams), which unblocks the student-facing phases.
 
 ## How SQL business rules were tested (technique)
 

@@ -163,3 +163,27 @@
 .media-block { display: grid; gap: 8px; margin-bottom: 10px; }
 .q-image { max-width: 100%; max-height: 260px; border-radius: 10px; border: 1.5px solid var(--line); object-fit: contain; background: var(--card); justify-self: start; }
 .passage .media-block { margin-top: 6px; }
+
+/* ---------- Import questions ---------- */
+.head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.form-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+.import-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.import-pick-item { border: 1.5px dashed var(--line); border-radius: var(--radius-s); padding: 12px 14px; display: grid; gap: 6px; justify-items: start; align-content: start; }
+.import-pick-item .hint { margin: 0; }
+.import-pick-item .ta { margin-top: 4px; }
+.import-defaults { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 14px; align-items: end; }
+.import-defaults .lbl { margin-top: 10px; }
+.import-help { margin-top: 12px; font-size: 13px; color: var(--ink-2); }
+.import-help summary { cursor: pointer; font-weight: 600; }
+.import-help .hint p { margin: 6px 0 0; }
+.import-table .col-check { width: 34px; text-align: center; }
+.import-table .col-check input { width: 17px; height: 17px; }
+.import-table tr.warn-row td { background: var(--mark-tint); }
+.import-table tr.bad-row td { background: var(--red-tint); }
+.imp-row { font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.imp-body { font-weight: 600; line-height: 1.35; margin-top: 2px; }
+.imp-problems { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.imp-problems:empty { display: none; }
+.imp-problem { background: var(--card); border: 1px solid var(--red); color: var(--red); border-radius: 6px; padding: 1px 7px; font-size: 12px; }
+.table-wrap { overflow-x: auto; }
+.import-table .qcell { max-width: none; }

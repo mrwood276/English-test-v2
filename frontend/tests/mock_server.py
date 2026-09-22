@@ -26,6 +26,7 @@ class Server:
     def __init__(self):
         self.qs = make_questions(); self.calls = []; self.fail_list = 0; self.status_all = None
         self.saved = []; self.dup_calls = []; self.media = {}; self.media_calls = []; self.register_error = None; self.last_upload_size = None
+        self.import_checks = []; self.imports = []
         self.passages = [{"id": "pa1", "title": "The Lost Wallet", "body": "Dina found a <u>brown</u> wallet.", "question_count": 3}, {"id": "pa2", "title": "The Smart Monkey", "body": "A clever monkey sat on a branch.", "question_count": 1}]
     def item(self, q):
         return {k: q[k] for k in ["id", "type", "body", "topic", "difficulty", "weight", "class_labels", "has_audio", "has_image", "has_passage", "used_in_exams", "is_archived"]} | {"updated_at": "2026-09-20T00:00:00Z"}
@@ -118,6 +119,31 @@ class Server:
             if "EXACT" in text: return ok({"matches": [{"id": "00000000-0000-4000-8000-00000000000a", "body": "What did Dina do first?", "similarity": 1.0, "exact": True, "is_archived": False, "used_in_exams": 1}]})
             if "wallet" in text.lower(): return ok({"matches": [{"id": "00000000-0000-4000-8000-000000000009", "body": "What did Dina do first when she found the wallet?", "similarity": 0.91, "exact": False, "is_archived": False, "used_in_exams": 2}]})
             return ok({"matches": []})
+        if a == "import_check":
+            self.import_checks.append(body)
+            results = []
+            for item in body.get("items", []):
+                text = item.get("body", "")
+                matches = []
+                if "EXACT" in text:
+                    matches.append({"id": "00000000-0000-4000-8000-00000000000a", "body": "What did Dina do first?", "similarity": 1.0, "exact": True, "is_archived": False, "used_in_exams": 1})
+                elif "similar" in text.lower():
+                    matches.append({"id": "00000000-0000-4000-8000-000000000009", "body": "What did Dina do first when she found the wallet?", "similarity": 0.91, "exact": False, "is_archived": False, "used_in_exams": 2})
+                if matches:
+                    results.append({"i": item.get("i", 0), "matches": matches})
+            return ok({"results": results})
+        if a == "import":
+            self.imports.append(body)
+            items = body.get("items", [])
+            for it in items:
+                if "FORCE_SERVER_ERROR" in it.get("body", ""):
+                    return route.fulfill(status=400, content_type="application/json", body=json.dumps({"error": f"Row {it.get('row', 1)}: Choose exactly one correct answer.", "code": "bad_request"}))
+            n0 = len(self.qs)
+            for k, it in enumerate(items):
+                n = n0 + 100 + k + 1
+                self.qs.append({"id": f"00000000-0000-4000-8000-{n:012d}", "n": n, "type": it["type"], "difficulty": it.get("difficulty", "medium"), "topic": it.get("topic") or "", "body": it["body"], "class_labels": it.get("class_labels", []), "has_audio": False, "has_image": False, "has_passage": bool(it.get("passage")), "used_in_exams": 0, "is_archived": False, "weight": it.get("weight", 1), "created": 200 + len(self.qs)})
+            new_passages = {it["passage"]["title"] for it in items if isinstance(it.get("passage"), dict) and it["passage"].get("body")}
+            return ok({"created": len(items), "passages_created": len(new_passages), "ids": [f"00000000-0000-4000-8000-{n0 + 100 + k + 1:012d}" for k in range(len(items))]})
         if a == "passages": return ok({"passages": self.passages_list()})
         if a == "passage_get":
             pa = next((x for x in self.passages if x["id"] == body["id"]), None)

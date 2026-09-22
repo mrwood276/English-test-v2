@@ -28,12 +28,14 @@ assets/css/questions.css        question bank list, preview, dialog, toast
 assets/js/core/                 config, http (timeouts, friendly errors), auth (Supabase Auth), api (Edge Functions)
 assets/js/shared/               dom (element builder), rich (safe rich text), icons, ui (toast, confirm dialog, debounce), imageCompress
 assets/js/teacher/app.js        boot and session handling
-assets/js/teacher/router.js     small hash router (#/dashboard, #/questions, #/questions/new, #/questions/edit/<id>)
+assets/js/teacher/router.js     small hash router (#/dashboard, #/questions, #/questions/new, #/questions/edit/<id>, #/questions/import)
 assets/js/teacher/api/          one file per Edge Function (questionBank.js, media.js)
-assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionEditor
+assets/js/teacher/import/       readers that turn files or pasted text into questions (csv, xlsx, zip, text, rows, rules)
+assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionEditor, questionImport
 assets/js/teacher/components/   questionView, richTextarea, chipsInput, passageDialog, mediaPicker
-assets/js/teacher/guard.js      unsaved-changes guard used by the editor
-tests/                          browser tests with a mocked server (mock_server.py, teacher_e2e.py, question_bank_e2e.py, question_editor_e2e.py, media_e2e.py)
+assets/js/teacher/guard.js      unsaved-changes guard used by the editor and the import screen
+tests/                          browser tests with a mocked server (mock_server.py, teacher_e2e.py, question_bank_e2e.py,
+                                question_editor_e2e.py, media_e2e.py, question_import_e2e.py) and Deno unit tests (tests/unit/)
 ```
 
 ## Notes
@@ -46,10 +48,12 @@ tests/                          browser tests with a mocked server (mock_server.
 ## Running the browser test (optional)
 
 ```
+deno test --allow-env --allow-read --no-check tests/unit/   # import parser unit tests (Deno)
 pip install playwright && playwright install chromium
 python dev-server.py 8123
 python tests/teacher_e2e.py
 python tests/question_bank_e2e.py
 python tests/question_editor_e2e.py
-python tests/media_e2e.py   # needs the sample files described at the top of the test
+python tests/media_e2e.py   # needs the sample files: python tests/make_fixtures.py (once)
+python tests/question_import_e2e.py
 ```

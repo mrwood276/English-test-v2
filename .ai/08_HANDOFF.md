@@ -7,80 +7,88 @@ Keep this file current after every meaningful change. It must never describe an 
 | | |
 |---|---|
 | Stable Branch | `main` — currently at commit `46803f0`. Not the workspace; do not commit normal work here. |
-| Current Development Branch | **`ai-development`** — branched from `main` at `46803f0`, now includes the import-parser commit `6f5c223` plus this `.ai/` update. This is where you work. |
-| Merged into `main`? | **No.** `ai-development` is mid-task (TASK-006) and is not stable enough to merge yet. Do not merge it yourself; that is the owner's deliberate decision (DEC-020). |
+| Current Development Branch | **`ai-development`** — branched from `main` at `46803f0`, holds `6f5c223` (import parsers) plus the 2026-09-22 import-screen work. This is where you work. |
+| Merged into `main`? | **No.** `ai-development` still has open TASK-006 work (deploy + owner review). Do not merge it yourself; that is the owner's deliberate decision (DEC-020). |
 
-Before doing anything: `git checkout ai-development` (or confirm you're on it), `git pull` to get the latest, `git log --oneline -5` and `git status` to see exactly what is there — another agent may have pushed since this entry was written.
+Before doing anything: `git checkout ai-development` (or confirm you're on it), `git pull` **and `git fetch origin`** to see the real remote state, `git log --oneline -5` and `git status` — another agent may have pushed since this entry was written. **This handoff was wrong once already**: on 2026-09-21 Codex pushed TASK-006 work straight to `main` while the handoff still said `main` was at `46803f0` (see ISSUE-015 / DEC-021). Never treat this file as proof of the remote state.
+
+## Collision notice (read before touching import files)
+`origin/main` contains Codex/GPT-5's own parallel implementation of the import parsers + screen (commits `d21f82d`, `1606aed`, `9c293fc`, 2026-09-21), which conflicts file-by-file with the `ai-development` implementation. The owner decided (DEC-021, 2026-09-22): **continue with `ai-development`'s version; Codex's `main` commits stay untouched and get superseded at the next deliberate merge.** Do not port Codex's variant back, and do not "reconcile" the two on your own initiative.
 
 ## Last Agent
-Claude (Sonnet 5, claude.ai chat, with sandbox + Supabase connector; no direct GitHub push/pull to the real remote — see DEC-018).
+Buffy (Freebuff desktop agent, with direct git access to `origin` — it can pull and push `ai-development` itself; **no Supabase access**).
 
 ## Date
-2026-09-21
+2026-09-22
 
 ## Last Completed Task
-- **TASK-005** Images and audio (built and tested with mocked Storage; real upload unverified -> TASK-007). Merged onto `main` (commit `ad9b6d6`).
-- **TASK-006 backend half** (SQL + Edge Function code for import, not deployed). Merged onto `main` (commit `b9b5001`).
-- Creation of the `.ai/` system (commit `46803f0`, on `main`).
-- **TASK-006 step 1**: browser import parsers (CSV, XLSX, pasted text) with 16 unit tests. Done on the **new branch `ai-development`** (commit `6f5c223`) - this is genuinely in-progress work and was not merged to `main`.
-- **This Git branch workflow itself** (`main` + `ai-development` split, this `.ai/` update) - also on `ai-development`, committed in this session (see "What Was Changed" below; check `git log` for the exact commit hash).
+- **TASK-006 steps 1–2 are now complete** (on `ai-development`): the import screen, the zip/xlsx tests (ISSUE-013 closed), the mock-server handlers, the browser test suite, and the template files. Earlier: TASK-005 media, TASK-006 backend half, `.ai/` system, branch workflow (all in git history / earlier handoffs).
+- Previously: **TASK-006 step 1** (browser import parsers, commit `6f5c223`).
 
 ## What Was Changed (this session)
-1. Created branch `ai-development` from `main` (`46803f0`); `main` itself untouched.
-2. Committed the in-progress import parsers onto `ai-development` (they were uncommitted local work at the time; per the branch-workflow request, ongoing dev work belongs on `ai-development`, not `main`):
-   - `frontend/assets/js/teacher/import/{rules,csv,zip,xlsx,text,rows}.js`
-   - `frontend/tests/unit/import.test.ts` (16 Deno tests)
-3. Updated `.ai/00_AI_RULES.md` (new section 12 "Git branch workflow"; renumbered the old section 12->13, 13->14; one line added to the environment-facts table), `.ai/02_ARCHITECTURE.md` (short "Source control" note before "Overview"), `.ai/03_FEATURES.md` (F-08 status/detail updated for the parsers and the XLSX test gap), `.ai/04_CURRENT_STATE.md` (branch/commit fields, work-in-progress note), `.ai/05_TASK_QUEUE.md` (TASK-006 step 1 marked mostly done, XLSX test gap called out, "next recommended task" moved to step 2), `.ai/06_DECISIONS.md` (DEC-020), `.ai/07_CHANGELOG.md` (two new entries: the parsers, and the branch workflow), `.ai/09_KNOWN_ISSUES.md` (ISSUE-013: XLSX reader untested), this file.
-4. No `.ai/` file was replaced or redesigned; only these targeted edits were made, per the request.
+1. **Import screen** — new `frontend/assets/js/teacher/screens/questionImport.js`, route `#/questions/import` in `router.js`, "Import" button next to "Add question" in `screens/questionBank.js`. Flow: choose a `.xlsx`/`.csv` file or paste text → optional defaults (class labels, topic, difficulty, points) → review table (Ready / Fix / Duplicate in bank / Duplicate in file / Similar, per-row problems) → all-or-nothing `import` of the checked rows → back to `#/questions` with a toast. In-file duplicates are detected with `dupKey`; `import_check` runs once per review; a refused batch (HTTP 400 `Row N: ...`) keeps the review open and saves nothing; an unsaved review triggers the leave guard.
+2. **API** — `api/questionBank.js` gained `importCheck(items)` (returns the results list) and `import(items)`.
+3. **ISSUE-013 closed** — 5 new Deno unit tests for `zip.js`/`xlsx.js` in `frontend/tests/unit/import.test.ts`, run against `frontend/tests/unit/fixtures/import-sample.xlsx`, a real OOXML package built by the committed `frontend/tests/unit/make_xlsx_fixture.py`. Unit tests now need `deno test --allow-env --allow-read --no-check frontend/tests/unit/` (the `--allow-read` is for the fixture; `npm:linkedom` provides the DOM in Deno — dev-only, DEC-007 untouched).
+4. **Mock server + browser tests** — `mock_server.py` implements `import_check` (EXACT/similar) and `import` (refuses bodies containing `FORCE_SERVER_ERROR` with `Row N:`); new `frontend/tests/question_import_e2e.py` (43 checks: paste flow, statuses, defaults, select-all semantics, payload shape, a real `.xlsx` upload through the file picker, refused batch, leave guard, example button).
+5. **Templates** — `frontend/assets/templates/import-template.xlsx` and `import-template.csv` (generated by `make_import_template.py`, outputs committed, downloadable from the screen); `frontend/assets/templates/README.md`.
+6. **Small** — `shared/icons.js`: two fixed icons (`sheet`, `pencil`); `questions.css`: import styles (new `.head-actions`, `.import-*` classes using existing tokens); `APP_BUILD` = "Phase 2, question import"; root and frontend `README.md` updated; `.ai/` updated (state, queue, features, changelog, issues, this file).
 
 ## Files Changed (repository, this session)
-- New: `frontend/assets/js/teacher/import/rules.js`, `csv.js`, `zip.js`, `xlsx.js`, `text.js`, `rows.js`, `frontend/tests/unit/import.test.ts`.
-- Edited: `.ai/00_AI_RULES.md`, `.ai/02_ARCHITECTURE.md`, `.ai/03_FEATURES.md`, `.ai/04_CURRENT_STATE.md`, `.ai/05_TASK_QUEUE.md`, `.ai/06_DECISIONS.md`, `.ai/07_CHANGELOG.md`, `.ai/09_KNOWN_ISSUES.md`, `.ai/08_HANDOFF.md` (this file).
+- New: `frontend/assets/js/teacher/screens/questionImport.js`, `frontend/tests/question_import_e2e.py`, `frontend/tests/unit/make_xlsx_fixture.py`, `frontend/tests/unit/fixtures/import-sample.xlsx`, `frontend/assets/templates/{make_import_template.py,import-template.xlsx,import-template.csv,README.md}`.
+- Edited: `frontend/assets/js/teacher/{router.js,api/questionBank.js}`, `screens/questionBank.js`, `frontend/assets/js/shared/icons.js`, `frontend/assets/js/core/config.js` (APP_BUILD), `frontend/assets/css/questions.css`, `frontend/tests/mock_server.py`, `frontend/tests/unit/import.test.ts`, `README.md`, `frontend/README.md`, all touched `.ai/` files.
 
 ## Database Changes
-None this session. (Live database still at migration `v2_12_import_questions`; still not stored in git - ISSUE-001.)
+None this session. (Live database still at migration `v2_12_import_questions`; migrations still not stored in git — ISSUE-001.)
 
 ## Current State (what works)
-- Everything recorded in earlier hand-offs still holds: sign-in, question bank, editor, media (built; live upload unverified) all work per `03_FEATURES.md`.
-- New this session: import parsers (`rules`, `csv`, `rows`, `text.js`) are unit-tested and correct as far as tests can show. `zip.js`/`xlsx.js` are **untested and unverified** (ISSUE-013) - do not assume XLSX import works until that is fixed.
-- Nothing from this session is deployed or wired into the running app; it is inert code + tests + docs until TASK-006 step 2 wires it up.
-- Test commands still work exactly as documented in `00_AI_RULES.md` section 7, plus: `deno test --allow-env --no-check frontend/tests/unit/` for the new import parser tests (the `--no-check` is needed for a couple of type-inference issues in the test file itself, not the parser code - see TASK-006 in `05_TASK_QUEUE.md`).
+- Everything from earlier handoffs still holds: sign-in, question bank, editor, media (built; live upload unverified) work per `03_FEATURES.md`.
+- New: the import screen is fully reachable at `#/questions/import` and works end-to-end against the **mock server** (43 browser checks) and with the parsers' 21 unit tests. Template files download and parse correctly through the same reader pipeline.
+- **The import will fail against the real backend until `question-bank` v3 is deployed** (step 3): the live function (v2) answers `import_check`/`import` with "Unknown action". The screen shows this as "Nothing was saved" — that message is expected until the deploy happens.
+- Verification levels used here (see `00_AI_RULES.md` section 7): screen + parsers = TESTED (mocked); live import = UNVERIFIED (needs the deploy); `.xlsx` from a real Excel/Google Sheets = still NEEDS_VERIFICATION (the fixture is spec-built, see ISSUE-013's remaining caveat).
+
+## Testing Performed (2026-09-22)
+- `deno test --allow-env backend/tests/` → 41 passed.
+- `deno test --allow-env --allow-read --no-check frontend/tests/unit/` → 21 passed.
+- `python frontend/tests/teacher_e2e.py` → ALL CHECKS PASSED; `question_bank_e2e.py` → ALL; `question_editor_e2e.py` → ALL; `question_import_e2e.py` → 43/43.
+- `python frontend/tests/media_e2e.py` → 27 of 29 (two **pre-existing** fixture quirks, media code untouched: see ISSUE-014; no regression from this session).
 
 ## Remaining Work
-TASK-006 steps 2-4 (import screen, deploy `question-bank` v3, templates) plus closing ISSUE-013 (test `zip.js`/`xlsx.js` against a real file), then TASK-007/008/009 and later phases (`05_TASK_QUEUE.md`).
+1. **TASK-006 step 3**: deploy `question-bank` (repository code) so `import_check`/`import` go live — needs Supabase access (owner or an agent with the connector/CLI). If you lack it, keep the step BLOCKED, do not work around it.
+2. **TASK-006 step 4**: the owner has not reviewed the proposed formats yet; the screen's help text, example button, and template files make them easy to review — collect feedback and adjust.
+3. Then: TASK-007 (media live verification), TASK-008 (migrations into git), TASK-009 (exams) — see `05_TASK_QUEUE.md`.
 
 ## Known Problems
-See `09_KNOWN_ISSUES.md`. Most important: ISSUE-001 (no migrations in git), ISSUE-002 (media upload never run against real Storage), ISSUE-003 (deployed code behind repository), ISSUE-004 (manual GitHub sync - now also applies per-branch: verify both `main` and `ai-development` reach GitHub), ISSUE-013 (new: XLSX reader untested).
+See `09_KNOWN_ISSUES.md`. Most important now: ISSUE-001 (no migrations in git), ISSUE-002 (media upload never run live), ISSUE-003 (deployed `question-bank` behind the repository — this is exactly TASK-006 step 3), ISSUE-013 (closed with a caveat), ISSUE-014 (new, minor test-environment quirks in `media_e2e`).
 
 ## Recommended Next Task
-**TASK-006 step 2** - build the import screen (`#/questions/import`) wired to the parsers already in `frontend/assets/js/teacher/import/`. Do this on `ai-development`.
+**TASK-006 step 3 — deploy `question-bank` v3** if you have Supabase access (then verify the screen live with the admin account: import a small file, confirm the toast, check the bank). If you do not, verify nothing else broke, and work TASK-018 (CI for browser tests — repository only) or help TASK-008 prep while marking step 3 BLOCKED.
 
 ## Suggested Work For Next AI
-1. `git checkout ai-development && git pull`. Read `.ai/00_AI_RULES.md` (including the new section 12), then this file, then `05_TASK_QUEUE.md` TASK-006.
-2. Run `deno test --allow-env backend/tests/` (expect 41 passed) and `deno test --allow-env --no-check frontend/tests/unit/` (expect 16 passed) to confirm your environment matches this hand-off.
-3. Either close ISSUE-013 first (add tests for `zip.js`/`xlsx.js`, ideally against a real small `.xlsx` file) or build the import screen and come back to it - your judgment, but do not ship the screen to the owner as "done" while XLSX is still unverified; say so if you skip it.
-4. For the screen: a route `#/questions/import` in `router.js`, a button next to "Add question" in `questionBank.js`, a review table (see the "Review screen" description in TASK-006) reusing `questionView.js`/`plainText` for display, `api/questionBank.js` gaining `importCheck`/`import` calls to the (still undeployed) `question-bank` actions, and a Playwright test extending `frontend/tests/mock_server.py` with `import_check`/`import` handlers.
-5. Do not deploy `question-bank` or change its contract without recording it in `.ai/`. If you cannot deploy Edge Functions from your environment, finish the screen against the mock server and mark the deploy step `BLOCKED` in `05_TASK_QUEUE.md`.
-6. Show the owner the proposed import formats (spreadsheet columns, pasted-text syntax - both described in TASK-006) before treating them as final; the owner has not reviewed them yet.
-7. After your work: test, update `.ai/` (state, task queue, changelog, this file - including the branch/commit fields at the top), commit on `ai-development`, and push (or hand off the branch if you cannot push directly).
+1. `git checkout ai-development && git pull`. Read `.ai/00_AI_RULES.md`, this file, `05_TASK_QUEUE.md` TASK-006, then the relevant source.
+2. Confirm your environment matches: backend 41, unit 21 (with `--allow-read`), and the four Playwright suites listed above green.
+3. If you can deploy Edge Functions: deploy `question-bank` (repo code, `--no-verify-jwt` as for the others), record the version in `04_CURRENT_STATE.md`, then test the screen live (real sign-in, small import, all-or-nothing failure case) and update `03_FEATURES.md` F-08 to COMPLETE only after that live check.
+4. If you cannot deploy: do not fake it. Mark step 3 BLOCKED and pick TASK-018 or TASK-008 prep instead.
+5. The review-table select-all is tri-state by design (first click fills the gaps, second clears everything); the default selection leaves exact duplicates and in-file duplicates unchecked. Keep those semantics unless the owner asks otherwise.
+6. After your work: test, update `.ai/` (state, queue, changelog, this file — including the branch/commit fields at the top), commit on `ai-development`, push.
+7. When `ai-development` is eventually merged into `main` (owner's call): resolve the import files in favor of `ai-development` and drop `frontend/tests/import.test.js` + `frontend/assets/js/teacher/import/model.js` (Codex's superseded variant, DEC-021 / ISSUE-015).
 
 ## Do NOT Do
-- Do not work directly on `main`. Normal work happens on `ai-development` (section 12 of `00_AI_RULES.md`).
-- Do not merge `ai-development` into `main` yourself; that is a deliberate owner decision, not something to do as part of finishing a task.
+- Do not work directly on `main`; do not merge `ai-development` into `main` yourself (DEC-020).
 - Do not force-push, reset `--hard`, or delete either branch.
-- Do not rebuild the question editor, question bank, media picker, sign in, or the router (F-02, F-04..F-07 are done).
-- Do not add a second way to save questions or a second staff-auth mechanism.
-- Do not replace Supabase, add a frontend framework/bundler, or add npm dependencies to the frontend.
-- Do not add RLS policies or grants to `anon`/`authenticated`; do not query tables from the browser.
-- Do not touch the v1 project (`Exam_Data_Base`) or its repository/hosting.
-- Do not change the text normalization/hash rule in only one language.
-- Do not change the visual system (tokens, fonts, bubble motif) without the owner's approval.
+- Do not rebuild the question editor, question bank, import parsers, media picker, sign in, or the router (F-02, F-04..F-08 are done or largely done).
+- Do not resurrect Codex's import variant from `main` or mix the two implementations (DEC-021, ISSUE-015).
+- Do not add a second import/save path: parsing belongs in `frontend/assets/js/teacher/import/`, saving only through `question-bank` `import` → `import_questions` (DEC-004, DEC-014).
+- Do not add frontend dependencies or a build step (DEC-007); the test-only `npm:linkedom` shim lives in the Deno unit tests, not in the browser code.
+- Do not change the text normalization/hash rule in only one language (DEC-005).
+- Do not add RLS policies or grants; do not query tables from the browser (DEC-002).
+- Do not touch the v1 project (`Exam_Data_Base`) (DEC-015).
+- Do not change the visual system (tokens, fonts, bubble motif) without the owner's approval (DEC-008).
 - Do not push secrets. Do not "fix" the `Admin` placeholder name or create accounts without the owner's request.
-- Do not mark features or tests as done without stating how they were verified - the XLSX gap in this very hand-off (ISSUE-013) is the example to follow: it was built, but is explicitly flagged as untested rather than assumed to work.
+- Do not mark anything done without stating how it was verified — follow the TESTED / UNVERIFIED labels in this file and `03_FEATURES.md`.
 
 ## If Next AI Cannot Complete The Task
 1. Stop rather than guessing.
 2. Document the blocker.
 3. Mark the task `BLOCKED` in `05_TASK_QUEUE.md`.
 4. Update `04_CURRENT_STATE.md`, `05_TASK_QUEUE.md`, `08_HANDOFF.md` (including the branch/commit fields).
-5. Continue with another `READY` task if appropriate (TASK-007/008 need Supabase access; TASK-018 needs only the repository). Stay on `ai-development` unless the task explicitly requires otherwise.
+5. Continue with another `READY` task if appropriate (TASK-018 needs only the repository). Stay on `ai-development`.

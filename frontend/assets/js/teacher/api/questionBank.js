@@ -16,4 +16,6 @@ export const questionBank = {
   passages: (q) => call({ action: "passages", q }).then((r) => r.passages),
   passage: (id) => call({ action: "passage_get", id }).then((r) => r.passage),
   savePassage: ({ id, title, body, media }) => call({ action: "passage_save", id, title, body, media }).then((r) => r.id),
+  importCheck: (items) => call({ action: "import_check", items }).then((r) => r.results),
+  import: (items) => call({ action: "import", items }),
 };
