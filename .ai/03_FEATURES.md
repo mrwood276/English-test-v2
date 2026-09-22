@@ -18,7 +18,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 | F-06 | Reading texts (passages) | COMPLETE | STABLE | TESTED; at least one created live |
 | F-07 | Images and audio for questions and reading texts | PARTIAL (built; real Storage upload never run) | ACTIVE | TESTED (mocked); **UNVERIFIED live** |
 | F-08 | Import questions from Excel/CSV and pasted text | Browser side COMPLETE (deploy pending) | ACTIVE | DB functions TESTED; parsers TESTED (21 unit tests incl. zip/xlsx); screen TESTED (43 browser checks, mocked server); live deploy and a real Excel file UNVERIFIED (ISSUE-013 caveat) |
-| F-09 | Exams (create, exam code, schedule, selection, templates) | PLANNED | – | – |
+| F-09 | Exams (create, exam code, schedule, selection, templates) | Teacher side BUILT (SQL not live) | ACTIVE | Edge logic TESTED (24 Deno); screens TESTED (25 browser checks, mocked); live SQL run and exam flow UNVERIFIED |
 | F-10 | Export questions to PDF/Word | PLANNED | – | – |
 | F-11 | Student join and exam engine | PLANNED | – | – |
 | F-12 | Essay grading, results, statistics, exports | PLANNED | – | – |
@@ -51,7 +51,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 ## F-03 App shell, router, dashboard
 
 - Status: COMPLETE (dashboard is only a welcome + connection check). Protection: STABLE.
-- Behavior: left menu (Dashboard, Question bank; Exams, Grading, Results shown as "Soon"), hash routes, build label at the bottom of the menu (`APP_BUILD` in `config.js`).
+- Behavior: left menu (Dashboard, Question bank, Exams; Grading, Results shown as "Soon"), hash routes, build label at the bottom of the menu (`APP_BUILD` in `config.js`).
 - Files: `frontend/teacher/index.html`, `assets/js/teacher/router.js`, `guard.js`, `screens/shell.js`, `screens/dashboard.js`, `assets/css/teacher.css`.
 - Notes: the mockup dashboard (running exam with big code, "needs your attention", recent exams) is **not implemented**; it depends on exams.
 - Limitations: on phones the menu takes much vertical space (mockups are desktop for teachers; low priority).
@@ -103,7 +103,8 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 
 ## F-09 Exams
 
-- Status: PLANNED. Tables exist (`exams`, `exam_questions`, `retake_permissions`). Requirements: `docs/design.md` BR-03..BR-06, BR-11, mockup 11 ("New exam") in `docs/mockups/round-2.html`. Helpers ready: `backend/functions/_shared/codes.ts` (exam code generation, unused so far).
+- Status: teacher side BUILT (2026-09-22), SQL not live. Tables exist (`exams`, `exam_questions`, `retake_permissions`). Requirements: `docs/design.md` BR-03..BR-06, BR-11, mockup 11 ("New exam") in `docs/mockups/round-2.html`. Helpers: `backend/functions/_shared/codes.ts` (now used by the screens and the handler).
+- What exists: `backend/functions/exams/` (list/get/save/remove/set_status/regenerate_code/check_code/duplicate; 24 Deno tests), `screens/exams.js` (list), `screens/examEditor.js` (mockup 11 flow), `api/exams.js`, routes, mock-server handlers, `exams_e2e.py` (25 checks). SQL contract for the database: `docs/sql-exams.md` — **not yet executed on the live project**.
 - Do not create a second exam-settings mechanism; v1's single `exam_settings` row is intentionally replaced by the `exams` table.
 
 ## F-10 Export questions to PDF/Word — PLANNED (`docs/design.md` section 1.4 lists it as [PENTING], Phase 2; not started).

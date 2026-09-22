@@ -50,11 +50,12 @@ Branch reminder: do this on `ai-development` (`git pull` it first), not on `main
 - Acceptance: files match what is applied; `supabase/README.md` updated; `00_AI_RULES.md` section 8 rule is now satisfiable for future migrations.
 
 ## TASK-009 — Exams: create, edit, code, schedule, selection, templates
-- Priority: HIGH. Status: PLANNED (after TASK-006). Feature: F-09.
+- Priority: HIGH. Status: **IN_PROGRESS (browser side done 2026-09-22; SQL not yet live)**. Feature: F-09.
 - Description: SQL functions + Edge function `exams` + screens per mockup 11: title, duration, passing grade, mandatory exam code (auto-generated, editable, unique among open exams), manual or scheduled availability, late-start policy, selection manual or by filter (pool, draw per student), shuffle, 1 attempt, tab-switch limits 1/3/5 (warn/flag/auto-submit), result visibility, essay pending display, duplicate exam/template, open/close.
 - Relevant: tables `exams`, `exam_questions`; `docs/design.md` BR-03..BR-06, BR-17; `_shared/codes.ts`; mockup `docs/mockups/round-2.html` (frame 11).
 - Constraints: questions used by an exam are archived, not deleted (already implemented); business rules in SQL functions (DEC-004); audit inside functions.
 - Acceptance: teacher can create and open an exam with a code; DB constraints hold; tests at SQL, Deno, and Playwright levels.
+- Progress (2026-09-22): Edge Function `exams` + 24 Deno tests; list + editor screens (manual/auto selection, schedule, live code check, 1/3/5 tab limits, templates, duplicate); mock-server handlers; `exams_e2e.py` (25 checks). **The SQL functions in `docs/sql-exams.md` have NOT been run on the live project** — until they are (owner, or an agent with SQL access), the screens work only against the mock and saving fails live with "rpc save_exam failed". After the SQL run: live-verify create + open + join-with-code, then mark TASK-009 done.
 
 ## TASK-010 — Export questions to PDF/Word — PLANNED, LOW priority
 Depends on TASK-006 completion. Needs a decision on how to generate PDF/Word without new heavy dependencies (ask the owner).

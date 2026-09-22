@@ -187,3 +187,43 @@
 .imp-problem { background: var(--card); border: 1px solid var(--red); color: var(--red); border-radius: 6px; padding: 1px 7px; font-size: 12px; }
 .table-wrap { overflow-x: auto; }
 .import-table .qcell { max-width: none; }
+
+/* ---------- exams (TASK-009) ---------- */
+.exams-layout { grid-template-columns: minmax(0, 1fr); }
+.row { display: flex; align-items: center; gap: 8px; }
+.row.gap { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.grow { flex: 1; min-width: 0; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.stack .sub { margin: 0; }
+.seg button { padding: 8px 13px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); background: transparent; border: 0; border-right: 1.5px solid var(--line); cursor: pointer; }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--pen-tint); color: var(--pen); }
+.seg button:disabled { opacity: 0.45; cursor: not-allowed; }
+.exam-editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.exam-editor-grid > div > .sec { margin-bottom: 12px; }
+.exam-editor-grid h5 { font-size: 15px; margin-bottom: 10px; }
+.exam-editor-grid .field { margin-bottom: 0; }
+.form-row.three > .field { flex: 1; min-width: 120px; }
+.exam-code { font-size: 16px; font-weight: 700; letter-spacing: 0.12em; background: var(--card); border: 1.5px solid var(--line); border-radius: 8px; padding: 3px 10px; }
+.col-code { width: 120px; }
+.col-status { width: 90px; }
+.col-count { width: 110px; white-space: nowrap; }
+.col-actions { width: 230px; }
+.row-title { font-weight: 650; color: inherit; text-decoration: none; }
+.row-title:hover { text-decoration: underline; }
+.row-sub { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+.row-when { color: var(--ink-2); font-size: 12.5px; }
+.picker-head { justify-content: space-between; }
+.picker-head .input { max-width: 260px; }
+.picker-list { border: 1.5px solid var(--line); border-radius: var(--radius-m); max-height: 260px; overflow-y: auto; background: var(--card); }
+.picker-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.picker-item:last-child { border-bottom: 0; }
+.picker-item small { color: var(--ink-2); }
+.picker-item .btn[disabled] { opacity: 0.5; cursor: default; }
+.chosen-item .weight { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink-2); }
+.weight-input { width: 70px; min-height: 0; padding: 4px 8px; }
+.code-input { max-width: 200px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; }
+.field .pill { margin-bottom: 4px; }
+.summary-list .tgl { display: flex; align-items: center; gap: 8px; font-size: 13.5px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.summary-list .tgl:last-child { border-bottom: 0; }
+@media (max-width: 900px) { .exam-editor-grid { grid-template-columns: minmax(0, 1fr); } }

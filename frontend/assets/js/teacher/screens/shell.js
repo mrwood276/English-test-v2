@@ -8,7 +8,7 @@ const ROLE_LABEL = { teacher: "Teacher", admin: "Admin" };
 const NAV = [
   { route: "#/dashboard", label: "Dashboard", icon: "dash" },
   { route: "#/questions", label: "Question bank", icon: "book" },
-  { label: "Exams", icon: "doc" },
+  { route: "#/exams", label: "Exams", icon: "doc" },
   { label: "Grading", icon: "check" },
   { label: "Results", icon: "chart" },
 ];

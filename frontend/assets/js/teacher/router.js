@@ -2,6 +2,8 @@ import { renderDashboard } from "./screens/dashboard.js";
 import { renderQuestionBank } from "./screens/questionBank.js";
 import { renderQuestionEditor } from "./screens/questionEditor.js";
 import { renderQuestionImport } from "./screens/questionImport.js";
+import { renderExams } from "./screens/exams.js";
+import { renderExamEditor } from "./screens/examEditor.js";
 import { getLeaveGuard, clearLeaveGuard } from "./guard.js";
 
 const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
@@ -12,6 +14,9 @@ const ROUTES = [
   { pattern: /^#\/questions\/new$/, nav: "#/questions", title: "New question", render: (c, ctx) => renderQuestionEditor(c, ctx, {}) },
   { pattern: /^#\/questions\/import$/, nav: "#/questions", title: "Import questions", render: (c, ctx) => renderQuestionImport(c, ctx) },
   { pattern: new RegExp(`^#/questions/edit/(${UUID})$`), nav: "#/questions", title: "Edit question", render: (c, ctx, m) => renderQuestionEditor(c, ctx, { id: m[1].toLowerCase() }) },
+  { pattern: /^#\/exams$/, nav: "#/exams", title: "Exams", render: (c, ctx) => renderExams(c, ctx) },
+  { pattern: /^#\/exams\/new$/, nav: "#/exams", title: "New exam", render: (c, ctx) => renderExamEditor(c, ctx, null) },
+  { pattern: new RegExp(`^#/exams/edit/(${UUID})$`), nav: "#/exams", title: "Edit exam", render: (c, ctx, m) => renderExamEditor(c, ctx, m) },
 ];
 const DEFAULT_HASH = "#/dashboard";
 

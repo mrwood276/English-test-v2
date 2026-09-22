@@ -4,10 +4,10 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-22 (third session) |
+| Last updated | 2026-09-22 (fourth session) |
 | Last AI agent | Buffy (Freebuff desktop agent; read-only Supabase access via the v2 publishable key — no dashboard/CLI) |
 | Development phase | Phase 2 (core), following `docs/design.md` section 5 (Phases 0 and 1 are done) |
-| Current focus | TASK-006: import questions from Excel/CSV and pasted text — **browser work finished (steps 1–2)**; only the `question-bank` v3 deploy (step 3) is left |
+| Current focus | TASK-009 exams — teacher side (list + editor + Edge Function + tests) built on `ai-development`; the exam SQL in `docs/sql-exams.md` still needs one live run, then live verification. TASK-006 step 3 (deploy `question-bank` v3) also still awaits Supabase access. |
 | Branch model | `main` = stable branch. `ai-development` = shared branch where Claude and Codex/GPT do normal work, one agent at a time. See `00_AI_RULES.md` section 12 and DEC-020. `ai-development` is **not yet stable enough to merge into `main`** — TASK-006 step 3 (deploy) is still open and the import screen is invisible until it happens. |
 | Current branch / commit | Work is on **`ai-development`**, which holds `6f5c223` (parsers) → this session's commit (import screen + xlsx tests + templates; see `git log` and `08_HANDOFF.md`). `main` itself is unchanged and still points at `46803f0`. |
 | Repository baseline | GitHub is the source. `origin/ai-development` = `6f5c223` + this session's commit. **`origin/main` is NOT at `46803f0` anymore**: Codex/GPT-5 pushed its own parallel TASK-006 implementation straight to `main` on 2026-09-21 (`d21f82d`, `1606aed`, `9c293fc`) — see ISSUE-015 and DEC-021 for the owner's resolution (the `ai-development` implementation is the one that continues; `main`'s variant is superseded at the next deliberate merge) |
@@ -44,12 +44,14 @@
 | Area | Repository | Live | Consequence |
 |---|---|---|---|
 | `question-bank` | has actions `import_check`, `import` (`handler.ts`, `parse.ts`, tests) | version 2 **without** those actions | Deploying it (TASK-006 step 3) is now the **only** thing between the finished import screen and a working feature: the screen calls the actions and fails with "Nothing was saved" until they are live. Safe: it only adds actions |
-| SQL migrations | none stored | `v2_01`..`v2_12` applied | Cannot rebuild the database from git (ISSUE-001) |
+| `exams` (new function) | full handler + parser + 24 Deno tests; SQL functions spec'd in `docs/sql-exams.md` | function does not exist; exam tables DO exist (verified read-only) | Teacher exam screens work against the mock only; saving fails live until the SQL is run and the function deployed (TASK-009 remainder) |
+| SQL migrations | none stored; exam SQL in `docs/sql-exams.md` | `v2_01`..`v2_12` applied | Cannot rebuild the database from git (ISSUE-001) |
 | Frontend | `APP_BUILD` = "Phase 2, question import" | not deployed | The owner runs it locally with `frontend/dev-server.py` |
 
 ## Recently completed work (newest first)
 
-1. **TASK-006 steps 1–2, import browser work is done**: the import screen `#/questions/import` (file or paste → defaults → review table with statuses → all-or-nothing import), wired into the router and the question bank; zip/xlsx readers now tested against a real .xlsx fixture (ISSUE-013 closed); template files under `frontend/assets/templates/`; new Playwright suite `question_import_e2e.py` (43 checks). Verified only against the mock server — see the XLSX and live caveats below.
+1. **TASK-009 teacher-side exams (2026-09-22)**: `exams` Edge Function (list/get/save/remove/set_status/regenerate_code/check_code/duplicate) with 24 Deno tests; exams list screen (filters, open/close, duplicate, delete) and exam editor (manual/auto selection, schedule, live code uniqueness check, shuffle, 1/3/5 tab limits, result visibility, summary, leave guard, templates); routes + live Exams menu; mock-server handlers; `exams_e2e.py` (25 checks); SQL reference `docs/sql-exams.md` **not yet run live**.
+2. **TASK-006 steps 1–2, import browser work is done**: the import screen `#/questions/import` (file or paste → defaults → review table with statuses → all-or-nothing import), wired into the router and the question bank; zip/xlsx readers now tested against a real .xlsx fixture (ISSUE-013 closed); template files under `frontend/assets/templates/`; new Playwright suite `question_import_e2e.py` (43 checks). Verified only against the mock server — see the XLSX and live caveats below.
 2. Import parsers for CSV, XLSX, and pasted text with 21 Deno unit tests.
 3. Import backend: SQL `find_similar_batch`, `import_questions` (live, tested); Edge code + tests (repo only, not deployed).
 4. Images and audio: bucket, SQL, `media` function (deployed), file picker, previews, tests. Not yet verified with real Storage.
@@ -60,6 +62,7 @@
 
 ## Work in progress
 
+- **TASK-009 Exams**, on branch `ai-development`: teacher side built and mock-tested. Remaining: run `docs/sql-exams.md` on the live project, deploy the `exams` function, live-verify create + open + join; then the student side is TASK-010.
 - **TASK-006 Import questions**, on branch `ai-development`: browser work complete (parsers, screen, tests, templates). Remaining: step 3 — deploy `question-bank` with the import actions (needs Supabase access, else BLOCKED) and step 4 — show the owner the proposed file formats before calling the feature done for teachers.
 
 ## Pending work (see `05_TASK_QUEUE.md`)

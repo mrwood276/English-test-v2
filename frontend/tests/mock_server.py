@@ -27,6 +27,7 @@ class Server:
         self.qs = make_questions(); self.calls = []; self.fail_list = 0; self.status_all = None
         self.saved = []; self.dup_calls = []; self.media = {}; self.media_calls = []; self.register_error = None; self.last_upload_size = None
         self.import_checks = []; self.imports = []
+        self.exam_calls = []; self.exams = {}; self.exam_codes_used = {"TAKEN1"}
         self.passages = [{"id": "pa1", "title": "The Lost Wallet", "body": "Dina found a <u>brown</u> wallet.", "question_count": 3}, {"id": "pa2", "title": "The Smart Monkey", "body": "A clever monkey sat on a branch.", "question_count": 1}]
     def item(self, q):
         return {k: q[k] for k in ["id", "type", "body", "topic", "difficulty", "weight", "class_labels", "has_audio", "has_image", "has_passage", "used_in_exams", "is_archived"]} | {"updated_at": "2026-09-20T00:00:00Z"}
@@ -75,6 +76,8 @@ class Server:
         url = req.url
         if "/functions/v1/media" in url:
             return self.handle_media(route, req)
+        if "/functions/v1/exams" in url:
+            return self.handle_exams(route, req)
         if "/auth-me" in url:
             return route.fulfill(status=200, content_type="application/json", body=json.dumps({"user": {"id": "u1", "fullName": "Admin", "role": "admin"}}))
         body = json.loads(req.post_data or "{}"); a = body.get("action"); self.calls.append(body)
@@ -168,3 +171,82 @@ class Server:
             self.qs.remove(q); return ok({"result": "deleted"})
         route.fulfill(status=400, content_type="application/json", body=json.dumps({"error": "Unknown action"}))
 
+    def exam_row(self, e):
+        qs = e["questions"]
+        return {"id": e["id"], "title": e["title"], "description": e.get("description"), "status": e["status"],
+                "duration_minutes": e["duration_minutes"], "passing_grade": e["passing_grade"],
+                "availability_mode": e["availability_mode"], "starts_at": e.get("starts_at"), "ends_at": e.get("ends_at"),
+                "late_start_policy": e["late_start_policy"], "access_code": e["access_code"],
+                "selection_mode": e["selection_mode"], "is_template": e["is_template"],
+                "question_count": len(qs), "total_points": sum(q.get("weight", 1) for q in qs),
+                "created_at": e.get("created_at", "2026-09-21T00:00:00Z")}
+
+    def handle_exams(self, route, req):
+        body = json.loads(req.post_data or "{}"); a = body.get("action"); self.exam_calls.append(body)
+        def ok(data): route.fulfill(status=200, content_type="application/json", body=json.dumps(data))
+        def err(status, msg): route.fulfill(status=status, content_type="application/json", body=json.dumps({"error": msg, "code": "bad_request"}))
+        if a == "list":
+            rows = list(self.exams.values())
+            if body.get("q"): rows = [e for e in rows if body["q"].lower() in e["title"].lower()]
+            if body.get("status"): rows = [e for e in rows if e["status"] == body["status"]]
+            if body.get("template_only"): rows = [e for e in rows if e["is_template"]]
+            sort = body.get("sort", "newest")
+            if sort == "newest": rows.sort(key=lambda e: e.get("created_at", ""), reverse=True)
+            if sort == "oldest": rows.sort(key=lambda e: e.get("created_at", ""))
+            if sort == "title": rows.sort(key=lambda e: e["title"])
+            return ok({"exams": [self.exam_row(e) for e in rows]})
+        if a == "get":
+            e = self.exams.get(body.get("id"))
+            if not e: return route.fulfill(status=404, content_type="application/json", body=json.dumps({"error": "That exam no longer exists.", "code": "not_found"}))
+            return ok({"exam": {**self.exam_row(e), "questions": e["questions"], "auto_filter": e.get("auto_filter"),
+                                "pool_size": e.get("pool_size"), "draw_per_student": e.get("draw_per_student", False),
+                                "randomize_questions": e.get("randomize_questions", False), "randomize_options": e.get("randomize_options", False),
+                                "result_visibility": e.get("result_visibility", "none"), "essay_pending_display": e.get("essay_pending_display", "hide_score"),
+                                "tab_switch_warn_limit": e.get("tab_switch_warn_limit", 1), "tab_switch_flag_limit": e.get("tab_switch_flag_limit", 3),
+                                "tab_switch_autosubmit_limit": e.get("tab_switch_autosubmit_limit", 5)}})
+        if a == "save":
+            code = str(body.get("access_code", "")).strip().upper()
+            if not str(body.get("title", "")).strip(): return err(400, "Title is required.")
+            if not code: return err(400, "Test code is required.")
+            if code == "TAKEN1": return err(400, f"The test code {code} is already used by an open exam.")
+            eid = body.get("id") or f"00000000-0000-4000-8000-{len(self.exams) + 1:012d}"
+            prev = self.exams.get(eid)
+            self.exams[eid] = {"id": eid, "title": body["title"], "description": body.get("description"), "status": body.get("status", "draft"),
+                               "duration_minutes": body.get("duration_minutes", 45), "passing_grade": body.get("passing_grade", 0),
+                               "availability_mode": body.get("availability_mode", "manual"), "starts_at": body.get("starts_at"), "ends_at": body.get("ends_at"),
+                               "late_start_policy": body.get("late_start_policy", "full_duration"), "access_code": code,
+                               "selection_mode": body.get("selection_mode", "manual"), "auto_filter": body.get("auto_filter"),
+                               "pool_size": body.get("pool_size"), "draw_per_student": bool(body.get("draw_per_student")),
+                               "randomize_questions": bool(body.get("randomize_questions")), "randomize_options": bool(body.get("randomize_options")),
+                               "result_visibility": body.get("result_visibility", "none"), "essay_pending_display": body.get("essay_pending_display", "hide_score"),
+                               "tab_switch_warn_limit": body.get("tab_switch_warn_limit", 1), "tab_switch_flag_limit": body.get("tab_switch_flag_limit", 3),
+                               "tab_switch_autosubmit_limit": body.get("tab_switch_autosubmit_limit", 5), "is_template": bool(body.get("is_template")),
+                               "questions": [{"question_id": q["question_id"], "position": i, "weight": q.get("weight", 1), "body": next((qq["body"] for qq in self.qs if qq["id"] == q["question_id"]), f"Question {i + 1}"), "type": "multiple_choice"} for i, q in enumerate(body.get("questions", []))],
+                               "created_at": (prev or {}).get("created_at", "2026-09-21T00:00:00Z")}
+            return ok({"id": eid})
+        if a == "remove":
+            e = self.exams.pop(body.get("id"), None)
+            return ok({"result": "deleted"}) if e else err(400, "That exam no longer exists.")
+        if a == "set_status":
+            e = self.exams.get(body.get("id"))
+            if not e: return err(400, "That exam no longer exists.")
+            if body.get("status") == "open" and len(e["questions"]) == 0 and e["selection_mode"] == "manual":
+                return err(400, "Add questions before opening the exam.")
+            e["status"] = body.get("status"); return ok({"ok": True})
+        if a == "regenerate_code":
+            e = self.exams.get(body.get("id"))
+            if not e: return err(400, "That exam no longer exists.")
+            e["access_code"] = f"NEW{len(self.exam_calls) % 100:02d}"; return ok({"code": e["access_code"]})
+        if a == "check_code":
+            code = str(body.get("code", "")).strip().upper()
+            used = self.exam_codes_used | {e["access_code"] for e in self.exams.values() if e["status"] == "open"}
+            mine = {e["access_code"] for e in self.exams.values() if e["id"] == body.get("exclude_id")}
+            return ok({"available": code not in (used - mine)})
+        if a == "duplicate":
+            src = self.exams.get(body.get("id"))
+            if not src: return err(400, "That exam no longer exists.")
+            nid = f"00000000-0000-4000-8000-{len(self.exams) + 1:012d}"
+            import copy
+            dup = copy.deepcopy(src); dup.update(id=nid, status="draft", title=src["title"] + " (copy)", access_code=f"DUP{len(self.exams) % 100:02d}", created_at="2026-09-22T00:00:00Z")
+            self.exams[nid] = dup; return ok({"id": nid})
+        return err(400, "Unknown action")
