@@ -77,7 +77,7 @@ Depends on TASK-006 completion. Needs a decision on how to generate PDF/Word wit
 - Priority: MEDIUM. Status: PLANNED (needs an owner decision). Choose static hosting for v2; then set the `ALLOWED_ORIGIN` function secret, Supabase Auth Site URL/redirect URLs (password reset), self-host or preload fonts (audit M-7).
 
 ## TASK-018 — Run frontend tests in CI
-- Priority: LOW. Status: **DONE (2026-09-22, awaiting the owner's first CI run)**. Issue: ISSUE-006 (now closed).
+- Priority: LOW. Status: **DONE (2026-09-22, awaiting the owner's first CI run)**. Issue: ISSUE-006 (now closed). **2026-09-22, sixth session:** the first CI failure happened (run #4, Question-editor step) and was fixed at its product root — the duplicate session-expired announcement overwrite (see ISSUE-016); all five suites verified 3× in a row.
 - What was done: new `.github/workflows/frontend-tests.yml` with two jobs — `unit` (Deno: the import parser tests, `--allow-read` for the xlsx fixture) and `browser` (Python 3.12 + Playwright/Chromium + Pillow, generates the media fixtures with the new portable `fixtures_dir.py`, starts `dev-server.py 8123`, then runs all five suites: teacher, bank, editor, media, import). The whole sequence was simulated locally in order and passes.
 - Note for the first real run: `playwright install --with-deps chromium` needs the runner's apt packages (handled by the flag); if the browser job is slow, cache `~/.cache/ms-playwright` later — not needed to start.
 

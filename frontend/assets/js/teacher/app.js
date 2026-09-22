@@ -8,6 +8,7 @@ import { renderShell } from "./screens/shell.js";
 const root = document.getElementById("app");
 
 async function showApp() {
+  window.dispatchEvent(new Event("staff:signed-in")); // re-allow session-expired announcements (see core/api.js)
   const { user } = await whoAmI();
   renderShell(root, {
     user,

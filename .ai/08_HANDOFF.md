@@ -16,12 +16,13 @@ Before doing anything: `git checkout ai-development` (or confirm you're on it), 
 `origin/main` contains Codex/GPT-5's own parallel implementation of the import parsers + screen (commits `d21f82d`, `1606aed`, `9c293fc`, 2026-09-21), which conflicts file-by-file with the `ai-development` implementation. The owner decided (DEC-021, 2026-09-22): **continue with `ai-development`'s version; Codex's `main` commits stay untouched and get superseded at the next deliberate merge.** Do not port Codex's variant back, and do not "reconcile" the two on your own initiative.
 
 ## Last Agent
-Buffy (Freebuff desktop agent, fifth session — fourth built the exam screens/backend; direct git access to `origin`; **live Supabase access via the owner's access token (CLI) + admin credentials for the flow check — both session-only, not stored in the repo**).
+Buffy (Freebuff desktop agent, sixth session — fifth deployed live; direct git access to `origin`; **live Supabase access via the owner's access token (CLI) + admin credentials for the flow check — both session-only, not stored in the repo**).
 
 ## Date
-2026-09-22 (fifth session)
+2026-09-22 (sixth session)
 
 ## Last Completed Task
+- **CI red fixed at its root (sixth session)**: GitHub Actions run #4 failed the Question-editor step. Reproduced locally 1-in-2 in the full chain and root-caused to a **product bug**, not a test problem: every `SessionExpiredError` re-dispatched `staff:session-expired`, so a background request after the 401 (the editor's debounced duplicate-check timer, detached) replaced the sign-in notice ("Your session has expired…") with "Please sign in." Fix: announce once per signed-out period (`sessionExpiredAnnounced` flag in `core/api.js`, reset by `staff:signed-in` dispatched in `app.js#showApp`). ISSUE-016 rewritten (two LOW misdiagnoses → MEDIUM, FIXED-AT-ROOT). Verified: 3 consecutive full browser chains 15/15 (crashed on cycle 2 before), unit 21/21, `deno check` clean.
 - **TASK-009 live step + TASK-006 step 3 done (fifth session)**: the exam SQL was applied to the v2 project (first migration in git: `supabase/migrations/20260922000000_exams_functions.sql`), the `exams` function deployed (v1), and `question-bank` v3 deployed (import actions live — ISSUE-003 closed). The whole exam flow was live-verified with the admin account: save draft (weights) → get → list → update → open → code-uniqueness refusal among open exams → check_code → regenerate_code → duplicate → remove, plus refusals (empty manual exam at save, end-before-start schedule) and the tokenless 401 wall. Three real schema facts were discovered and fixed while applying the SQL (enum casts, `auto_filter` NOT NULL, `position > 0`, access_code CHECK in duplicate_exam, `list_exams` return-type drop) — all recorded in `docs/sql-exams.md`. A parser default (`draw_per_student` false when absent) was fixed and redeployed. All test exams + audit rows were deleted afterwards: live state 0 exams, 40 questions.
 - Fourth session: **TASK-009 teacher-side exams built**: `exams` Edge Function (8 actions) + 24 Deno tests (backend 41 → 65); exams list + editor screens per mockup 11 (manual/auto selection, schedule, live code check, tab limits 1/3/5, templates, duplicate, leave guard); routes `#/exams*`; Exams menu item live; mock-server exams handlers; `exams_e2e.py` (25 checks).
 - **`docs/verification-checklist.md` written** — step-by-step owner instructions for the Supabase-side work (sign-up off, deploy v3, media upload check, migrations export).
@@ -33,6 +34,12 @@ Buffy (Freebuff desktop agent, fifth session — fourth built the exam screens/b
 - Fourth session: the owner sent the **v2** publishable key (`sb_publishable_WewR6gpQy3SdaoBaJxxDyg_l5gt-R7E` for `lbhnadqmokloyfarrzfv`, matching `config.js`) — public by design, used for read-only probes only.
 - Earlier: a URL + key for `dtrgbjqfnkjiengpvbym` identified the **v1 project (`Exam_Data_Base`)** — do not touch v1 (DEC-001/DEC-015).
 - Remaining owner-side steps (checklist in `docs/verification-checklist.md`): disable public sign-up (ISSUE-007, still enabled), live media upload check (TASK-007), `supabase db pull` for the old migrations (TASK-008 remainder).
+
+## What Was Changed (sixth session, 2026-09-22 — CI flake root cause)
+1. `frontend/assets/js/core/api.js` — session-expired announcements gated to once per signed-out period (module flag + `staff:signed-in` reset listener, registered `{ once: true }` at first announce).
+2. `frontend/assets/js/teacher/app.js` — `showApp()` dispatches `staff:signed-in` (single choke-point after every sign-in/boot path; also resets the flag if a stale event listener pair ever re-fires).
+3. `.ai/09_KNOWN_ISSUES.md` ISSUE-016 rewritten with the true root cause and verification record.
+4. No test files changed — the suites were right; the app was wrong.
 
 ## What Was Changed (fifth session, 2026-09-22 — live deploy + verification)
 1. **Exam SQL applied live** → `supabase/migrations/20260922000000_exams_functions.sql` (new, first migration in git). Real schema facts were discovered and fixed in the SQL while applying: enum columns need explicit casts, `save_exam` generates the id (`coalesce(p_id, gen_random_uuid())`), `auto_filter` NOT NULL, `exam_questions.position` starts at 1 (`position > 0` CHECK), `duplicate_exam` mints a confusion-safe code (access_code CHECK rejected the md5 snippet), `list_exams` casts enums to text and needs `drop function` before a return-type change (file is idempotent).
@@ -54,6 +61,9 @@ Buffy (Freebuff desktop agent, fifth session — fourth built the exam screens/b
 4. **Mock server + browser tests** — `mock_server.py` implements `import_check` (EXACT/similar) and `import` (refuses bodies containing `FORCE_SERVER_ERROR` with `Row N:`); new `frontend/tests/question_import_e2e.py` (43 checks: paste flow, statuses, defaults, select-all semantics, payload shape, a real `.xlsx` upload through the file picker, refused batch, leave guard, example button).
 5. **Templates** — `frontend/assets/templates/import-template.xlsx` and `import-template.csv` (generated by `make_import_template.py`, outputs committed, downloadable from the screen); `frontend/assets/templates/README.md`.
 6. **Small** — `shared/icons.js`: two fixed icons (`sheet`, `pencil`); `questions.css`: import styles (new `.head-actions`, `.import-*` classes using existing tokens); `APP_BUILD` = "Phase 2, question import"; root and frontend `README.md` updated; `.ai/` updated (state, queue, features, changelog, issues, this file).
+
+## Files Changed (repository, sixth session)
+- Edited: `frontend/assets/js/core/api.js`, `frontend/assets/js/teacher/app.js`, `.ai/09_KNOWN_ISSUES.md`, `.ai/07_CHANGELOG.md`, this file.
 
 ## Files Changed (repository, fifth session)
 - New: `supabase/migrations/20260922000000_exams_functions.sql` (applied live), `backend/sync_functions.py`.
