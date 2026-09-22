@@ -99,3 +99,14 @@ Only decisions that can be verified from the repository, `docs/design.md`, the l
 
 ## DEC-019 — `.ai/` is contextual memory, not the source of truth
 - Date: 2026-09-21. See `00_AI_RULES.md` section 0. Active: yes.
+
+## DEC-020 — Two-branch Git workflow: `main` (stable) and `ai-development` (shared sequential AI branch)
+- Date: 2026-09-21 (owner's request, implemented by Claude).
+- Decision: `main` is the stable branch and is not used as the normal AI workspace. `ai-development` is where Claude and Codex/GPT do normal, everyday development. `ai-development` was created from `main` at commit `46803f0` (the commit that added `.ai/`). Only one AI actively modifies `ai-development` at a time — Claude and Codex/GPT are not expected to work on it simultaneously, they take turns sequentially (Claude → Codex/GPT → Claude → ...), each pulling the latest state, reading `08_HANDOFF.md`, doing a unit of work, testing, updating `.ai/`, committing, and pushing before the next agent starts.
+- Reason: with two different AI systems (Claude and Codex/GPT) potentially touching the same repository at different times, working directly on `main` risks leaving it in a broken or half-finished state between hand-offs. A dedicated development branch lets work-in-progress accumulate safely while `main` keeps representing "the last version someone deliberately decided was stable."
+- Why sequential, not concurrent: neither agent has a way to lock files or negotiate a merge with the other in real time within this workflow; a single shared branch worked on one-at-a-time (rather than each agent branching further and merging) keeps history linear and avoids merge conflicts between two AI agents that cannot coordinate directly.
+- Why merging into `main` is deliberate rather than automatic: the owner (or whoever reviews the project) should be the one who decides a batch of AI work is ready to become "the stable version," not an agent mid-task. An agent finishing one task on `ai-development` does not imply the whole branch is stable — earlier work on the same branch might still be incomplete (as it is right now: TASK-006 is mid-flight).
+- Alternatives considered: (a) one agent per feature branch, merged via pull request — more standard, but assumes both agents and a reviewer can manage PRs, which was not confirmed as available; (b) working directly on `main` with frequent small commits — rejected per the owner's explicit instruction and the risk above.
+- Consequences: every task description in `05_TASK_QUEUE.md` and every entry in `08_HANDOFF.md` must state which branch the work is on. `00_AI_RULES.md` section 12 has the operational rules. The existing single-branch history (`35d6561` through `46803f0`) stays on `main` unchanged; only new work moves to `ai-development`.
+- Affected: repository branch structure only; no application code, database, or UI changed because of this decision.
+- Active: yes.

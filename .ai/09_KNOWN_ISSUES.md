@@ -48,5 +48,11 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 ## ISSUE-012 — Orphan files and stale rate-limit rows are never purged automatically
 - Severity: LOW. Status: OPEN. `purge_unused` (admin action of `media`) and SQL `purge_rate_limits` exist but nothing schedules them (Phase 7).
 
+## ISSUE-013 — Import: the XLSX (Excel) reader has no tests and has never read a real file
+- Severity: MEDIUM. Status: NEEDS_VERIFICATION. Branch: `ai-development`. Related: TASK-006.
+- Description: `frontend/assets/js/teacher/import/zip.js` (minimal ZIP reader) and `xlsx.js` (reads the first sheet: shared strings, inline strings, numbers, booleans) were written and reviewed but have **zero automated tests**, unlike every other file in `import/`. They have never been run against a `.xlsx` file actually saved by Excel or Google Sheets, only reasoned about against the OOXML format.
+- Affected: `frontend/assets/js/teacher/import/zip.js`, `xlsx.js`.
+- Suggested investigation: add Deno unit tests (a small hand-built `.xlsx`-shaped ZIP, or a real file checked into `frontend/tests/unit/fixtures/`), and a Playwright test that uploads a real Excel file through the future import screen. Do this before the import feature ships to teachers, since a broken spreadsheet reader would be confusing and hard to self-diagnose for a non-technical user.
+
 ## Legacy v1 issues (outside this repository; not being fixed, DEC-015)
 Summarized from `docs/audit-v1.md`: server does not enforce exam time (H-1); no attempt limit or open/close/code (H-2); teacher password stored plaintext, no login throttling (H-3); token signing secret hard-coded in function code (H-4); no server-side validation of name/class and no rate limit on session creation (H-5); answers only in browser storage until submit (M-1); duplicate result rows possible (M-2). These disappear when v2 replaces v1.

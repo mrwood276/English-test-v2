@@ -2,6 +2,12 @@
 
 Verified against the repository and the live Supabase project on 2026-09-21.
 
+## Source control
+
+Two branches: `main` (stable) and `ai-development` (shared, sequential AI workspace — Claude and Codex/GPT take turns, one at a time).
+Normal development happens on `ai-development`; `main` only receives deliberate merges once the owner considers the development branch stable.
+Full rules: `00_AI_RULES.md` section 12. This is a process convention, not an application architecture change — nothing below in this file changes because of it.
+
 ## Overview
 
 ```

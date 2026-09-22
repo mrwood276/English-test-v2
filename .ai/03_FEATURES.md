@@ -17,7 +17,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 | F-05 | Question editor (4 types, labels, topics, duplicate warnings, preview, unsaved guard) | COMPLETE | STABLE | LIVE-VERIFIED (add/edit opened and worked per owner), rest TESTED |
 | F-06 | Reading texts (passages) | COMPLETE | STABLE | TESTED; at least one created live |
 | F-07 | Images and audio for questions and reading texts | PARTIAL (built; real Storage upload never run) | ACTIVE | TESTED (mocked); **UNVERIFIED live** |
-| F-08 | Import questions from Excel/CSV and pasted text | IN_PROGRESS | ACTIVE | DB functions TESTED; rest not built |
+| F-08 | Import questions from Excel/CSV and pasted text | IN_PROGRESS (branch `ai-development`) | ACTIVE | DB functions TESTED; CSV/text/row parsers TESTED; XLSX reader UNVERIFIED (ISSUE-013); screen not built |
 | F-09 | Exams (create, exam code, schedule, selection, templates) | PLANNED | – | – |
 | F-10 | Export questions to PDF/Word | PLANNED | – | – |
 | F-11 | Student join and exam engine | PLANNED | – | – |
@@ -93,10 +93,11 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 
 ## F-08 Import questions (Excel/CSV and pasted text)
 
-- Status: **IN_PROGRESS**. Protection: ACTIVE.
-- Done: SQL functions `find_similar_batch` and `import_questions` (migration `v2_12`, applied to the live database and tested with rolled-back DO blocks: all-or-nothing, "Row N:" messages, reading texts matched by normalized title, limit 200). Edge code `parseImportItems`, `parseImportCheckItems`, and actions `import_check` / `import` in `backend/functions/question-bank/` with unit tests (41 backend tests pass).
+- Status: **IN_PROGRESS**, on branch `ai-development` (not merged to `main`). Protection: ACTIVE.
+- Done: SQL functions `find_similar_batch` and `import_questions` (migration `v2_12`, applied to the live database and tested with rolled-back DO blocks: all-or-nothing, "Row N:" messages, reading texts matched by normalized title, limit 200). Edge code `parseImportItems`, `parseImportCheckItems`, and actions `import_check` / `import` in `backend/functions/question-bank/` with unit tests (41 backend tests pass). Browser parsers `frontend/assets/js/teacher/import/{rules,csv,zip,xlsx,text,rows}.js` with 16 Deno unit tests covering `rules.js`, `csv.js`, `rows.js`, `text.js`.
+- **Untested:** `zip.js` and `xlsx.js` (the Excel reader) have no automated tests and have never read a real `.xlsx` file — see ISSUE-013. Treat spreadsheet import as unverified until that gap is closed.
 - **Not deployed:** the live `question-bank` function is version 2 and does not have the import actions.
-- **Not built:** browser parsers (CSV, XLSX, pasted text), the import screen, template files, browser tests.
+- **Not built:** the import screen, wiring the parsers into the app, template files, a browser test.
 - Planned design (PROPOSED by Claude; the owner has not reviewed the file formats): see `05_TASK_QUEUE.md` TASK-006.
 
 ## F-09 Exams

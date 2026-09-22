@@ -5,16 +5,18 @@ Order follows dependencies. Completed tasks are listed at the end for history (a
 
 ## NEXT RECOMMENDED TASK
 
-**TASK-006, step 1: browser parsers for the import (CSV, XLSX, pasted text) with unit tests.**
-Reason: the backend half of the import is finished and tested; the parsers are pure functions and can be built and tested without touching Supabase. Steps 2–4 follow. In parallel, the owner can run TASK-007 and TASK-008 (they need real Supabase access, not code).
+**TASK-006, step 2: the import screen (`#/questions/import`), wired to the parsers already built in step 1.**
+Reason: the backend half and the browser parsers are both finished and tested; the review screen and the route are the remaining browser work and do not need Supabase access. Steps 3–4 follow. In parallel, the owner (or an agent with Supabase access) can run TASK-007 and TASK-008.
+Branch reminder: do this on `ai-development` (`git pull` it first), not on `main`.
 
 ---
 
 ## TASK-006 — Import questions from Excel/CSV and pasted text
 - Priority: HIGH. Status: **IN_PROGRESS**. Feature: F-08.
 - Description: Teachers add many questions at once: upload a `.xlsx`/`.csv` file, or paste text copied from Word. The browser parses and shows a review (ready / needs fixing / duplicate) before anything is saved; saving is all-or-nothing.
-- Done so far: SQL `find_similar_batch`, `import_questions` (live, tested); Edge `parseImportItems`, `parseImportCheckItems`, actions `import_check` and `import`, unit tests (repository only).
-- Relevant files: `backend/functions/question-bank/handler.ts`, `parse.ts`; `backend/tests/question_bank.test.ts`; future: `frontend/assets/js/teacher/import/*`, `screens/questionImport.js`, `api/questionBank.js`, `frontend/assets/templates/*`.
+- Branch: **`ai-development`** (not on `main` yet — see `08_HANDOFF.md` and DEC-020).
+- Done so far: SQL `find_similar_batch`, `import_questions` (live, tested); Edge `parseImportItems`, `parseImportCheckItems`, actions `import_check` and `import`, unit tests (repository only, not deployed). Browser parsers `frontend/assets/js/teacher/import/{csv,zip,xlsx,text,rows,rules}.js` with 16 Deno unit tests in `frontend/tests/unit/import.test.ts` (pass with `deno test --allow-env --no-check frontend/tests/unit/`; plain `deno test` without `--no-check` currently fails type inference on a couple of assertions even though the code is correct — a next agent may either add light JSDoc types to `rows.js`/`text.js` to satisfy the checker, or keep using `--no-check` for this JS-only test file. Not investigated further; low priority). **Coverage gap:** `rules.js`, `csv.js`, `rows.js`, `text.js` are unit-tested; **`zip.js` and `xlsx.js` have no tests at all and have never read a real `.xlsx` file** — treat XLSX import as UNVERIFIED until that exists (ISSUE-013). Do a quick manual check (save a small real Excel file, open it with `readXlsxRows` in a browser console) before or while building the import screen, and add a proper test.
+- Relevant files: `backend/functions/question-bank/handler.ts`, `parse.ts`; `backend/tests/question_bank.test.ts`; `frontend/assets/js/teacher/import/*` (done); still needed: `screens/questionImport.js`, wiring in `router.js` and `api/questionBank.js`, `frontend/assets/templates/*`, a Playwright test.
 - Dependencies: F-05 editor rules (same validation rules), F-06 reading texts.
 - Constraints: parsing happens in the browser with **no new dependencies** (DEC-007): write a small CSV parser (delimiter `,` `;` or tab), a minimal ZIP reader using `DecompressionStream("deflate-raw")` and an XML reader using `DOMParser` for `.xlsx`; only `.xlsx` and `.csv` (not `.xls`). Nothing is saved before the review is confirmed. Batch limit 200. Files (images/audio) cannot be imported.
 - Server contract (already implemented):
@@ -26,7 +28,7 @@ Reason: the backend half of the import is finished and tested; the parsers are p
   - Defaults panel (class labels, topic, difficulty, points) applied to rows that leave them blank.
 - Review screen: table with import checkbox, row number, question text, type, answer summary, status pills (Ready, Fix, Duplicate in bank, Duplicate in file, Similar) and messages. Rows with errors cannot be imported; exact duplicates are unchecked by default; similar ones are checked with a warning. "Import N questions" then goes back to the list with a toast. Unsaved review triggers the leave guard.
 - Steps:
-  1. Parsers + row normalization + validation mirroring `save_question` rules, with Deno unit tests (pure JS) and a browser test for XLSX (generate a real `.xlsx` in the test).
+  1. ~~Parsers + row normalization + validation mirroring `save_question` rules, with Deno unit tests (pure JS).~~ **MOSTLY DONE** (16 tests) but **`zip.js`/`xlsx.js` are untested** — add tests for them (a real small `.xlsx` fixture, or at minimum a hand-built one covering shared strings, inline strings, and multiple rows/columns) before relying on XLSX import.
   2. Import screen `#/questions/import`, route in `router.js`, "Import" button next to "Add question", API calls in `api/questionBank.js`, Playwright test with the mock server (extend `mock_server.py` with `import_check`/`import`).
   3. Deploy `question-bank` (repository code, includes import actions) — needs Supabase access; if unavailable mark this step BLOCKED.
   4. CSV and XLSX template files under `frontend/assets/templates/`, README updates, update `.ai/`.

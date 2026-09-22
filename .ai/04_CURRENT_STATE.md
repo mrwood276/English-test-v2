@@ -8,7 +8,9 @@
 | Last AI agent | Claude (Sonnet 5, claude.ai chat) |
 | Development phase | Phase 2 (core), following `docs/design.md` section 5 (Phases 0 and 1 are done) |
 | Current focus | TASK-006: import questions from Excel/CSV and pasted text |
-| Repository baseline | Delivered as git history `ad9b6d6` (media) → `b9b5001` (import backend, function not deployed) → the commit that adds `.ai/`, `AGENTS.md`, `CLAUDE.md`. The agent could not read the private GitHub remote, so it worked from its own copy; **NEEDS VERIFICATION** that GitHub matches once the owner has pulled and pushed |
+| Branch model | **New as of this entry.** `main` = stable branch. `ai-development` = shared branch where Claude and Codex/GPT do normal work, one agent at a time. See `00_AI_RULES.md` section 12 and DEC-020. `ai-development` is **not yet stable enough to merge into `main`** — TASK-006 is mid-flight on it. |
+| Current branch / commit | Work is on **`ai-development`**, commit `6f5c223` ("TASK-006 step 1: browser import parsers..."), branched from `main` at `46803f0`. `main` itself is unchanged and still points at `46803f0`. |
+| Repository baseline | Delivered as git history `ad9b6d6` (media) → `b9b5001` (import backend, function not deployed) → `46803f0` (adds `.ai/`, `AGENTS.md`, `CLAUDE.md`, on `main`) → branch `ai-development` created from `46803f0` → `6f5c223` (import parsers, on `ai-development`). The agent could not read the private GitHub remote (no `origin` configured in its sandbox, and cloning asked for credentials), so it worked from its own local copy; **NEEDS VERIFICATION** that GitHub's `main` matches `46803f0` and that `ai-development` gets created there once the owner has pulled and pushed both branches |
 
 ## What was inspected to write `.ai/`
 
@@ -48,7 +50,7 @@
 
 ## Work in progress
 
-- **TASK-006 Import questions.** Backend part done and tested; browser parsers, import screen, templates, deployment of `question-bank` v3 remain.
+- **TASK-006 Import questions**, on branch `ai-development`. Done: SQL backend (live, tested) and browser parsers for CSV, XLSX, and pasted text (`frontend/assets/js/teacher/import/`, 16 Deno unit tests passing — run with `--no-check`, see note in `05_TASK_QUEUE.md`). Remaining: the import screen (`#/questions/import`), wiring the parsers to it, a Playwright test, template files, and deploying `question-bank` v3.
 
 ## Pending work (see `05_TASK_QUEUE.md`)
 

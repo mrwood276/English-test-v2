@@ -3,6 +3,20 @@
 Newest first. Entries below the "Established" entry were reconstructed from git history and the live migration list only; nothing else is claimed.
 Add a new entry for every meaningful change (what, files, database changes, verification).
 
+## 2026-09-21 — Git branch workflow introduced: `main` (stable) + `ai-development` (shared AI branch) — git `ai-development@6f5c223` (branch point `46803f0` on `main`)
+- Agent: Claude (Sonnet 5, claude.ai chat), per the owner's explicit request.
+- Created branch `ai-development` from `main` (`46803f0`). `main` is unchanged. In-progress uncommitted work at the time (the TASK-006 browser import parsers) was committed onto `ai-development` rather than `main`, since it is normal development work in progress, not a stable release (see the changelog entry below for what it contains).
+- Updated `.ai/00_AI_RULES.md` (new section 12, "Git branch workflow," plus a note in the environment-facts table), `.ai/02_ARCHITECTURE.md` (short "Source control" note), `.ai/04_CURRENT_STATE.md` (branch/commit fields in the snapshot, work-in-progress note), `.ai/05_TASK_QUEUE.md` (TASK-006 now names its branch and marks step 1 done), `.ai/06_DECISIONS.md` (DEC-020), `.ai/08_HANDOFF.md` (branch fields and pull instructions). No existing `.ai/` file was replaced or restructured; only these targeted edits were made.
+- Database changes: none. Application behavior: none.
+- Verification: `git branch -a`, `git log --oneline` on both branches, and `git status` were checked before and after; the working tree was clean before starting and the only pending change (the import parsers) was intentionally committed onto `ai-development`, not lost. No push to GitHub was possible from this session (see DEC-018); the repository (both branches) is handed to the owner as before.
+
+## 2026-09-21 — Import questions: browser parsers (TASK-006 step 1) — git `ai-development@6f5c223`
+- Agent: Claude (Sonnet 5, claude.ai chat). Branch: `ai-development`.
+- Added `frontend/assets/js/teacher/import/{rules,csv,zip,xlsx,text,rows}.js`: a CSV reader (delimiter detection, quoted fields, line numbers), a minimal ZIP reader (`DecompressionStream`, entry/size limits) and `.xlsx` sheet reader (shared strings, inline strings, numbers, booleans) built without new dependencies (per DEC-007), a pasted-text reader (numbered or blank-line-separated questions, lettered options, `Answer:`/`Kunci:`/`*` markers, meta lines, `[Reading text: ...]` blocks), and row/draft normalization mirroring the server's validation in `public.save_question`.
+- Added `frontend/tests/unit/import.test.ts`, 16 Deno unit tests, all passing (run with `deno test --allow-env --no-check frontend/tests/unit/`; see the note on plain `deno test` type-checking in `05_TASK_QUEUE.md` TASK-006).
+- Not yet wired to any screen; no route, no UI, nothing deployed. Database changes: none.
+- Verification is uneven and must not be overstated: `rules.js`, `csv.js`, `rows.js`, and `text.js` are covered by the 16 unit tests (TESTED). **`zip.js` and `xlsx.js` have zero automated tests and have never been run against a real `.xlsx` file** — they are UNVERIFIED / UNTESTED. This is a gap, not a finished result; see `05_TASK_QUEUE.md` TASK-006 and `09_KNOWN_ISSUES.md` ISSUE-013.
+
 ## 2026-09-21 — AI memory and handoff system established
 - Agent: Claude (Sonnet 5, claude.ai chat).
 - Added `.ai/` (10 files), root `AGENTS.md` and `CLAUDE.md` (short pointers to `.ai/`), and a pointer paragraph in `README.md`.

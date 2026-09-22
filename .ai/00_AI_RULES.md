@@ -37,7 +37,7 @@ Also read `docs/design.md` (product requirements, business rules BR-01..BR-22, d
 
 | Topic | Fact |
 |---|---|
-| Repository | GitHub `mrwood276/English-test-v2` (private). Frontend and backend live together. |
+| Repository | GitHub `mrwood276/English-test-v2` (private). Frontend and backend live together. Branches: `main` (stable) and `ai-development` (shared AI workspace) — see section 12. |
 | Database and functions | Supabase project **English_Test_v2**, ref `lbhnadqmokloyfarrzfv`, region ap-southeast-1. Changes to the database and to deployed Edge Functions are made **in the live project**, not by `git push`. |
 | Migrations in git | **Not present.** The SQL of migrations `v2_01`..`v2_12` exists only inside the Supabase project (see `09_KNOWN_ISSUES.md` ISSUE-001). |
 | Claude (claude.ai chat) | Has a sandbox (Deno 2.x, Python + Playwright, git) and the Supabase connector (apply_migration, execute_sql, deploy_edge_function). It has **no GitHub push/pull tool** in the chat used so far; it hands changes over as a repository zip which the owner pulls and pushes. |
@@ -138,12 +138,46 @@ They do not prove that the real Supabase behaves the same. SQL business rules we
 - Every action a teacher/admin takes that changes data writes an audit entry **inside the same SQL function** (`public.write_audit`).
 - Tests accompany every behavior change: Deno test for parsing/handlers, SQL test (rolled back) for database rules, Playwright test for screens.
 
-## 12. Commit and sync protocol
+## 12. Git branch workflow
 
-Target workflow: read `.ai/` → do one task → test → update `.ai/` (state, task queue, changelog, handoff, plus decisions/issues if applicable) → commit → push.
-Current limitation: Claude in the claude.ai chat cannot push; it delivers the repository (with commits) as a zip and the owner runs `git pull <folder> main` then `git push`. If you have direct git access, push yourself. Never rewrite pushed history.
+The repository uses two branches with a specific meaning. Do not blur this distinction.
 
-## 13. Documentation duty after every meaningful change
+| Branch | Meaning |
+|---|---|
+| `main` | **Stable branch.** Represents a project state that is considered solid. Not the normal AI workspace. |
+| `ai-development` | **Shared AI development branch.** This is where Claude and Codex/GPT do normal, everyday work. |
+
+```
+main
+  │   (stable)
+  └── ai-development
+          ├── Claude
+          ├── Codex/GPT
+          ├── Claude
+          └── Codex/GPT   (sequential, one AI at a time)
+```
+
+Rules:
+
+1. **Normal development happens on `ai-development`**, never directly on `main`.
+2. **Only one AI actively modifies `ai-development` at a time.** Claude and Codex/GPT are not expected to work simultaneously on it; they take turns.
+3. **Before working**, `git checkout ai-development` (or verify you are on it) and `git pull` the latest remote state of that branch.
+4. **Before modifying any file**, run `git status` and `git log --oneline -5` to see what is already there. Never assume the branch is where you last left it — another agent may have pushed since.
+5. **Never discard another AI's work.** No `git reset --hard`, no `git clean -fd`, no force push, no deleting branches — unless the owner explicitly approves it in the conversation, and even then prefer the least destructive option (e.g. revert commit over reset).
+6. After meaningful work on `ai-development`: test → update `.ai/` (see section 13) → commit → push.
+7. **The next AI must pull `ai-development` before working**, then read `08_HANDOFF.md` (which branch/commit the previous agent left it at, and what to do next).
+8. **Do not merge `ai-development` into `main` automatically.** Merging into `main` is a deliberate, separate action the owner asks for once the development branch is considered stable and ready — not something an agent decides on its own mid-task.
+9. `main` only receives intentionally reviewed, stable changes (a merge from `ai-development`, decided by the owner).
+10. If a task genuinely requires touching `main` directly (rare — e.g. an urgent one-line fix the owner explicitly asks to ship immediately), say so and confirm with the owner first; do not do it silently.
+
+Current operational limitation: the Claude instance in the claude.ai chat used so far has no direct `git push`/`git pull` to the GitHub remote (see DEC-018). Until that changes, "push" in the steps above means: commit locally, then hand the repository (with both branches) to the owner, who pulls and pushes it. An agent with real git access to the remote should push directly and skip that hand-off step.
+
+## 13. Commit and sync protocol (branch-aware)
+
+Target workflow: `git checkout ai-development && git pull` → read `.ai/` → do one task → test → update `.ai/` (state, task queue, changelog, handoff, plus decisions/issues if applicable) → commit on `ai-development` → push `ai-development`.
+Current limitation: Claude in the claude.ai chat cannot push; it delivers the repository (both branches, with commits) as a zip, and the owner runs `git pull <folder> main` once to sync `main`, then fetches/checks out `ai-development` from that same folder and pushes it too (e.g. `git fetch <folder> ai-development:ai-development` from the real clone, then `git push origin ai-development`, or simply replace the local `ai-development` branch with the delivered one and push it). If you have direct git access, push both branches yourself as needed, but only ever push routine work to `ai-development`. Never rewrite pushed history on either branch.
+
+## 14. Documentation duty after every meaningful change
 
 | File | Update when |
 |---|---|
