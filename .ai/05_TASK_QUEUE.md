@@ -79,6 +79,7 @@ Depends on TASK-006 completion. Needs a decision on how to generate PDF/Word wit
 
 ## TASK-013 — Phase 5: anti-cheating events and live monitor — **NEXT** (design.md section 4; mockups 7–9, 12).
 Priority: HIGH. Everything needed is already recorded: `session_events` (with severity), `exam_sessions.tab_switch_count`/`last_heartbeat_at`/`ends_at`, `get_session_report` (events + actions + `can_add_time`), and `list_exam_results` (in-progress rows with `remaining_seconds`). Missing: a screen that refreshes while an exam runs (who is working, progress, time left, page leaves) and a monitor for one attempt. `frontend/tests/results_e2e.py` is a good base for the suite.
+- **Progress (2026-09-23, reviewer session):** Screen `#/monitor` dan `#/monitor/:examId` dibuat (examMonitor.js) plus screen timeline `#/monitor/:examId/session/:sessionId` (sessionTimeline.js). Route ditambahkan di router.js, menu item "Monitor" ditambahkan di shell.js dengan icon "grid". API calls `activeExams()` dan `sessionReport()` ditambahkan di results.js. Auto-refresh 30 detik untuk hub, 15 detik untuk timeline. Mock server sudah menangani action `activity` dan `report` yang dibutuhkan. Belum: Playwright test untuk monitor, live verification.
 ## TASK-014 — Phase 6: dashboard and UX polish — PLANNED (mockup 5 dashboard; mobile menu).
 ## TASK-015 — Phase 7: backups (manual + scheduled), audit log viewer, notifications (dashboard + email), scheduled purge jobs — PLANNED (D-06, D-13).
 

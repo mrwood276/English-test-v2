@@ -8,6 +8,8 @@ import { renderGradingHub } from "./screens/grading.js";
 import { renderGradingQuestion } from "./screens/gradingQuestion.js";
 import { renderExamResults } from "./screens/examResults.js";
 import { renderSessionReport } from "./screens/sessionReport.js";
+import { renderExamMonitor } from "./screens/examMonitor.js";
+import { renderSessionTimeline } from "./screens/sessionTimeline.js";
 import { getLeaveGuard, clearLeaveGuard } from "./guard.js";
 
 const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
@@ -26,6 +28,9 @@ const ROUTES = [
   { pattern: /^#\/results$/, nav: "#/results", title: "Results", render: (c, ctx) => renderGradingHub(c, ctx, "results") },
   { pattern: new RegExp(`^#/results/(${UUID})/session/(${UUID})$`), nav: "#/results", title: "Attempt", render: (c, ctx, m) => renderSessionReport(c, ctx, { examId: m[1].toLowerCase(), sessionId: m[2].toLowerCase() }) },
   { pattern: new RegExp(`^#/results/(${UUID})$`), nav: "#/results", title: "Results", render: (c, ctx, m) => renderExamResults(c, ctx, { examId: m[1].toLowerCase() }) },
+  { pattern: /^#\/monitor$/, nav: "#/monitor", title: "Monitor", render: (c, ctx) => renderExamMonitor(c, ctx) },
+  { pattern: new RegExp(`^#/monitor/(${UUID})$`), nav: "#/monitor", title: "Monitor", render: (c, ctx, m) => renderExamMonitor(c, ctx, { examId: m[1].toLowerCase() }) },
+  { pattern: new RegExp(`^#/monitor/(${UUID})/session/(${UUID})$`), nav: "#/monitor", title: "Session", render: (c, ctx, m) => renderSessionTimeline(c, ctx, { examId: m[1].toLowerCase(), sessionId: m[2].toLowerCase() }) },
 ];
 const DEFAULT_HASH = "#/dashboard";
 

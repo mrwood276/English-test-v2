@@ -23,4 +23,8 @@ export const results = {
   reopen: (sessionId, minutes) => call({ action: "reopen", session_id: sessionId, minutes }).then((r) => r.session),
   grantRetake: (sessionId) => call({ action: "grant_retake", session_id: sessionId }).then((r) => r.retake),
   revokeRetake: (sessionId) => call({ action: "revoke_retake", session_id: sessionId }).then((r) => r.retake),
+  /** Exams that are currently open and have in-progress sessions (for the monitor hub). */
+  activeExams: () => call({ action: "activity", include_templates: false }).then((r) => r.exams.filter((e) => e.in_progress > 0)),
+  /** Full report for one session including events and actions (used by the monitor). */
+  sessionReport: (sessionId) => call({ action: "report", session_id: sessionId }).then((r) => r.report),
 };

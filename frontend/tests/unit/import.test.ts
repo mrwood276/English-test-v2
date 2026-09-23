@@ -41,12 +41,13 @@ Deno.test("headers: English and Indonesian names, spacing and case ignored", () 
   assert.deepEqual(c.options.slice(0, 4), [2, 3, 4, 5]);
   assert.equal(c.correct, 6); assert.equal(c.topic, 7); assert.equal(c.difficulty, 8); assert.equal(c.points, 9);
   assert.equal(c.classText, 10); assert.equal(c.readingTitle, 11); assert.equal(c.readingBody, 12); assert.equal(c.explanation, 13);
-  assert.equal(mapHeader(["question", "answer"]).correct, 1, '"answer" alone is the answer key, not option A');
+  const hdr: any = mapHeader(["question", "answer"]);
+  assert.equal(hdr.correct, 1, '"answer" alone is the answer key, not option A');
 });
 
 Deno.test("rows: a header with a question column is required", () => {
-  assert.match(recordsFromRows([]).problem, /empty/);
-  assert.match(recordsFromRows([["a", "b"], ["1", "2"]]).problem, /question/);
+  assert.match(recordsFromRows([]).problem!, /empty/);
+  assert.match(recordsFromRows([["a", "b"], ["1", "2"]]).problem!, /question/);
   const { records, problem } = recordsFromRows([["question", "a", "b", "correct"], ["Who?", "Ana", "Budi", "B"], ["", "", "", ""]], [1, 2, 3]);
   assert.equal(problem, null);
   assert.equal(records.length, 1, "empty rows are ignored");
@@ -189,8 +190,9 @@ Deno.test("text: a stem that contains an option-like line does not break the que
 
 Deno.test("text: reading text blocks become paragraphs and are attached by title", () => {
   const { records, passages } = parsePastedText("[Teks bacaan: Cerita]\nParagraf satu\nlanjut.\n\nParagraf dua.\n[/Teks bacaan]\n1. Siapa?\nA. Ani\nB. Budi\nJawaban: A\nReading text: Cerita");
-  assert.equal(passages["Cerita"], "Paragraf satu lanjut.<br><br>Paragraf dua.");
-  assert.equal(records[0].readingBody, passages["Cerita"]);
+  const passageText: any = passages;
+  assert.equal(passageText["Cerita"], "Paragraf satu lanjut.<br><br>Paragraf dua.");
+  assert.equal(records[0].readingBody, passageText["Cerita"]);
 });
 
 Deno.test("text: empty input and text before the first number", () => {
@@ -208,6 +210,7 @@ Deno.test("zip: lists the parts of a real .xlsx package and unpacks one", async 
   assert.ok(names.includes("xl/workbook.xml"), "the workbook part is present");
   assert.ok(names.includes("xl/worksheets/sheet1.xml"), "the worksheet part is present");
   const sheet = entries.find((e: { name: string }) => e.name === "xl/worksheets/sheet1.xml");
+  assert.ok(sheet, "the worksheet part is present as a zip entry");
   assert.equal(sheet.method, 8, "python's zipfile writes deflate, like Excel does");
   assert.ok(sheet.size > sheet.compressedSize, "the size after unpacking is larger than the stored one");
   const xml = new TextDecoder().decode(await readZipEntry(await fixture(), sheet));

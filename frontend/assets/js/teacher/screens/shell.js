@@ -12,6 +12,7 @@ const NAV = [
   { route: "#/exams", label: "Exams", icon: "doc" },
   { route: "#/grading", label: "Grading", icon: "check", badge: true },
   { route: "#/results", label: "Results", icon: "chart" },
+  { route: "#/monitor", label: "Monitor", icon: "grid" },
 ];
 
 /** The signed-in shell. The menu matches the approved mockups. */

@@ -18,8 +18,10 @@ Before doing anything: `git checkout ai-development` (or confirm you're on it), 
 ## Last Agent
 Buffy (Freebuff desktop agent, **eighth session** — essay grading, results and the teacher's actions on an attempt; direct git access to `origin`; **live Supabase access via the owner's access token (CLI) + the admin account for the flow check — both session-only, never stored in the repo**).
 
+**Reviewer session (2026-09-23, ninth session):** Solar Pro4 — reviewer / release gatekeeper. Fix unit test type-checking errors (import.test.ts) + TASK-013 live monitor screen progress. Live verification via Supabase CLI: SQL tests PASSED (result_functions_test.sql + session_functions_test.sql), live state clean (0 exams, 0 sessions, 40 questions, 4 audit logs).
+
 ## Date
-2026-09-24 (eighth session)
+2026-09-24 (eighth session) + 2026-09-23 (reviewer session)
 
 ## Last Completed Task
 - **TASK-012 (core) built and live-verified (eighth session)**: a teacher can now grade written answers, read the results of an exam, and act on a single attempt. SQL in `supabase/migrations/20260924000000_result_functions.sql` (**applied live**; contract, rules and live facts in `docs/sql-results.md`), Edge Function `backend/functions/results/` (**deployed v1**, 18 Deno tests), the Grading/Results menu items with a waiting-essays badge, the essay grading screen (mockup 13), the per-exam results screen (mockup 14), and the attempt report with per-question grading plus **add time / reopen (BR-11)** and **allow a retake (BR-02)**. Rolled-back SQL test `supabase/tests/result_functions_test.sql` (`RESULT ENGINE TESTS PASSED`), `frontend/tests/results_e2e.py` (59 browser checks), a one-off live script `frontend/tests/live_results_check.py` with its `cleanup_live_results.sql`. **ISSUE-017 closed** — a result with an essay can now become final. Live verification: **38/38 checks** against the real project through the deployed function; every test row deleted afterwards (0 exams, 0 sessions, 0 rate-limit rows, 40 questions). Regression: backend **104**, unit 21, all **eight** browser suites green.

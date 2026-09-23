@@ -14,6 +14,28 @@ Add a new entry for every meaningful change (what, files, database changes, veri
 - Files: new `supabase/migrations/20260924000000_result_functions.sql`, `supabase/tests/result_functions_test.sql`, `docs/sql-results.md`, `backend/functions/results/{index,handler,parse}.ts`, `backend/tests/results.test.ts`, `frontend/assets/js/teacher/{api/results.js,components/resultBits.js,components/reviewItem.js,screens/grading.js,screens/gradingQuestion.js,screens/examResults.js,screens/sessionReport.js}`, `frontend/assets/css/results.css`, `frontend/tests/{results_e2e.py,live_results_check.py,cleanup_live_results.sql}`; edited `frontend/assets/js/teacher/{router.js,screens/shell.js}`, `frontend/teacher/index.html`, `frontend/assets/css/teacher.css`, `frontend/tests/{mock_server.py,teacher_e2e.py}`, `.github/workflows/frontend-tests.yml`, the four READMEs, `.ai/` docs.
 - Not built (next): the statistics tabs (Questions/Classes) and the exports of the results screen, and the live monitor (TASK-013). `expire_sessions()` still has no scheduler (TASK-015).
 
+## 2026-09-23 — Review: fix unit test type-checking errors (import.test.ts) — git `ai-development`
+- Agent: Solar Pro4 (reviewer / release gatekeeper).
+- **Problem**: `frontend/tests/unit/import.test.ts` had 8 TypeScript errors (TS18048: `'sheet' is possibly 'undefined'` + 5 other type errors: TS2339, TS2345, TS7053). The CI workflow uses `deno test --no-check` so the errors did not block CI, but `deno check` reported them.
+- **Fixes**:
+  - `sheet` possibly undefined (TS18048): added `assert.ok(sheet, ...)` guard before accessing `sheet.method`, `sheet.size`, `sheet.compressedSize`.
+  - `mapHeader(...).correct` not found (TS2339): assigned to a typed `const hdr: any` before accessing `.correct`.
+  - `recordsFromRows(...).problem` nullability (TS2345): added non-null assertion `problem!`.
+  - `passages["Cerita"]` indexed with string on `{}` type (TS7053): assigned to `const passageText: any`.
+- **Verification**: `deno check` clean (0 errors); `deno test --allow-env --allow-read --no-check` → 21/21 passed; backend 104/104 passed.
+- Files: `frontend/tests/unit/import.test.ts` (4 lines changed).
+
+## 2026-09-23 — Review: TASK-013 live monitor screen (progress) — git `ai-development`
+- Agent: Solar Pro4 (reviewer / release gatekeeper).
+- **Dibuat:**
+  - `frontend/assets/js/teacher/screens/examMonitor.js` — screen monitor hub (#/monitor, #/monitor/:examId). Menampilkan ujian yang sedang berlangsung dengan session count, active now, average, time left. Auto-refresh 30 detik. Mockup frame 12.
+  - `frontend/assets/js/teacher/screens/sessionTimeline.js` — screen timeline satu session (#/monitor/:examId/session/:sessionId). Menampilkan jawaban, progress bar, event history. Auto-refresh 15 detik.
+  - `frontend/assets/js/teacher/api/results.js` — tambah `activeExams()` dan `sessionReport()`.
+  - `frontend/assets/js/teacher/router.js` — 3 route baru: `#/monitor`, `#/monitor/:examId`, `#/monitor/:examId/session/:sessionId`.
+  - `frontend/assets/js/teacher/screens/shell.js` — menu item "Monitor" dengan icon "grid".
+- **Tidak dibuat (belum):** Playwright test untuk monitor, live verification.
+- Files: `frontend/assets/js/teacher/screens/{examMonitor.js,sessionTimeline.js}`, `frontend/assets/js/teacher/api/results.js`, `frontend/assets/js/teacher/router.js`, `frontend/assets/js/teacher/screens/shell.js`.
+
 ## 2026-09-23 — Student side: join by code, take the test, send it, see the result (TASK-010 / F-11) — git `ai-development`
 - Agent: Buffy (Freebuff desktop agent, seventh session). The owner supplied the Supabase access token again (session-only; used through the CLI env var, never stored in the repo).
 - **SQL (new migration, applied live)**: `supabase/migrations/20260923000000_session_functions.sql` — `exam_join`, `get_exam_session`, `save_session_answers`, `session_heartbeat`, `log_session_event`, `submit_exam_session`, `get_session_result`, `get_session_media_ids`, `expire_sessions` plus four `_session_*` helpers. Rules covered: BR-01/BR-02 (one attempt, single-use retake), BR-03/BR-04/BR-05 (code, schedule, late-start policy), BR-06/BR-07 (points, essays pending), BR-08 (result visibility), BR-09/BR-10 (no key in the snapshot, per-session copy), BR-12 (idempotent resend), BR-20 (2-minute tolerance), BR-21 (server validation, `timed_out` cleanup), and the tab-switch auto-submit limit. Live schema fact found while applying: `exam_sessions.student_name_normalized`/`student_class_normalized` are **generated** columns, so `exam_join` must not insert them.
