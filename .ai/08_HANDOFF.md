@@ -16,14 +16,21 @@ TASK-013 is TESTED against the mock server. Open before release: apply monitor S
 | Current Development Branch | **`ai-development`** — includes TASK-013 live monitor. |
 | Merged into `main`? | **No.** |
 
+## Concurrent-agent collision (read this first — both reviewer sessions below ran at the same time)
+On 2026-09-23, **two AI reviewer sessions were active on `ai-development` at once**: this Cursor/Composer session (release-gate intake, TASK-013) and a separate claude.ai chat session doing its own security review. Both wrote directly to the live database before either had committed anything to git, and both found **the same CRITICAL bug independently, ~22 seconds apart**:
+- `20260923050326` / `20260923050351` (the chat session, via Supabase MCP): revoke the default PUBLIC execute grant on all `public`-schema functions; fix a mutable `search_path` on `_exam_is_open`.
+- `20260923050413` (this Cursor/Composer session, per the SQL comment "found during ai-development -> main review, 2026-09-23/24"): the same revoke, independently discovered.
+Both are idempotent, so nothing broke, but this violates the "one agent at a time, sequential" rule this file itself states. **The collision was harmless only by luck (both changes happened to be the same idempotent REVOKE) — if it happens again, stop and let the owner coordinate before either agent writes to the live project or pushes git.** The three ad-hoc DB versions above are consolidated into one git-tracked file: `supabase/migrations/20260926000000_security_lockdown_function_execute.sql`. See ISSUE-020 for the full writeup. The owner confirmed after this that no other agent remains active.
+
 ## Last Agent
-Cursor / Composer — TASK-013 live monitor (screens + e2e + SQL in git).
+Cursor / Composer — TASK-013 live monitor (screens + e2e + SQL in git) — **and**, concurrently, Claude (claude.ai chat, acting as AI Development Reviewer) — security review that closed ISSUE-020 (see collision note above).
 
 ## Date
 2026-09-23
 
 ## Last Completed Task
-- **TASK-013 core (TESTED):** live monitor hub, per-exam student table (mockup 12), session timeline with add time; `monitor_e2e.py` 23/23; CI ninth suite; migration `20260925000000_monitor_overview_fields.sql` committed but **not applied live**.
+- **TASK-013 core (TESTED, Cursor/Composer):** live monitor hub, per-exam student table (mockup 12), session timeline with add time; `monitor_e2e.py` 23/23; CI ninth suite; migration `20260925000000_monitor_overview_fields.sql` committed but **not applied live**.
+- **Security review — ISSUE-020 closed (claude.ai chat session, concurrent with the above)**: the exams/session/results function families (TASK-009/010/012) were missing the `REVOKE EXECUTE FROM PUBLIC` that `v2_05`/`v2_08` already apply to the foundation/question-bank functions — Postgres grants EXECUTE to PUBLIC by default on every new function, so 35 functions including `save_exam`, `remove_exam`, `grant_retake`, `add_exam_time`, and `save_answer_grade` were callable directly by `anon`/`authenticated` via `/rest/v1/rpc/<name>`, bypassing `requireStaff()`, the session-token check, rate limiting and audit logging entirely. **Fixed live** (see collision note above) and re-verified clean with the security advisor. Also fixed a WARN: mutable `search_path` on `_exam_is_open`. The rest of the full review checklist (functionality/regression/code-quality/UI) beyond what the release-gate intake below already covered was not reached this session.
 
 ## Remaining Work
 1. Apply `supabase/migrations/20260925000000_monitor_overview_fields.sql` on the live project (`npx supabase db query --linked --file …`).
@@ -39,6 +46,7 @@ Apply the monitor overview SQL live (needs token), **or** TASK-012 remainder (Qu
 2. Confirm: backend 104, `python frontend/tests/monitor_e2e.py` green (dev-server 8123).
 3. With `SUPABASE_ACCESS_TOKEN`: apply `20260925000000_monitor_overview_fields.sql`, then mark F-13 progress fields LIVE-VERIFIED.
 4. Do not merge to `main` while RELEASE STATUS is BLOCKED unless the owner overrides.
+5. Before starting any live-DB or git-push work, confirm with the owner that no other agent session is active — see the collision note above.
 
 ## Prior completed work (keep for context)
 - **TASK-012 (core) built and live-verified (eighth session)**: a teacher can now grade written answers, read the results of an exam, and act on a single attempt. SQL in `supabase/migrations/20260924000000_result_functions.sql` (**applied live**; contract, rules and live facts in `docs/sql-results.md`), Edge Function `backend/functions/results/` (**deployed v1**, 18 Deno tests), the Grading/Results menu items with a waiting-essays badge, the essay grading screen (mockup 13), the per-exam results screen (mockup 14), and the attempt report with per-question grading plus **add time / reopen (BR-11)** and **allow a retake (BR-02)**. Rolled-back SQL test `supabase/tests/result_functions_test.sql` (`RESULT ENGINE TESTS PASSED`), `frontend/tests/results_e2e.py` (59 browser checks), a one-off live script `frontend/tests/live_results_check.py` with its `cleanup_live_results.sql`. **ISSUE-017 closed** — a result with an essay can now become final. Live verification: **38/38 checks** against the real project through the deployed function; every test row deleted afterwards (0 exams, 0 sessions, 0 rate-limit rows, 40 questions). Regression: backend **104**, unit 21, all **eight** browser suites green.
@@ -161,9 +169,17 @@ See `09_KNOWN_ISSUES.md`. Most important now: ISSUE-007 (public email sign-up st
 2. Otherwise continue development on `ai-development`: finish TASK-013 (`monitor_e2e.py` + live check), or TASK-012 remainder (stats/exports).
 
 ## Suggested Work For Next AI
-1. `git checkout ai-development && git pull`. Read RELEASE STATUS in this file first.
-2. Confirm: backend **104**, unit **21**. Do not merge to `main` while RELEASE STATUS is BLOCKED unless the owner explicitly overrides.
-3. If continuing TASK-013: add `frontend/tests/monitor_e2e.py` against the mock server (`activity` / `report` already handled), then update F-13 verification.
+1. `git checkout ai-development && git pull`. Read RELEASE STATUS in this file first, then `.ai/00_AI_RULES.md`, `05_TASK_QUEUE.md` TASK-013, then the relevant source — and `docs/sql-results.md` + `docs/sql-sessions.md` before touching anything exam/result-related.
+2. Before any live-DB or git-push action, confirm with the owner that no other agent session is currently active — see the "Concurrent-agent collision" note above.
+3. Confirm your environment matches: backend **104** tests, unit 21 (with `--allow-read`), and the **nine** Playwright suites green (teacher, bank, editor, media, import, exams, student, results, **monitor**). `python frontend/dev-server.py 8123` serves both apps: the teacher page at `/teacher/index.html`, the student page at `/index.html`. Two SQL tests must pass with `npx supabase db query --linked --file …`: `supabase/tests/session_functions_test.sql` → `SESSION ENGINE TESTS PASSED (all rows rolled back)` and `supabase/tests/result_functions_test.sql` → `RESULT ENGINE TESTS PASSED (all rows rolled back)`.
+4. Do not merge to `main` while RELEASE STATUS is BLOCKED unless the owner explicitly overrides.
+5. If continuing TASK-013: add live verification (`20260925000000_monitor_overview_fields.sql` still not applied live) and one real browser run against an open exam.
+6. To deploy or run SQL on v2 you need the owner's access token (`SUPABASE_ACCESS_TOKEN` env var, `npx supabase ...`) or Supabase MCP if connected. Deploy path: `python backend/sync_functions.py` then `npx supabase functions deploy <name> --no-verify-jwt --use-api`. Do not request the token again without need, and never store it in the repo or in chat.
+7. Verify against live with the admin account only when the owner asks; clean up every test row afterwards (exams, sessions, audit entries) — the live DB is the real one.
+8. CI status: both workflows were **green on `c495e0d`** (2026-09-24); the frontend browser job now runs **nine** suites as of TASK-013. Watch every later push the same way; the browser job is the one that flakes (`playwright install --with-deps chromium` is the slow step).
+9. The review-table select-all is tri-state by design (first click fills the gaps, second clears everything); the default selection leaves exact duplicates and in-file duplicates unchecked. Keep those semantics unless the owner asks otherwise.
+10. After your work: test, update `.ai/` (state, queue, changelog, this file — including the branch/commit fields at the top), commit on `ai-development`, push.
+11. When `ai-development` is eventually merged into `main` (owner's call): resolve the import files in favor of `ai-development` and drop `frontend/tests/import.test.js` + `frontend/assets/js/teacher/import/model.js` (Codex's superseded variant, DEC-021 / ISSUE-015).
 
 ## Do NOT Do
 - Do not rebuild the student page or the `session` function: the contract is fixed in `docs/sql-sessions.md` (action names, response fields, `validation`-hinted errors) and the handler + 21 Deno tests + 52 browser checks match it. Extend it instead.

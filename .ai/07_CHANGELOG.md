@@ -3,6 +3,15 @@
 Newest first. Entries below the "Established" entry were reconstructed from git history and the live migration list only; nothing else is claimed.
 Add a new entry for every meaningful change (what, files, database changes, verification).
 
+## 2026-09-23 — Security review: close a PUBLIC-execute gap on 35 exam/session/results functions (ISSUE-020) — git `ai-development`
+- Agent: Claude (claude.ai chat, acting as AI Development Reviewer), working concurrently with the Cursor/Composer reviewer session below — see the "Concurrent-agent collision" note in `08_HANDOFF.md`.
+- **Finding (CRITICAL, missed by the release-gate intake below)**: the exams (TASK-009), session (TASK-010) and results/grading (TASK-012) function families were created without the `REVOKE EXECUTE FROM PUBLIC` that `v2_05`/`v2_08` already apply elsewhere. `anon`/`authenticated` could call all 35 of them directly via `/rest/v1/rpc/<name>` — including `save_exam`, `remove_exam`, `grant_retake`, `add_exam_time`, `save_answer_grade` — completely bypassing `requireStaff()`, the session-token check, rate limiting and audit logging.
+- **Fix (applied live via Supabase MCP, then re-verified with the security advisor — clean afterward)**: `revoke execute on all functions in schema public from public, anon, authenticated;` + `alter default privileges` so new functions default the same way; also fixed a WARN (mutable `search_path` on `_exam_is_open`).
+- **Concurrent-agent collision**: a second AI session (the Cursor/Composer reviewer session, or Buffy) found and fixed the identical bug independently, 22 seconds after this session's fix, before either had committed to git. Both changes are idempotent — no damage.
+- **Consolidated into git**: `supabase/migrations/20260926000000_security_lockdown_function_execute.sql` documents and re-applies (idempotently) what's already live. This continues ISSUE-001 (DB/git migration drift) rather than closing it.
+- `.ai/` updated: `09_KNOWN_ISSUES.md` (new ISSUE-020, FIXED), `08_HANDOFF.md` (concurrent-agent collision warning), this entry.
+- **Not done this session**: the rest of the review checklist (functionality/regression/code-quality/UI per `.ai/00_AI_RULES.md`) beyond what the release-gate intake below already covered.
+
 ## 2026-09-23 — Live monitor (TASK-013 / F-13): hub, per-exam table, session timeline, e2e — git `ai-development`
 - Agent: Cursor / Composer (Reviewer + developer).
 - **Screens rewritten to match mockup 12:** `#/monitor` lists only exams with `in_progress > 0`; `#/monitor/:examId` shows every student (progress bar when `answered_count`/`question_count` present, time left, exits, Saved / Left the page / Offline / Need a look); `#/monitor/:examId/session/:sessionId` shows history + **Add time** while they work, link to full report. Auto-refresh 30s / 15s.
@@ -16,7 +25,7 @@ Add a new entry for every meaningful change (what, files, database changes, veri
 - Agent: Cursor / Composer (Development Reviewer + Release Gatekeeper). No application code changed.
 - **Inspected:** branch `ai-development` @ `0115613`, `origin/main` @ `9c293fc`, working tree clean after pull; source vs `.ai/` for F-12/F-13, ISSUE-006, drift table, handoff branch claims.
 - **Verified this session:** `deno test --allow-env backend/tests/` → **104 passed**; `deno test --allow-env --allow-read --no-check frontend/tests/unit/` → **21 passed**. Browser suites and live Supabase not re-run this session (rely on prior agents' records + CI notes).
-- **Findings (severity):** (MEDIUM) F-12/F-13 summary table still said PLANNED while detail/code said otherwise; ISSUE-006 still OPEN though TASK-018 closed it; drift table still claimed `question-bank` v2; handoff claimed `main` @ `46803f0` while remote is `9c293fc`; F-03 said five menu items but Monitor is sixth; TASK-013 screens have no Playwright (`monitor_e2e.py` missing). (INFO) No CRITICAL/HIGH code blockers found for the core exam loop claims.
+- **Findings (severity):** (MEDIUM) F-12/F-13 summary table still said PLANNED while detail/code said otherwise; ISSUE-006 still OPEN though TASK-018 closed it; drift table still claimed `question-bank` v2; handoff claimed `main` @ `46803f0` while remote is `9c293fc`; F-03 said five menu items but Monitor is sixth; TASK-013 screens have no Playwright (`monitor_e2e.py` missing). (INFO) No CRITICAL/HIGH code blockers found for the core exam loop claims — **this missed ISSUE-020 above**, found by a concurrent session the same day.
 - **Release:** **BLOCKED** — see `08_HANDOFF.md` RELEASE STATUS. Not merged to `main`.
 - Files: `.ai/03_FEATURES.md`, `.ai/04_CURRENT_STATE.md`, `.ai/07_CHANGELOG.md`, `.ai/08_HANDOFF.md`, `.ai/09_KNOWN_ISSUES.md`.
 
