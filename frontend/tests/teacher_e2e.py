@@ -109,9 +109,9 @@ with sync_playwright() as pw:
     check("shows the welcome screen with the name", "Welcome, Admin" in page.inner_text(".main h1"))
     check("shows the role", "Admin" in page.inner_text(".me") and "Connected" in page.inner_text(".card"))
     check("the build label is shown", "Build:" in page.inner_text("[data-build]"))
-    check("menu has the five sections", len(page.query_selector_all(".nav > *")) == 5)
-    check("every menu item leads somewhere: dashboard, questions, exams, grading, results",
-          len(page.query_selector_all(".nav span.item")) == 0 and len(page.query_selector_all(".nav a")) == 5,
+    check("menu has the six sections", len(page.query_selector_all(".nav > *")) == 6)
+    check("every menu item leads somewhere: dashboard, questions, exams, grading, results, monitor",
+          len(page.query_selector_all(".nav span.item")) == 0 and len(page.query_selector_all(".nav a")) == 6,
           f"{len(page.query_selector_all('.nav a'))} links, {len(page.query_selector_all('.nav span.item'))} placeholders")
     me_calls = [c for c in net.calls if c[1] == "/auth-me"]
     check("auth-me is called with the user token", me_calls and me_calls[-1][2] == "Bearer AT1")

@@ -3,6 +3,15 @@
 Newest first. Entries below the "Established" entry were reconstructed from git history and the live migration list only; nothing else is claimed.
 Add a new entry for every meaningful change (what, files, database changes, verification).
 
+## 2026-09-23 — Live monitor (TASK-013 / F-13): hub, per-exam table, session timeline, e2e — git `ai-development`
+- Agent: Cursor / Composer (Reviewer + developer).
+- **Screens rewritten to match mockup 12:** `#/monitor` lists only exams with `in_progress > 0`; `#/monitor/:examId` shows every student (progress bar when `answered_count`/`question_count` present, time left, exits, Saved / Left the page / Offline / Need a look); `#/monitor/:examId/session/:sessionId` shows history + **Add time** while they work, link to full report. Auto-refresh 30s / 15s.
+- **Shared helpers:** `EVENT_LABEL` / `liveStatusPill` in `resultBits.js` (session report reuses the labels).
+- **SQL (additive, in git):** `supabase/migrations/20260925000000_monitor_overview_fields.sql` extends `list_exam_results` with `answered_count`, `question_count`, `last_heartbeat_at`. **Not applied live this session** (no access token) — screens show "—" for progress until applied.
+- **Tests:** new `frontend/tests/monitor_e2e.py` (23 checks); mock overview fields; `teacher_e2e` expects six menu links; CI runs the ninth browser suite.
+- Verification: monitor 23/23, results e2e, teacher e2e, backend 104 — all green locally. Live SQL / real open-exam run: pending.
+- Files: `examMonitor.js`, `sessionTimeline.js`, `resultBits.js`, `sessionReport.js`, `results.css`, `config.js`, `mock_server.py`, `monitor_e2e.py`, `teacher_e2e.py`, `frontend-tests.yml`, `20260925000000_monitor_overview_fields.sql`, `docs/sql-results.md`, `.ai/` docs.
+
 ## 2026-09-23 — Release gate intake: Reviewer role on; doc drift fixed; release BLOCKED — git `ai-development`
 - Agent: Cursor / Composer (Development Reviewer + Release Gatekeeper). No application code changed.
 - **Inspected:** branch `ai-development` @ `0115613`, `origin/main` @ `9c293fc`, working tree clean after pull; source vs `.ai/` for F-12/F-13, ISSUE-006, drift table, handoff branch claims.

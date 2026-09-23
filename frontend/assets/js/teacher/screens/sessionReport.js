@@ -4,27 +4,13 @@ import { toast, confirmDialog } from "../../shared/ui.js";
 import { results } from "../api/results.js";
 import { SessionExpiredError } from "../../core/auth.js";
 import { reviewItem } from "../components/reviewItem.js";
-import { PASS_LABEL, SESSION_LABEL, fmtDuration, fmtPoints, fmtScore, fmtWhen, minutesSelect } from "../components/resultBits.js";
+import {
+  EVENT_LABEL, EVENT_SEVERITY_PILL, PASS_LABEL, SESSION_LABEL,
+  fmtDuration, fmtPoints, fmtScore, fmtWhen, minutesSelect,
+} from "../components/resultBits.js";
 
 const errorText = (err) => err.message || "Something went wrong. Please try again.";
 const ignorable = (err) => err instanceof SessionExpiredError;
-
-const EVENT_LABEL = {
-  join: "Joined",
-  tab_hidden: "Left the page",
-  blur: "Lost focus",
-  focus: "Came back",
-  online: "Back online",
-  offline: "Went offline",
-  reload: "Reloaded the page",
-  submit: "Sent the answers",
-  reopen: "Reopened by the teacher",
-  time_added: "Time added",
-  graded: "Graded by hand",
-  retake_granted: "Retake allowed",
-  retake_revoked: "Retake taken back",
-};
-const EVENT_SEVERITY_PILL = { warning: "warn", suspicious: "warn", violation: "bad", info: "plain" };
 
 /**
  * One finished attempt: the result, every answer with its grade (essays and corrections can be changed

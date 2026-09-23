@@ -49,3 +49,5 @@ jobs:
         run: python frontend/tests/student_e2e.py
       - name: Grading and results (teacher side)
         run: python frontend/tests/results_e2e.py
+      - name: Live monitor (teacher side)
+        run: python frontend/tests/monitor_e2e.py

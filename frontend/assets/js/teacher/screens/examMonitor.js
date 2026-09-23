@@ -2,21 +2,90 @@ import { h, mount } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
 import { results } from "../api/results.js";
 import { SessionExpiredError } from "../../core/auth.js";
+import { fmtDuration, liveStatusPill } from "../components/resultBits.js";
 
 const errorText = (err) => err.message || "Something went wrong. Please try again.";
 const ignorable = (err) => err instanceof SessionExpiredError;
 
 /**
- * Exam monitor hub (#/monitor or #/monitor/:examId).
- * Shows open exams that have in-progress sessions, or a single exam's live view.
- * Mockup frame 12: teacher can watch who is working, progress, time left, page leaves.
+ * Live monitor (mockup 12).
+ * `#/monitor` — exams that currently have students working.
+ * `#/monitor/:examId` — every student in that exam (progress, time left, page leaves).
  */
 export function renderExamMonitor(container, ctx, { examId } = {}) {
-  const state = { exams: [], requestId: 0, autoRefresh: null };
+  if (examId) return renderExamSessions(container, examId);
+  return renderActiveExams(container);
+}
 
+function renderActiveExams(container) {
+  const state = { requestId: 0, timer: null };
+  const title = h("h1", {}, "Monitor");
+  const subtitle = h("p", { class: "sub" }, "Loading…");
+  const tbody = h("tbody");
+  const status = h("div", { class: "list-status", role: "status" });
+
+  mount(
+    container,
+    h("div", { class: "head" },
+      h("div", {}, title, subtitle)),
+    h("div", { class: "card list-card" },
+      h("div", { class: "table-wrap" },
+        h("table", { class: "qtable" },
+          h("thead", {}, h("tr", {},
+            h("th", {}, "Exam"),
+            h("th", { class: "col-code" }, "Code"),
+            h("th", {}, "Working"),
+            h("th", {}, "Finished"),
+            h("th", {}, "Waiting essays"),
+            h("th", { class: "col-actions", "aria-label": "Actions" }, ""))),
+          tbody)),
+      status),
+  );
+
+  function row(exam) {
+    return h("tr", { "data-exam": exam.exam_id },
+      h("td", {},
+        h("a", { class: "row-title", href: `#/monitor/${exam.exam_id}` }, exam.title),
+        h("div", { class: "row-sub" }, `${exam.sessions} joined`)),
+      h("td", { class: "col-code" }, h("code", { class: "exam-code" }, exam.access_code)),
+      h("td", {}, h("span", { class: "pill ok" }, String(exam.in_progress))),
+      h("td", {}, String(exam.finished)),
+      h("td", {}, exam.pending_essays > 0
+        ? h("span", { class: "pill warn" }, String(exam.pending_essays))
+        : h("span", { class: "hint" }, "—")),
+      h("td", { class: "col-actions" },
+        h("a", { class: "link-btn", href: `#/monitor/${exam.exam_id}` }, "Watch"),
+        h("a", { class: "link-btn", href: `#/results/${exam.exam_id}` }, "Results")));
+  }
+
+  async function load() {
+    const id = ++state.requestId;
+    try {
+      const all = await results.activity();
+      if (id !== state.requestId) return;
+      const exams = all.filter((e) => e.in_progress > 0);
+      subtitle.textContent = exams.length === 1
+        ? "1 exam has students working right now"
+        : `${exams.length} exams have students working right now`;
+      tbody.replaceChildren(...exams.map(row));
+      status.replaceChildren(exams.length === 0
+        ? h("p", { class: "sub" }, "No exam has students working right now. Share the code and come back.")
+        : null);
+    } catch (err) {
+      if (id !== state.requestId || ignorable(err)) return;
+      status.replaceChildren(h("p", { class: "sub" }, errorText(err)));
+    }
+  }
+
+  return startRefresh(container, state, load, 30_000);
+}
+
+function renderExamSessions(container, examId) {
+  const state = { requestId: 0, timer: null };
   const title = h("h1", {}, "Monitor");
   const subtitle = h("p", { class: "sub" }, "Loading…");
   const actions = h("div", { class: "head-actions" });
+  const strip = h("div", { class: "strip" });
   const tbody = h("tbody");
   const status = h("div", { class: "list-status", role: "status" });
 
@@ -24,103 +93,105 @@ export function renderExamMonitor(container, ctx, { examId } = {}) {
     container,
     h("div", { class: "head" },
       h("div", {},
-        h("a", { class: "back", href: "#/exams" }, icon("left"), "Exams"),
+        h("a", { class: "back", href: "#/monitor" }, icon("left"), "Monitor"),
         title, subtitle),
       actions),
+    strip,
     h("div", { class: "card list-card" },
       h("div", { class: "table-wrap" },
         h("table", { class: "qtable" },
           h("thead", {}, h("tr", {},
-            h("th", {}, "Exam"),
-            h("th", { class: "col-code" }, "Code"),
-            h("th", {}, "Sessions"),
-            h("th", {}, "Active now"),
-            h("th", {}, "Average"),
+            h("th", {}, "Student"),
+            h("th", {}, "Class"),
+            h("th", {}, "Progress"),
             h("th", {}, "Time left"),
+            h("th", {}, "Exits"),
+            h("th", {}, "Status"),
             h("th", { class: "col-actions", "aria-label": "Actions" }, ""))),
           tbody)),
       status),
   );
 
-  function row(exam) {
-    const activeNow = exam.in_progress;
-    const avg = exam.average != null ? Math.round(exam.average) : null;
-    const timeLeft = avg != null && activeNow > 0 ? `${Math.round(exam.remaining_seconds / 60)} min` : "—";
+  function progressCell(r, questionCount) {
+    const answered = r.answered_count;
+    const total = r.question_count ?? questionCount;
+    if (answered == null || total == null || total <= 0) {
+      if (r.has_result) return h("span", {}, "Done");
+      return h("span", { class: "hint" }, "—");
+    }
+    const pct = Math.round((answered / total) * 100);
+    return h("span", { class: "prog", "aria-label": `${answered} of ${total}` },
+      h("span", { class: "prog-track" }, h("i", { style: `width:${Math.min(100, Math.max(0, pct))}%` })),
+      ` ${answered}/${total}`);
+  }
 
-    const details = h("a", { class: "link-btn", href: `#/monitor/${exam.exam_id}` }, "Watch");
-    const results = h("a", { class: "link-btn", href: `#/results/${exam.exam_id}` }, "Results");
-
-    return h("tr", { "data-exam": exam.exam_id },
+  function row(r, questionCount) {
+    const working = r.status === "in_progress" || r.status === "reopened";
+    return h("tr", { "data-session": r.session_id },
       h("td", {},
-        h("a", { class: "row-title", href: `#/monitor/${exam.exam_id}` }, exam.title),
-        h("div", { class: "row-sub" },
-          `${exam.sessions} ${exam.sessions === 1 ? "session" : "sessions"}`,
-          exam.is_template ? " · template" : "",
-          exam.pending_essays > 0 ? h("span", { class: "pill warn" }, ` ${exam.pending_essays} essay`) : null)),
-      h("td", { class: "col-code" }, h("code", { class: "exam-code" }, exam.access_code)),
-      h("td", {}, `${exam.finished} of ${exam.sessions}`),
-      h("td", {},
-        activeNow > 0
-          ? h("span", { class: "pill ok" }, String(activeNow))
-          : h("span", { class: "hint" }, "—")),
-      h("td", {}, avg != null ? h("b", {}, `${avg}%`) : h("span", { class: "hint" }, "—")),
-      h("td", {}, timeLeft),
-      h("td", { class: "col-actions" }, details, results));
+        h("a", { class: "row-title", href: `#/monitor/${examId}/session/${r.session_id}` }, r.student_name),
+        r.attempt_no > 1 ? h("div", { class: "row-sub" }, `Attempt ${r.attempt_no}`) : null),
+      h("td", {}, r.class_display || r.student_class),
+      h("td", {}, progressCell(r, questionCount)),
+      h("td", {}, working
+        ? (r.remaining_seconds != null ? fmtDuration(r.remaining_seconds) : "—")
+        : "Done"),
+      h("td", {}, r.tab_switch_count > 0
+        ? h("b", { class: "exit-warn" }, String(r.tab_switch_count))
+        : "0"),
+      h("td", {}, liveStatusPill(r)),
+      h("td", { class: "col-actions" },
+        h("a", { class: "link-btn", href: `#/monitor/${examId}/session/${r.session_id}` }, "Open")));
   }
 
   async function load() {
     const id = ++state.requestId;
-    status.replaceChildren(h("p", { class: "sub" }, "Loading…"));
     try {
-      const all = await results.activity();
+      const overview = await results.overview(examId);
       if (id !== state.requestId) return;
-      state.exams = examId
-        ? all.filter((e) => e.exam_id === examId)
-        : all.filter((e) => e.in_progress > 0);
-      subtitle.textContent = examId
-        ? `Watching “${state.exams[0]?.title || "exam"}”`
-        : (state.exams.length === 1
-            ? "1 exam has students working right now"
-            : `${state.exams.length} exams have students working right now`);
-      tbody.replaceChildren(...state.exams.map(row));
-      if (state.exams.length === 0) {
-        status.replaceChildren(h("p", { class: "sub" },
-          examId
-            ? "This exam has no active sessions."
-            : "No exam has students working right now. Share the code and come back."));
-      } else {
-        status.replaceChildren();
-      }
+      const { exam, summary, rows } = overview;
+      const questionCount = rows.find((r) => r.question_count != null)?.question_count ?? null;
+      title.textContent = exam.title;
+      subtitle.textContent = `Code ${exam.access_code}${exam.ends_at ? ` · closes ${new Date(exam.ends_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}`;
+      actions.replaceChildren(
+        h("a", { class: "btn ghost", href: `#/results/${examId}` }, icon("chart"), "Results"),
+        h("a", { class: "btn ghost", href: `#/exams/edit/${examId}` }, icon("doc"), "Open the exam"));
+      strip.replaceChildren(
+        h("span", {}, h("b", {}, String(summary.in_progress || 0)), " working"),
+        h("span", {}, h("b", {}, String(summary.with_result || 0)), " submitted"),
+        h("span", {}, h("b", {}, String(rows.length)), " joined so far"),
+        summary.pending_essays > 0
+          ? h("span", { class: "pill warn" }, `${summary.pending_essays} essay`)
+          : null);
+      const ordered = [...rows].sort((a, b) => {
+        const aw = a.status === "in_progress" || a.status === "reopened" ? 0 : 1;
+        const bw = b.status === "in_progress" || b.status === "reopened" ? 0 : 1;
+        if (aw !== bw) return aw - bw;
+        return (a.student_name || "").localeCompare(b.student_name || "");
+      });
+      tbody.replaceChildren(...ordered.map((r) => row(r, questionCount)));
+      status.replaceChildren(rows.length === 0
+        ? h("p", { class: "sub" }, "Nobody has joined this test yet. Share the code with the class.")
+        : null);
     } catch (err) {
       if (id !== state.requestId || ignorable(err)) return;
       status.replaceChildren(h("p", { class: "sub" }, errorText(err)));
     }
   }
 
-  function startAutoRefresh() {
-    if (state.autoRefresh) return;
-    state.autoRefresh = setInterval(() => { if (document.contains(container)) load(); }, 30_000);
-  }
+  return startRefresh(container, state, load, 15_000);
+}
 
-  function stopAutoRefresh() {
-    if (state.autoRefresh) {
-      clearInterval(state.autoRefresh);
-      state.autoRefresh = null;
-    }
-  }
-
+function startRefresh(container, state, load, ms) {
   load();
-  startAutoRefresh();
-
-  // Stop refreshing when the container leaves the DOM (route change)
+  state.timer = setInterval(() => { if (document.contains(container)) load(); }, ms);
   const observer = new MutationObserver(() => {
-    if (!document.contains(container)) stopAutoRefresh();
+    if (!document.contains(container)) cleanup();
   });
   observer.observe(document.body, { childList: true, subtree: true });
-
-  // Cleanup on unmount (router calls replaceChildren which removes old content)
-  return () => {
-    stopAutoRefresh();
+  function cleanup() {
+    if (state.timer) { clearInterval(state.timer); state.timer = null; }
     observer.disconnect();
-  };
+  }
+  return cleanup;
 }

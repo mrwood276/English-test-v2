@@ -53,6 +53,46 @@ export function statusPill(row) {
   return h("span", { class: `pill ${SESSION_PILL[row.status] || "plain"}` }, SESSION_LABEL[row.status] || row.status);
 }
 
+/** Labels for session_events on the live monitor and the attempt report. */
+export const EVENT_LABEL = {
+  join: "Joined",
+  tab_hidden: "Left the page",
+  blur: "Lost focus",
+  focus: "Came back",
+  online: "Back online",
+  offline: "Went offline",
+  reload: "Reloaded the page",
+  submit: "Sent the answers",
+  reopen: "Reopened by the teacher",
+  time_added: "Time added",
+  graded: "Graded by hand",
+  retake_granted: "Retake allowed",
+  retake_revoked: "Retake taken back",
+};
+export const EVENT_SEVERITY_PILL = { warning: "warn", suspicious: "warn", violation: "bad", info: "plain" };
+
+/**
+ * Status pill for the live monitor (mockup 12): Saved / Left the page / Offline / Submitted / …
+ * Uses last_heartbeat_at when the overview provides it; otherwise falls back to page-leave count.
+ */
+export function liveStatusPill(row) {
+  if (row.has_result || (row.status !== "in_progress" && row.status !== "reopened")) {
+    return statusPill(row);
+  }
+  const warnLimit = row.tab_switch_warn_limit ?? 1;
+  const flagLimit = row.tab_switch_flag_limit ?? 3;
+  if (row.last_heartbeat_at) {
+    const age = (Date.now() - new Date(row.last_heartbeat_at).getTime()) / 1000;
+    if (Number.isFinite(age) && age > 90) {
+      return h("span", { class: "pill bad" }, "Offline");
+    }
+  }
+  const exits = row.tab_switch_count || 0;
+  if (exits >= flagLimit) return h("span", { class: "pill bad" }, "Need a look");
+  if (exits >= warnLimit) return h("span", { class: "pill warn" }, "Left the page");
+  return h("span", { class: "pill ok" }, "Saved");
+}
+
 /** The one-line summary above the results table (average, highest, lowest, passed, not final). */
 export function summaryStrip(summary, passingGrade) {
   if (!summary) return h("div", { class: "strip" }, h("span", {}, h("b", {}, "—"), " no results yet"));

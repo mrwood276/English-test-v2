@@ -4,13 +4,13 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-23 (Cursor / Composer — Reviewer + Release Gatekeeper intake; doc drift corrected; release **NOT READY**) |
-| Last AI agent | Cursor / Composer (Reviewer + Release Gatekeeper). Prior: Solar Pro4 (monitor screens); Buffy (TASK-012 results live). |
-| Development phase | Phase 4 core done; Phase 5 (monitor) screens started. Phases 0–3 done. |
-| Current focus | **Release gate intake.** On `ai-development` @ `0115613`, tree clean; backend 104 + unit 21 green this session. Full exam loop documented as live-verified by prior agents. Monitor UI exists but has no Playwright suite (UNVERIFIED). **Do not merge to `main` yet.** |
-| Branch model | `main` = stable. `ai-development` = shared AI development (DEC-020). Gatekeeper may promote to `main` only after checklist passes — currently **BLOCKED**. |
-| Current branch / commit | **`ai-development`** @ `0115613` (tracks `origin/ai-development`). |
-| Repository baseline | `origin/ai-development` = `0115613`. **`origin/main` = `9c293fc`** (Codex parallel import; ISSUE-015 / DEC-021 — merge must prefer ai-development import files). |
+| Last updated | 2026-09-23 (Cursor / Composer — TASK-013 live monitor completed) |
+| Last AI agent | Cursor / Composer (Reviewer + developer). |
+| Development phase | Phase 5 core (live monitor) done on top of Phase 4. |
+| Current focus | **TASK-013 complete (TESTED).** Monitor hub + per-exam live table + session timeline; `monitor_e2e.py` 23/23; CI ninth suite. Apply `20260925000000_monitor_overview_fields.sql` live for progress bars. Release to `main` still **not** done (owner/gate deliberate). |
+| Branch model | `main` = stable. `ai-development` = shared AI development. |
+| Current branch / commit | **`ai-development`** (TASK-013 commit pending). |
+| Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
 
 ## What was inspected to write `.ai/`
 

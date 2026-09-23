@@ -4,40 +4,43 @@ Keep this file current after every meaningful change. It must never describe an 
 
 ## RELEASE STATUS
 
-**`BLOCKED` — not ready for `main`.**
+**`BLOCKED` — not ready for `main` (unchanged by TASK-013).**
 
-| Check | Result |
-|---|---|
-| Branch / tree | On `ai-development` @ `0115613` (+ pending doc-only commit); working tree otherwise clean |
-| Backend / unit tests this session | **104** / **21** green |
-| CRITICAL open | None found |
-| HIGH blockers for release | None in code; open HIGH known issues are owner/verification (ISSUE-001 remainder, ISSUE-002 media) — documented, not regressions |
-| Incomplete feature that would ship half-done | **F-13 / TASK-013** monitor screens exist with **no** `monitor_e2e.py` and no live verify (MEDIUM) |
-| `main` merge risks | `origin/main` = `9c293fc` (Codex import). Must resolve per DEC-021 in favor of `ai-development`; drop `import/model.js` + `import.test.js` |
-| Doc integrity | Corrected this session (F-12/F-13 summary, ISSUE-006, drift table, snapshot). Prior handoff wrongly said `main` @ `46803f0` |
-
-Gatekeeper will not merge until: (1) owner confirms releasing with known owner-facing leftovers is OK, **or** (2) TASK-013 gets at least a Playwright suite and remaining doc claims are re-checked. Prefer finishing monitor tests before promoting unfinished UI.
+TASK-013 is TESTED against the mock server. Open before release: apply monitor SQL live; owner checklist items (ISSUE-007, TASK-007); careful merge vs Codex import on `main` (DEC-021).
 
 ## Branch Context (read this first)
 
 | | |
 |---|---|
-| Stable Branch | `main` — **`origin/main` = `9c293fc`** (not `46803f0`; Codex parallel import). Not the normal workspace. |
-| Current Development Branch | **`ai-development`** @ `0115613` — import, exams, student engine, grading/results, monitor screen progress. Work here. |
-| Merged into `main`? | **No.** Release status **BLOCKED** (see above). Owner/gatekeeper deliberate merge only (DEC-020 + Reviewer role). |
-
-Before doing anything: `git checkout ai-development`, `git pull`, `git fetch origin`, `git log --oneline -5`, `git status`. Never treat this file as proof of the remote state (ISSUE-015).
-
-## Collision notice (read before touching import files)
-`origin/main` contains Codex/GPT-5's own parallel implementation of the import parsers + screen (commits `d21f82d`, `1606aed`, `9c293fc`, 2026-09-21), which conflicts file-by-file with the `ai-development` implementation. The owner decided (DEC-021, 2026-09-22): **continue with `ai-development`'s version; Codex's `main` commits stay untouched and get superseded at the next deliberate merge.** Do not port Codex's variant back, and do not "reconcile" the two on your own initiative.
+| Stable Branch | `main` — **`origin/main` = `9c293fc`**. Not the normal workspace. |
+| Current Development Branch | **`ai-development`** — includes TASK-013 live monitor. |
+| Merged into `main`? | **No.** |
 
 ## Last Agent
-Cursor / Composer — **Development Reviewer + Release Gatekeeper** (intake session). Prior: Solar Pro4 (ninth — monitor screens + import.test.ts types); Buffy (eighth — TASK-012 results live).
+Cursor / Composer — TASK-013 live monitor (screens + e2e + SQL in git).
 
 ## Date
-2026-09-23 (gatekeeper intake)
+2026-09-23
 
 ## Last Completed Task
+- **TASK-013 core (TESTED):** live monitor hub, per-exam student table (mockup 12), session timeline with add time; `monitor_e2e.py` 23/23; CI ninth suite; migration `20260925000000_monitor_overview_fields.sql` committed but **not applied live**.
+
+## Remaining Work
+1. Apply `supabase/migrations/20260925000000_monitor_overview_fields.sql` on the live project (`npx supabase db query --linked --file …`).
+2. Optional: one live browser run of `#/monitor` during a real exam.
+3. TASK-012 remainder (statistics tabs / exports) or release gate when owner asks.
+4. Owner: ISSUE-007, TASK-007, TASK-008.
+
+## Recommended Next Task
+Apply the monitor overview SQL live (needs token), **or** TASK-012 remainder (Questions/Classes + exports).
+
+## Suggested Work For Next AI
+1. `git checkout ai-development && git pull`.
+2. Confirm: backend 104, `python frontend/tests/monitor_e2e.py` green (dev-server 8123).
+3. With `SUPABASE_ACCESS_TOKEN`: apply `20260925000000_monitor_overview_fields.sql`, then mark F-13 progress fields LIVE-VERIFIED.
+4. Do not merge to `main` while RELEASE STATUS is BLOCKED unless the owner overrides.
+
+## Prior completed work (keep for context)
 - **TASK-012 (core) built and live-verified (eighth session)**: a teacher can now grade written answers, read the results of an exam, and act on a single attempt. SQL in `supabase/migrations/20260924000000_result_functions.sql` (**applied live**; contract, rules and live facts in `docs/sql-results.md`), Edge Function `backend/functions/results/` (**deployed v1**, 18 Deno tests), the Grading/Results menu items with a waiting-essays badge, the essay grading screen (mockup 13), the per-exam results screen (mockup 14), and the attempt report with per-question grading plus **add time / reopen (BR-11)** and **allow a retake (BR-02)**. Rolled-back SQL test `supabase/tests/result_functions_test.sql` (`RESULT ENGINE TESTS PASSED`), `frontend/tests/results_e2e.py` (59 browser checks), a one-off live script `frontend/tests/live_results_check.py` with its `cleanup_live_results.sql`. **ISSUE-017 closed** — a result with an essay can now become final. Live verification: **38/38 checks** against the real project through the deployed function; every test row deleted afterwards (0 exams, 0 sessions, 0 rate-limit rows, 40 questions). Regression: backend **104**, unit 21, all **eight** browser suites green.
 - **TASK-010 Student exam engine built and live-verified (seventh session)**: the student side of an exam now works end to end. SQL in `supabase/migrations/20260923000000_session_functions.sql` (**applied live**; contract + schema facts in `docs/sql-sessions.md`), Edge Function `backend/functions/session/` (**deployed v1**, signed session token per DEC-022, 21 Deno tests), the student page `frontend/index.html` (`assets/js/student/*`, `assets/css/student.css`), a full mock-server `/functions/v1/session` handler, `frontend/tests/student_e2e.py` (52 checks) and `supabase/tests/session_functions_test.sql` (rolled-back assertions). Live verification with the admin account: 27/27 checks (join → answers → resend → refusal paths → submit → grading `75` / `2 correct, 1 wrong` / review → refusals), then every test row deleted (0 exams, 0 sessions, 40 questions). Regression: backend **86**, unit 21, all **seven** browser suites green. CI now also runs `exams_e2e` (was missing) and `student_e2e`.
 - **CI red fixed at its root (sixth session)**: GitHub Actions run #4 failed the Question-editor step. Reproduced locally 1-in-2 in the full chain and root-caused to a **product bug**, not a test problem: every `SessionExpiredError` re-dispatched `staff:session-expired`, so a background request after the 401 (the editor's debounced duplicate-check timer, detached) replaced the sign-in notice ("Your session has expired…") with "Please sign in." Fix: announce once per signed-out period (`sessionExpiredAnnounced` flag in `core/api.js`, reset by `staff:signed-in` dispatched in `app.js#showApp`). ISSUE-016 rewritten (two LOW misdiagnoses → MEDIUM, FIXED-AT-ROOT). Verified: 3 consecutive full browser chains 15/15 (crashed on cycle 2 before), unit 21/21, `deno check` clean.

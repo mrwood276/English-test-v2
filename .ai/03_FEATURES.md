@@ -22,7 +22,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 | F-10 | Export questions to PDF/Word | PLANNED | – | – |
 | F-11 | Student join and exam engine | CORE COMPLETE (join, take, autosave, submit, auto-grade, result) | ACTIVE | LIVE-VERIFIED (2026-09-23, 27 checks through the deployed `session` function); SQL TESTED (rolled-back `session_functions_test.sql`); browser TESTED (`student_e2e.py`, 52 checks) |
 | F-12 | Essay grading, results, statistics, exports | CORE COMPLETE (stats/exports remain) | ACTIVE | LIVE-VERIFIED (core, 2026-09-24); stats/exports UNVERIFIED |
-| F-13 | Anti-cheating events and live monitor | IN_PROGRESS (screens exist; no Playwright / no live verify) | ACTIVE | UNVERIFIED (screens only, 2026-09-23 reviewer session) |
+| F-13 | Anti-cheating events and live monitor | CORE COMPLETE (screens + tests) | ACTIVE | TESTED (`monitor_e2e.py`); live overview progress fields need SQL apply (20260925) |
 | F-14 | Audit log viewer, backups, notifications, user management | PLANNED | – | – |
 | F-15 | Design system and approved mockups | COMPLETE | PROTECTED | Owner-approved |
 | F-16 | Legacy v1 app (outside this repo) | DEPRECATED (live, untouched) | – | – |
@@ -129,10 +129,11 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 
 ## F-13 Anti-cheating and live monitor
 
-- Status: **IN_PROGRESS** (screens wired; not TESTED / not LIVE-VERIFIED). Protection: ACTIVE.
-- What exists (2026-09-23 reviewer session): `#/monitor`, `#/monitor/:examId` (`examMonitor.js`, auto-refresh 30s), `#/monitor/:examId/session/:sessionId` (`sessionTimeline.js`, auto-refresh 15s); menu item + routes; `results.js` helpers `activeExams()` / `sessionReport()`. Backend data already comes from TASK-012 (`list_exam_activity`, `get_session_report`, `session_events`).
-- Missing: Playwright suite (`monitor_e2e.py` does not exist), live verification against a running exam, and any polish vs mockups 7–9 / 12.
-- Next: TASK-013 remainder in `05_TASK_QUEUE.md`.
+- Status: **CORE COMPLETE and TESTED (2026-09-23)**. Protection: ACTIVE (extend rather than rebuild).
+- What exists: `#/monitor` (exams with students working), `#/monitor/:examId` (mockup 12 table: progress, time left, page leaves, Saved / Left the page / Offline / Need a look), `#/monitor/:examId/session/:sessionId` (event history + add time while they work); menu item; auto-refresh 30s / 15s; `liveStatusPill` / shared event labels in `resultBits.js`.
+- Backend: uses existing `results` actions `activity` / `overview` / `report` / `add_time`. Additive SQL `supabase/migrations/20260925000000_monitor_overview_fields.sql` adds `answered_count`, `question_count`, `last_heartbeat_at` to `list_exam_results` — **apply live** when a token is available (screens degrade to "—" for progress until then).
+- Tests: `frontend/tests/monitor_e2e.py` (23 checks); CI runs it as the ninth browser suite. Mock server returns the new overview fields.
+- Not built: mass "add time to everyone", live verification against a real running exam, scheduled `expire_sessions` (TASK-015).
 
 ## F-14 Audit log viewer, backups, notifications, user management — PLANNED
 

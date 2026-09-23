@@ -387,6 +387,7 @@ class Server:
         self.sessions[sid] = {"id": sid, "exam": code, "name": name, "class": klass, "status": "in_progress",
                               "started_at": now - seconds_used, "ends_at": now + 600, "answers": typed,
                               "tab_switch_count": tab_switch_count, "attempt_no": attempt_no,
+                              "last_heartbeat_at": now - (90 if tab_switch_count >= 3 else 5),
                               "key": (code, " ".join(name.lower().split()), " ".join(klass.lower().split())), "result": None}
         if status != "in_progress":
             self.session_grade(sid, status)
@@ -403,8 +404,10 @@ class Server:
 
     def results_row(self, s):
         r = s.get("result")
+        exam = self.session_exams[s["exam"]]
         key = (s["exam"], " ".join(s["name"].lower().split()), " ".join(s["class"].lower().split()))
         retake = self.retakes.get(key)
+        answered = sum(1 for a in s.get("answers", {}).values() if (a.get("text") or "") != "")
         return {"session_id": s["id"], "student_name": s["name"], "student_class": s["class"],
                 "class_display": self.class_aliases.get(" ".join(s["class"].lower().split()), s["class"]),
                 "attempt_no": s["attempt_no"], "status": s["status"],
@@ -417,7 +420,12 @@ class Server:
                 "correct_count": r["correct_count"] if r else None, "wrong_count": r["wrong_count"] if r else None,
                 "time_used_seconds": r["time_used_seconds"] if r else None,
                 "pending_essays": self.results_pending_essays(s),
-                "retake_granted": bool(retake), "retake_used": bool(retake and retake["used"])}
+                "retake_granted": bool(retake), "retake_used": bool(retake and retake["used"]),
+                "answered_count": answered if s["status"] in ("in_progress", "reopened") else len(exam["questions"]),
+                "question_count": len(exam["questions"]),
+                "last_heartbeat_at": iso(s.get("last_heartbeat_at") or time.time()),
+                "tab_switch_warn_limit": exam.get("tab_switch_warn_limit", 1),
+                "tab_switch_flag_limit": exam.get("tab_switch_flag_limit", 3)}
 
     def results_overview(self, exam):
         rows = [self.results_row(s) for s in self.sessions.values() if s["exam"] == exam["code"]]
@@ -445,6 +453,11 @@ class Server:
         key = (s["exam"], " ".join(s["name"].lower().split()), " ".join(s["class"].lower().split()))
         retake = self.retakes.get(key)
         events = [{"event_type": "join", "severity": "info", "meta": {}, "occurred_at": iso(s["started_at"])}]
+        for i in range(s.get("tab_switch_count") or 0):
+            sev = "violation" if i + 1 >= exam.get("tab_switch_autosubmit_limit", 5) else (
+                "suspicious" if i + 1 >= exam.get("tab_switch_flag_limit", 3) else "warning")
+            events.append({"event_type": "tab_hidden", "severity": sev, "meta": {"n": i + 1},
+                           "occurred_at": iso(s["started_at"] + 60 * (i + 1))})
         if r: events.append({"event_type": "submit", "severity": "info", "meta": {}, "occurred_at": iso(s["submitted_at"])})
         for g in self.result_calls:
             if g.get("action") == "grade" and g.get("session_id") == sid:

@@ -49,7 +49,7 @@ assets/js/student/screens/      join, exam, result
 assets/js/student/components/   question (one question rendered for answering)
 tests/                          browser tests with a mocked server (mock_server.py, teacher_e2e.py, question_bank_e2e.py,
                                 question_editor_e2e.py, media_e2e.py, question_import_e2e.py, exams_e2e.py, student_e2e.py,
-                                results_e2e.py) and Deno unit tests (tests/unit/). live_results_check.py talks to the
+                                results_e2e.py, monitor_e2e.py) and Deno unit tests (tests/unit/). live_results_check.py talks to the
                                 real backend by hand (owner's account, credentials from the environment)
 ```
 
@@ -74,4 +74,5 @@ python tests/question_import_e2e.py
 python tests/exams_e2e.py
 python tests/student_e2e.py
 python tests/results_e2e.py
+python tests/monitor_e2e.py
 ```

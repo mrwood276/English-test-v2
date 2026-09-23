@@ -55,6 +55,22 @@
 .events { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
 .ev { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; }
 
+/* ---------- live monitor (mockup 12) ---------- */
+.prog {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink-2);
+  white-space: nowrap;
+}
+.prog-track {
+  display: inline-block; width: 54px; height: 8px; border-radius: 999px;
+  background: var(--line); overflow: hidden; vertical-align: middle;
+}
+.prog-track i { display: block; height: 100%; background: var(--pen); border-radius: 999px; }
+.exit-warn { color: var(--warn-ink, #8a6a00); }
+.monitor-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; max-width: 720px; }
+.monitor-layout .card { max-width: none; }
+.monitor-events { max-height: 420px; }
+
 .review-head { justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
 .review-head h2 { font-size: 16px; }
 .review-list { display: flex; flex-direction: column; gap: 12px; }
