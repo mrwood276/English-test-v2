@@ -43,3 +43,7 @@ jobs:
         run: python frontend/tests/media_e2e.py
       - name: Question import
         run: python frontend/tests/question_import_e2e.py
+      - name: Exams (teacher side)
+        run: python frontend/tests/exams_e2e.py
+      - name: Student page (join, take the test, result)
+        run: python frontend/tests/student_e2e.py

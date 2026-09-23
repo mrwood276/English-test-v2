@@ -7,7 +7,7 @@
 | Name | English Daily Test v2 (working title "English Testing Platform"; Claude project "APP_V2") |
 | Repository | `mrwood276/English-test-v2` (GitHub, private) |
 | Purpose | A web platform for English **daily tests** (ulangan harian) at one school, grades X, XI, XII, all majors |
-| Development stage | **Phase 2 (core) in progress.** Foundation, auth, question bank, editor, and media are built; question import is in progress; exams, exam engine, grading, results, anti-cheating are not started |
+| Development stage | **Phase 3 (exam engine) done, moving into Phase 4.** Foundation, auth, question bank, editor, media, import, exams (teacher side) and the student exam engine are built — the teacher, exam, import and student flows are live against the v2 project. Not started: essay grading and results/statistics screens (TASK-012), the live monitor (TASK-013), dashboard/polish (TASK-014), backups/jobs (TASK-015) |
 | Deployment | v2 is **not deployed anywhere yet**; it runs locally against the live Supabase project. Hosting for the frontend is UNKNOWN (not chosen). The older v1 app is live on a separate static host + separate Supabase project and is **outside this repository** |
 
 ## Problem being solved
@@ -18,7 +18,7 @@ v1 (a single-exam prototype for class XII TKJ) had no exam codes, no attempt lim
 
 | Role | Who | Access |
 |---|---|---|
-| Student | Students of grades X to XII | No account. Enters name + class (typed freely) + exam code. Takes the exam on a personal phone in the classroom. **Not built yet** |
+| Student | Students of grades X to XII | No account. Enters name + class (typed freely) + exam code. Takes the exam on a personal phone in the classroom. **Built (2026-09-23)**: `frontend/index.html` — join, take (autosave, offline tolerance, server-enforced time, tab-switch limits), submit, result; live-verified over HTTP, screens verified against the mock server |
 | Teacher | One teacher for now | Email + password (Supabase Auth). Manages questions, exams, grading, results. **Account not created yet** |
 | Admin | The owner (helps the teacher) | Email + password (Supabase Auth). Everything a teacher can do, plus accounts, backup, audit log, purge. Account **exists** (profile role `admin`, display name is the placeholder "Admin") |
 
@@ -28,7 +28,7 @@ Only teachers and admins may see student scores.
 
 1. A flexible question bank: 4 question types (multiple choice, true/false, short answer, essay), reading texts, images and audio, class labels, topics, difficulty Easy/Medium/HOTS, duplicate detection, import from Excel/CSV and pasted text.
 2. Exams with mandatory exam code, scheduling or manual open/close, manual or automatic question selection, 1 attempt per student (remedial by teacher permission).
-3. A robust exam engine for phones (server-enforced time, autosave, offline tolerance, essay grading).
+3. A robust exam engine for phones (server-enforced time, autosave, offline tolerance, essay grading — the engine is built, essay grading is TASK-012).
 4. Realistic anti-cheating (warnings, event log, live monitor) without harming honest students.
 5. Results, statistics, exports (Excel/CSV/PDF), audit log, backups.
 
@@ -58,6 +58,8 @@ Only teachers and admins may see student scores.
 | Need | File |
 |---|---|
 | Product requirements, business rules, data model, phases | `docs/design.md` (Draft 4, approved by the owner) |
+| Exam SQL contract and live schema facts | `docs/sql-exams.md` |
+| Student session-engine contract, live facts, verification record | `docs/sql-sessions.md` |
 | What was wrong with v1 | `docs/audit-v1.md` |
 | Approved screens | `docs/mockups/round-1.html`, `docs/mockups/round-2.html` (open in a browser) |
 | How to run and test | `README.md`, `frontend/README.md`, `backend/README.md`, `00_AI_RULES.md` section 7 |

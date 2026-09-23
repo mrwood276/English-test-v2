@@ -1,6 +1,6 @@
 # 02 ARCHITECTURE
 
-Verified against the repository and the live Supabase project on 2026-09-21.
+Verified against the repository and the live Supabase project on 2026-09-23.
 
 ## Source control
 
@@ -11,19 +11,22 @@ Full rules: `00_AI_RULES.md` section 12. This is a process convention, not an ap
 ## Overview
 
 ```
-Browser (teacher/admin app, static files)            Supabase project lbhnadqmokloyfarrzfv
-  frontend/teacher/index.html                         ┌─────────────────────────────────────────────┐
-  ES modules, hash router                             │ Auth (email+password)                        │
-       │  Sign in: POST /auth/v1/token ─────────────► │                                              │
+Browser (static files, ES modules)                   Supabase project lbhnadqmokloyfarrzfv
+  Teacher/admin: frontend/teacher/index.html          ┌─────────────────────────────────────────────┐
+  Student:       frontend/index.html                  │ Auth (email+password) — staff only           │
+  (student joins with name + class + code, no account)│                                             │
+       │  Staff sign in: POST /auth/v1/token ───────► │                                              │
        │                                              │ Edge Functions (Deno)  verify_jwt = false    │
-       │  POST /functions/v1/<name>  Bearer <token> ► │   auth-me, question-bank, media              │
-       │                                              │   each: requireStaff → validate → callRpc    │
+       │  POST /functions/v1/<name>  Bearer <token> ► │   auth-me, question-bank, media, exams       │
+       │                                              │   session  (students: session token)         │
+       │  POST /functions/v1/session ───────────────► │   requireStaff/session token → validate      │
+       │   Bearer <session>.<signature>               │   → callRpc                                  │
        │                                              │              │ service role (bypasses RLS)   │
        │  PUT one-time signed upload URL ───────────► │              ▼                               │
        │   (image/audio bytes go straight to Storage) │ Postgres: 22 tables (RLS on, no policies),   │
-       │                                              │ 25 public functions (business rules, audit)  │
+       │                                              │ 47 public functions (business rules, audit)  │
        ▼                                              │ Storage: private bucket question-media       │
-  Students (NOT BUILT YET): name + class + exam code  └─────────────────────────────────────────────┘
+  localStorage: the student's attempt + token          └─────────────────────────────────────────────┘
 ```
 
 Key property: **the browser never reads or writes a table directly.** Everything goes through Edge Functions that check who is calling and then call SQL functions.
@@ -32,18 +35,19 @@ Key property: **the browser never reads or writes a table directly.** Everything
 
 | Path | Purpose |
 |---|---|
-| `frontend/` | Teacher/admin web app (static). `teacher/index.html` is the only entry point |
+| `frontend/` | Two static apps: teacher/admin (`teacher/index.html`) and student (`index.html`) |
 | `frontend/assets/js/core/` | `config.js` (URLs, public key, build label), `http.js` (fetch with timeout and friendly errors), `auth.js` (Supabase Auth REST client, session in `sessionStorage`), `api.js` (`callStaffFunction`: adds the token; a 401 clears the session and fires `staff:session-expired`) |
 | `frontend/assets/js/shared/` | `dom.js` (element builder, no innerHTML), `rich.js` (safe display of teacher-written rich text), `icons.js`, `ui.js` (toast, confirm dialog, segmented control, debounce), `imageCompress.js` (shrink photos in the browser) |
-| `frontend/assets/js/teacher/` | `app.js` (boot, sign-in/out, session events), `router.js` (hash routes), `guard.js` (unsaved-changes guard), `api/` (`questionBank.js`, `media.js`), `components/`, `screens/` |
-| `frontend/assets/css/` | `tokens.css` (design tokens), `base.css`, `teacher.css` (sign in, shell), `questions.css` (bank, editor, dialogs, files) |
-| `frontend/tests/` | Playwright tests with a mocked server: `teacher_e2e.py`, `question_bank_e2e.py`, `question_editor_e2e.py`, `media_e2e.py`, `question_import_e2e.py`, plus `mock_server.py`, `make_fixtures.py`, `fixtures_dir.py`, and the Deno unit tests in `tests/unit/` (import parsers, incl. zip/xlsx) |
+| `frontend/assets/js/teacher/` | `app.js` (boot, sign-in/out, session events), `router.js` (hash routes), `guard.js` (unsaved-changes guard), `api/` (`questionBank.js`, `media.js`, `exams.js`), `components/`, `screens/` |
+| `frontend/assets/js/student/` | `app.js` (boot, resumes a saved attempt), `api.js` (the `session` function), `store.js` (attempt state in `localStorage`), `screens/{join,exam,result}.js`, `components/question.js` |
+| `frontend/assets/css/` | `tokens.css` (design tokens), `base.css`, `teacher.css` (sign in, shell), `questions.css` (bank, editor, dialogs, files), `student.css` (student screens, phone first) |
+| `frontend/tests/` | Playwright tests with a mocked server: `teacher_e2e.py`, `question_bank_e2e.py`, `question_editor_e2e.py`, `media_e2e.py`, `question_import_e2e.py`, `exams_e2e.py`, `student_e2e.py`, plus `mock_server.py`, `make_fixtures.py`, `fixtures_dir.py`, and the Deno unit tests in `tests/unit/` (import parsers, incl. zip/xlsx) |
 | `frontend/dev-server.py` | Local static server that disables caching (needed because ES modules are cached aggressively) |
 | `backend/functions/_shared/` | Shared library: `errors.ts`, `http.ts`, `validate.ts`, `auth.ts`, `rpc.ts`, `db.ts`, `text.ts`, `audit.ts`, `codes.ts`, `ratelimit.ts` |
-| `backend/functions/<name>/` | One Edge Function each: `auth-me`, `question-bank` (`handler.ts` routing, `parse.ts` input parsing), `media` |
-| `backend/tests/` | Deno tests: `shared.test.ts`, `question_bank.test.ts`, `media.test.ts` |
-| `supabase/` | Notes only (`README.md`). **No migrations yet** (ISSUE-001) |
-| `docs/` | `design.md`, `audit-v1.md`, `mockups/` |
+| `backend/functions/<name>/` | One Edge Function each: `auth-me`, `question-bank` (`handler.ts` routing, `parse.ts` input parsing), `media`, `exams`, `session` (student-facing; `parse.ts` + `token.ts` signed session token) |
+| `backend/tests/` | Deno tests: `shared.test.ts`, `question_bank.test.ts`, `media.test.ts`, `exams.test.ts`, `session.test.ts` |
+| `supabase/` | `README.md` + `migrations/` (the exams and session SQL, applied live) + `tests/` (rolled-back SQL assertions). Older `v2_01`..`v2_12` are still only in the live project (ISSUE-001) |
+| `docs/` | `design.md`, `audit-v1.md`, `mockups/`, `sql-exams.md`, `sql-sessions.md`, `verification-checklist.md` |
 | `.ai/` | This memory/handoff system |
 
 ## Frontend architecture
@@ -55,6 +59,13 @@ Key property: **the browser never reads or writes a table directly.** Everything
 - Unsaved work: screens call `setLeaveGuard(fn)`; the router asks before changing routes; `beforeunload` warns on tab close.
 - Design: tokens in `tokens.css`; the "answer sheet" motif (A–D bubbles) is used for answer options and question numbers (DEC-008).
 
+**Student app** (separate, no account, no hash router — one screen at a time):
+- Entry `frontend/index.html`; `student/app.js` reads the saved attempt from `localStorage` (`ENGLISH_TEST_V2_STUDENT_ATTEMPT`-style key in `config.js`) and mounts `join`, `exam`, or `result`. A reload resumes the same attempt, even offline.
+- `student/api.js` calls only `session` (`join`, `get`, `save`, `heartbeat`, `event`, `submit`, `result`, `media`) with the signed session token from `join`; a lost/expired token goes back to the join screen without losing the answers.
+- `student/store.js` holds the attempt: answers, flagged questions, remaining time, and an **offline queue** of unsaved answers (retried on `online`/interval); nothing is graded in the browser.
+- Exam screen: one question at a time, progress + counter from server time, answer sheet (jump/flag), autosave, connection banner, page-leave warning, submit confirmation. Result screen follows the exam's visibility setting (nothing / score / score + review) and shows "Not final" while an essay is ungraded.
+- The student page deliberately has **no `beforeunload` guard** (phones fire it for notifications) — ISSUE-019.
+
 ## Backend architecture
 
 Every Edge Function: `Deno.serve(handle(handler))`.
@@ -65,8 +76,10 @@ Every Edge Function: `Deno.serve(handle(handler))`.
 | Function | Actions | Roles |
 |---|---|---|
 | `auth-me` | `GET` returns `{user:{id, fullName, role}}` | teacher, admin |
-| `question-bank` | `list`, `get`, `save`, `remove`, `archive`, `restore`, `check_duplicates`, `topics`, `class_labels`, `passages`, `passage_get`, `passage_save`, `passage_remove`; **repository only, not deployed:** `import_check`, `import` | teacher, admin |
+| `question-bank` | `list`, `get`, `save`, `remove`, `archive`, `restore`, `check_duplicates`, `topics`, `class_labels`, `passages`, `passage_get`, `passage_save`, `passage_remove`, `import_check`, `import` (all live since v3, 2026-09-22) | teacher, admin |
 | `media` | `create_upload`, `register`, `signed_urls`, `purge_unused` (admin only) | teacher, admin |
+| `exams` | `save`, `list`, `get`, `remove`, `set_status`, `check_code`, `regenerate_code`, `duplicate` | teacher, admin |
+| `session` | `join` (anonymous, rate limited per address), then `get`, `save`, `heartbeat`, `event`, `submit`, `result`, `media` — all with the signed session token | students (no Supabase account) |
 
 ## Database architecture (live project, verified)
 
@@ -78,11 +91,11 @@ Every Edge Function: `Deno.serve(handle(handler))`.
 | Master data | `topics`, `class_aliases` | `topics` yes; `class_aliases` not yet |
 | Question bank | `passages`, `questions`, `question_options`, `accepted_answers`, `question_class_labels`, `media_files`, `question_media` | yes |
 | Exams | `exams`, `exam_questions`, `retake_permissions` | **live-verified (2026-09-22)**: SQL functions applied (`supabase/migrations/20260922000000_exams_functions.sql`) + `exams` function deployed; whole teacher flow verified with the admin account. Schema facts (enum columns, position > 0, code CHECK) in `docs/sql-exams.md` |
-| Sessions/results | `exam_sessions`, `session_answers`, `answer_grades`, `exam_results`, `session_events` | **no code yet** (Phase 3+) |
+| Sessions/results | `exam_sessions`, `session_answers`, `answer_grades`, `exam_results`, `session_events` | **live since 2026-09-23**: the student engine writes/reads all of them through the `session` function; `answer_grades` is only read so far (no grading screen yet — TASK-012/ISSUE-017) |
 
 Key constraints (all verified by SQL tests): one correct option per question; unique exam code among **open** exams; scheduled exams need valid dates; tab-switch limits ordered; unique `(exam_id, normalized name, normalized class, attempt_no)` for the 1-attempt rule; one result per session; result status consistent with pass status; media size cap; question media attached to exactly one of question or passage.
 
-25 public SQL functions (all revoked from public roles; callable only by the service role):
+47 public SQL functions (all revoked from public roles; callable only by the service role):
 
 | Purpose | Functions |
 |---|---|
@@ -93,6 +106,10 @@ Key constraints (all verified by SQL tests): one correct option per question; un
 | Reading texts | `save_passage`, `get_passage`, `list_passages`, `remove_passage` |
 | Media | `register_media`, `link_media`, `purge_orphan_media`, `get_media_paths` |
 | Import | `find_similar_batch`, `import_questions` (applied to the live database; migration `v2_12`) |
+| Exams | `_exam_is_open`, `save_exam`, `list_exams`, `get_exam`, `remove_exam`, `set_exam_status`, `exam_code_available`, `regenerate_exam_code`, `duplicate_exam` |
+| Student sessions | `exam_join`, `get_exam_session`, `save_session_answers`, `session_heartbeat`, `log_session_event`, `submit_exam_session`, `get_session_result`, `get_session_media_ids`, `expire_sessions`; helpers `_session_grade`, `_session_public_result`, `_session_question_block`, `_session_key_entry` |
+
+Migrations in git: `20260922000000_exams_functions.sql` (exams, 2026-09-22), `20260923000000_session_functions.sql` (student engine, 2026-09-23).
 
 Live migrations (names only; SQL not in git): `v2_01_foundation`, `v2_02_question_bank`, `v2_03_exams`, `v2_04_sessions_results`, `v2_05_lockdown`, `v2_06_question_content_hash`, `v2_07_text_rules_and_rate_limit`, `v2_08_question_bank_functions`, `v2_09_media_storage`, `v2_10_register_media_path_rule`, `v2_11_media_paths`, `v2_12_import_questions`.
 
@@ -104,11 +121,12 @@ Storage: bucket `question-media`, private, 10 MB limit, mime types image/jpeg, i
 2. **Save a question:** editor → `question-bank` `save` → `parseQuestionInput` (validate + `sanitizeInlineHtml`) → RPC `save_question` (one transaction: question, options/accepted answers, labels, media links, audit) → id.
 3. **Upload a file:** `mediaPicker` shrinks images → `media` `create_upload` (signed upload URL) → browser PUT (multipart, `cacheControl` + empty-name file field, same as supabase-js `uploadToSignedUrl`) → `media` `register` (server reads real size/type from Storage, then RPC `register_media`; refused files are deleted from Storage) → the editor holds media ids → included in the next `save`.
 4. **View a file:** `media` `signed_urls` (1 hour) → `<img>`/`<audio>` in previews.
+5. **Take a test:** student page → `session` `join` (name + class + code; rate limited; `exam_join` creates the session and copies a per-session snapshot) → the function returns a signed token (`<id>.<HMAC>`, key = `SESSION_TOKEN_SECRET` or the service role key) → `get` (questions, **no answers**), `save` (autosaved answers), `heartbeat` (server time; `expired` past the tolerance), `event` (tab switches) → `submit` → `submit_exam_session` grades objective questions in SQL → `result` renders per the exam's visibility setting. The answer key never leaves the database (BR-09).
 
 ## Environment and configuration
 
 - Frontend: `frontend/assets/js/core/config.js` (project URL, publishable key, timeouts, session key, `APP_BUILD` label). No `.env`.
-- Edge Functions: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically; optional secret `ALLOWED_ORIGIN` (not set; `*` is used until the app has an address).
+- Edge Functions: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically; optional secret `ALLOWED_ORIGIN` (not set; `*` is used until the app has an address) and optional `SESSION_TOKEN_SECRET` (not set — the service role key signs student session tokens until it is).
 - Auth settings (signup disabled, redirect URLs, leaked-password protection) live in the Supabase dashboard, not in git. UNKNOWN whether signups are disabled (the owner was asked to disable them; NEEDS VERIFICATION).
 
 ## External integrations
@@ -117,7 +135,7 @@ Supabase (Auth, Postgres, Edge Functions, Storage); Google Fonts stylesheet (Bri
 
 ## Dependency relationships
 
-`teacher/app.js` → `router.js` → screens → `api/*.js` → `core/api.js` → `core/auth.js` + `core/http.js` → Edge Functions → SQL functions. `questionView.js` is shared by list preview and editor preview. `text.ts`/`normalize_text`/`question_content_hash` must stay identical (DEC-005). `parse.ts` output shape must match what `save_question` / `import_questions` accept.
+`teacher/app.js` → `router.js` → screens → `api/*.js` → `core/api.js` → `core/auth.js` + `core/http.js` → Edge Functions → SQL functions. Student side: `student/app.js` → `store.js` + `api.js` → `session` → session SQL functions; `core/config.js` and `shared/*` are shared by both apps, `core/auth.js` is staff-only. `questionView.js` is shared by list preview and editor preview. `text.ts`/`normalize_text`/`question_content_hash` must stay identical (DEC-005). `parse.ts` output shape must match what `save_question` / `import_questions` accept.
 
 ## Protected Architecture Decisions
 
@@ -133,3 +151,4 @@ Do NOT change these casually (each has a decision entry in `06_DECISIONS.md`):
 8. **Media: private bucket, signed upload/view links, server reads metadata, limits** (DEC-011).
 9. **Questions used by exams are archived, not deleted; each session will store its own snapshot** (DEC-012).
 10. **Separate Supabase project for v2; v1 is untouched** (DEC-001, DEC-015).
+11. **Students have no accounts: a session is a capability proved by a signed token (`<session id>.<HMAC-SHA256>`), and the answer key stays in the database** (DEC-022, BR-09/BR-10).

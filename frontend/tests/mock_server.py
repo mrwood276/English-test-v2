@@ -1,5 +1,12 @@
-"""A pretend server for the browser tests: answers the question-bank and auth-me endpoints from memory."""
+"""A pretend server for the browser tests: answers the question-bank, exams, session and auth-me endpoints from memory."""
+import datetime
 import json
+import time
+
+
+def iso(seconds):
+    """Postgres hands back timestamps as ISO text, so the fake server does the same."""
+    return datetime.datetime.fromtimestamp(seconds, datetime.timezone.utc).isoformat().replace("+00:00", "Z")
 
 # tiny real files so <img> and <audio> have something to load in the browser
 PNG_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
@@ -28,6 +35,9 @@ class Server:
         self.saved = []; self.dup_calls = []; self.media = {}; self.media_calls = []; self.register_error = None; self.last_upload_size = None
         self.import_checks = []; self.imports = []
         self.exam_calls = []; self.exams = {}; self.exam_codes_used = {"TAKEN1"}
+        # student side (session function)
+        self.session_exams = {}; self.sessions = {}; self.taken = set(); self.session_calls = []
+        self.session_events = []; self.session_seconds = None; self.session_media_urls = {}
         self.passages = [{"id": "pa1", "title": "The Lost Wallet", "body": "Dina found a <u>brown</u> wallet.", "question_count": 3}, {"id": "pa2", "title": "The Smart Monkey", "body": "A clever monkey sat on a branch.", "question_count": 1}]
     def item(self, q):
         return {k: q[k] for k in ["id", "type", "body", "topic", "difficulty", "weight", "class_labels", "has_audio", "has_image", "has_passage", "used_in_exams", "is_archived"]} | {"updated_at": "2026-09-20T00:00:00Z"}
@@ -78,6 +88,8 @@ class Server:
             return self.handle_media(route, req)
         if "/functions/v1/exams" in url:
             return self.handle_exams(route, req)
+        if "/functions/v1/session" in url:
+            return self.handle_session(route, req)
         if "/auth-me" in url:
             return route.fulfill(status=200, content_type="application/json", body=json.dumps({"user": {"id": "u1", "fullName": "Admin", "role": "admin"}}))
         body = json.loads(req.post_data or "{}"); a = body.get("action"); self.calls.append(body)
@@ -170,6 +182,176 @@ class Server:
             if q["used_in_exams"] > 0: q["is_archived"] = True; return ok({"result": "archived"})
             self.qs.remove(q); return ok({"result": "deleted"})
         route.fulfill(status=400, content_type="application/json", body=json.dumps({"error": "Unknown action"}))
+
+    # ---------- student side: the session function ----------
+    def session_exam(self, code, **opts):
+        """Registers an open exam students can join. The first four bank questions give one of each type."""
+        questions = []
+        for q in self.qs[:4]:
+            full = self.full(q)
+            questions.append({
+                "question_id": q["id"], "type": q["type"], "body": q["body"], "weight": full["weight"],
+                "options": [{"position": o["position"], "body": o["body"], "is_correct": o["is_correct"]} for o in full["options"]],
+                "accepted": list(full["accepted_answers"]), "passage": full["passage"],
+            })
+        exam = {"code": code, "title": "Narrative Text, Daily Test 3", "duration_minutes": 45, "passing_grade": 70,
+                "result_visibility": "score_and_review", "essay_pending_display": "show_partial",
+                "tab_switch_warn_limit": 1, "tab_switch_flag_limit": 3, "tab_switch_autosubmit_limit": 5,
+                "questions": questions}
+        exam.update(opts)
+        self.session_exams[code] = exam
+        return exam
+
+    def session_questions(self, sid):
+        """The snapshot a student receives: no correct answers anywhere (BR-09)."""
+        exam = self.session_exams[self.sessions[sid]["exam"]]
+        return [{"position": i, "question_id": q["question_id"], "type": q["type"], "body": q["body"],
+                 "weight": q["weight"], "passage": q["passage"], "media": [],
+                 "options": [{"position": o["position"], "body": o["body"]} for o in q["options"]]}
+                for i, q in enumerate(exam["questions"], start=1)]
+
+    def session_payload(self, sid):
+        s = self.sessions[sid]
+        exam = self.session_exams[s["exam"]]
+        now = time.time()
+        return {
+            "session": {"id": sid, "status": s["status"], "attempt_no": s["attempt_no"],
+                        "student_name": s["name"], "student_class": s["class"],
+                        "started_at": iso(s["started_at"]), "ends_at": iso(s["ends_at"]),
+                        "submitted_at": iso(s["submitted_at"]) if s.get("submitted_at") else None,
+                        "tab_switch_count": s["tab_switch_count"], "server_time": iso(now),
+                        "remaining_seconds": max(0, int(s["ends_at"] - now)), "grace_seconds": 120,
+                        "exam": {"id": "e-session", "title": exam["title"], "duration_minutes": exam["duration_minutes"],
+                                 "passing_grade": exam["passing_grade"], "result_visibility": exam["result_visibility"],
+                                 "essay_pending_display": exam["essay_pending_display"],
+                                 "tab_switch_warn_limit": exam["tab_switch_warn_limit"],
+                                 "tab_switch_flag_limit": exam["tab_switch_flag_limit"],
+                                 "tab_switch_autosubmit_limit": exam["tab_switch_autosubmit_limit"]}},
+            "questions": self.session_questions(sid),
+            "answers": [{"question_id": qid, "answer": {"text": a["text"]}, "is_flagged": a["is_flagged"],
+                         "client_saved_at": a.get("client_saved_at")} for qid, a in s["answers"].items()],
+        }
+
+    def session_grade(self, sid, status):
+        """The same rules as public._session_grade: automatic questions are marked, essays wait."""
+        s = self.sessions[sid]; exam = self.session_exams[s["exam"]]
+        total = maximum = correct = wrong = 0
+        pending = False; review = []
+        for i, q in enumerate(exam["questions"], start=1):
+            maximum += q["weight"]
+            given = (s["answers"].get(q["question_id"]) or {}).get("text", "")
+            normalized = " ".join(str(given).split()).lower()
+            if q["type"] == "essay":
+                pending = True; verdict = None; points = 0; correct_text = ""
+            else:
+                if q["type"] == "short_answer":
+                    verdict = bool(normalized) and normalized in [" ".join(x.split()).lower() for x in q["accepted"]]
+                    correct_text = (q["accepted"] or [""])[0]
+                else:
+                    right = next((o for o in q["options"] if o["is_correct"]), {"body": ""})
+                    verdict = bool(normalized) and normalized == right["body"].strip().lower()
+                    correct_text = right["body"]
+                points = q["weight"] if verdict else 0
+                total += points
+                if verdict: correct += 1
+                else: wrong += 1
+            review.append({"position": i, "question_id": q["question_id"], "type": q["type"], "weight": q["weight"],
+                           "body": q["body"], "options": [{"position": o["position"], "body": o["body"]} for o in q["options"]],
+                           "chosen": given, "correct_text": correct_text, "accepted_text": list(q["accepted"]),
+                           "is_correct": verdict, "points": points, "max_points": q["weight"]})
+        percentage = round(total / maximum * 100, 2) if maximum else 0
+        s["status"] = status
+        s["submitted_at"] = time.time()
+        s["result"] = {"submitted": True, "status": status, "submitted_at": iso(s["submitted_at"]),
+                       "visibility": exam["result_visibility"], "pending_review": pending,
+                       "pending_essays": 1 if pending else 0,
+                       "pass_status": "not_final" if pending else ("passed" if percentage >= exam["passing_grade"] else "failed"),
+                       "passing_grade": exam["passing_grade"], "total_points": total, "max_points": maximum,
+                       "percentage": percentage, "correct_count": correct, "wrong_count": wrong,
+                       "review": review, "time_used_seconds": int(time.time() - s["started_at"])}
+        return s["result"]
+
+    def session_result(self, sid):
+        s = self.sessions[sid]; exam = self.session_exams[s["exam"]]; r = s.get("result")
+        if not r:
+            return {"submitted": False, "status": s["status"], "server_time": iso(time.time()), "ends_at": iso(s["ends_at"]),
+                    "remaining_seconds": max(0, int(s["ends_at"] - time.time()))}
+        hide = r["pending_review"] and exam["essay_pending_display"] == "hide_score"
+        out = {k: r[k] for k in ["submitted", "status", "submitted_at", "visibility", "pending_review",
+                                 "pending_essays", "pass_status", "passing_grade"]}
+        score_ok = exam["result_visibility"] != "none" and not hide
+        out["score"] = {"percentage": r["percentage"], "total_points": r["total_points"], "max_points": r["max_points"],
+                        "correct_count": r["correct_count"], "wrong_count": r["wrong_count"],
+                        "pass_status": r["pass_status"], "time_used_seconds": r["time_used_seconds"]} if score_ok else None
+        out["review"] = r["review"] if exam["result_visibility"] == "score_and_review" and not hide else None
+        return out
+
+    def handle_session(self, route, req):
+        body = json.loads(req.post_data or "{}"); a = body.get("action")
+        self.session_calls.append(body)
+        def ok(data): route.fulfill(status=200, content_type="application/json", body=json.dumps(data))
+        def err(status, msg): route.fulfill(status=status, content_type="application/json", body=json.dumps({"error": msg, "code": "bad_request"}))
+        now = time.time()
+        if a == "join":
+            code = str(body.get("code", "")).strip().upper()
+            exam = self.session_exams.get(code)
+            if not exam: return err(400, "That test code was not found. Check the code on the board.")
+            key = (code, " ".join(str(body.get("name", "")).lower().split()), " ".join(str(body.get("class", "")).lower().split()))
+            if key in self.taken: return err(400, "You already took this test. Ask your teacher for another try.")
+            sid = f"00000000-0000-4000-8000-{len(self.sessions) + 1:012d}"
+            seconds = self.session_seconds if self.session_seconds is not None else exam["duration_minutes"] * 60
+            self.sessions[sid] = {"id": sid, "exam": code, "name": str(body.get("name", "")).strip(),
+                                  "class": str(body.get("class", "")).strip(), "status": "in_progress",
+                                  "started_at": now, "ends_at": now + seconds, "answers": {},
+                                  "tab_switch_count": 0, "attempt_no": 1, "key": key, "result": None}
+            return ok({"token": sid, **self.session_payload(sid)})
+        sid = body.get("token")
+        s = self.sessions.get(sid)
+        if not s: return route.fulfill(status=401, content_type="application/json", body=json.dumps({"error": "This test session is no longer valid. Please join again.", "code": "unauthorized"}))
+        exam = self.session_exams[s["exam"]]
+        if a == "get":
+            return ok(self.session_payload(sid))
+        if a == "save":
+            if s["status"] != "in_progress":
+                return ok({"accepted": False, "saved": 0, "reason": "already_submitted", "status": s["status"], "server_time": iso(now), "ends_at": iso(s["ends_at"])})
+            if now > s["ends_at"] + 120:
+                self.session_grade(sid, "auto_submitted")
+                return ok({"accepted": False, "saved": 0, "reason": "time_up", "status": "auto_submitted", "server_time": iso(now), "ends_at": iso(s["ends_at"])})
+            known = {q["question_id"] for q in exam["questions"]}
+            for item in body.get("answers", []):
+                qid = item.get("question_id")
+                if qid not in known: return err(400, "That question is not part of this test.")
+                s["answers"][qid] = {"text": (item.get("answer") or {}).get("text", ""),
+                                     "is_flagged": bool(item.get("is_flagged")),
+                                     "client_saved_at": item.get("client_saved_at")}
+            return ok({"accepted": True, "saved": len(body.get("answers", [])), "status": s["status"],
+                       "server_time": iso(now), "ends_at": iso(s["ends_at"]), "remaining_seconds": max(0, int(s["ends_at"] - now))})
+        if a == "heartbeat":
+            if s["status"] == "in_progress" and now > s["ends_at"] + 120: self.session_grade(sid, "auto_submitted")
+            return ok({"status": s["status"], "server_time": iso(now), "ends_at": iso(s["ends_at"]),
+                       "remaining_seconds": max(0, int(s["ends_at"] - now)), "tab_switch_count": s["tab_switch_count"]})
+        if a == "event":
+            kind = body.get("event_type")
+            self.session_events.append({"session": sid, "type": kind, "meta": body.get("meta")})
+            if kind in ("tab_hidden", "blur") and s["status"] == "in_progress":
+                s["tab_switch_count"] += 1
+            autosubmit = s["status"] == "in_progress" and s["tab_switch_count"] >= exam["tab_switch_autosubmit_limit"]
+            if autosubmit: self.session_grade(sid, "auto_submitted")
+            return ok({"status": s["status"], "tab_switch_count": s["tab_switch_count"], "autosubmit": autosubmit,
+                       "warn_limit": exam["tab_switch_warn_limit"], "flag_limit": exam["tab_switch_flag_limit"],
+                       "autosubmit_limit": exam["tab_switch_autosubmit_limit"]})
+        if a == "submit":
+            if s["status"] in ("submitted", "auto_submitted", "timed_out"):
+                return ok(self.session_result(sid))
+            reason = body.get("reason", "student")
+            self.session_grade(sid, "submitted" if reason == "student" else "auto_submitted")
+            self.taken.add(s["key"])
+            return ok(self.session_result(sid))
+        if a == "result":
+            return ok(self.session_result(sid))
+        if a == "media":
+            return ok({"urls": dict(self.session_media_urls), "expires_in": 3600})
+        return err(400, "Unknown action")
 
     def exam_row(self, e):
         qs = e["questions"]

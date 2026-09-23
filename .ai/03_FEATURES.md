@@ -10,7 +10,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 
 | # | Feature | Status | Protection | Verification |
 |---|---|---|---|---|
-| F-01 | Database schema (22 tables, 25 functions) | COMPLETE for Phases 1–2 (exam/session tables unused) | PROTECTED | TESTED (SQL) |
+| F-01 | Database schema (22 tables, 25 functions + 13 added since) | COMPLETE for Phases 1–2 (exam and session tables are now in use) | PROTECTED | TESTED (SQL) |
 | F-02 | Staff authentication and roles | COMPLETE | PROTECTED | LIVE-VERIFIED (owner signed in) |
 | F-03 | Teacher/admin app shell, router, dashboard | COMPLETE (dashboard is a placeholder) | STABLE | LIVE-VERIFIED (shell), dashboard minimal |
 | F-04 | Question bank: list, filters, preview, archive, delete | COMPLETE | STABLE | LIVE-VERIFIED (40 questions shown), rest TESTED |
@@ -20,7 +20,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 | F-08 | Import questions from Excel/CSV and pasted text | LIVE (question-bank v3 deployed 2026-09-22) | ACTIVE | `import_check` answered live; parsers TESTED (21 unit tests incl. zip/xlsx); screen TESTED (43 browser checks, mocked); a real Excel/Google-Sheets file still NEEDS_VERIFICATION (ISSUE-013 caveat) |
 | F-09 | Exams (create, exam code, schedule, selection, templates) | Teacher side LIVE-VERIFIED (2026-09-22) | ACTIVE | SQL applied + function live; whole flow verified with the admin account (save/update/open/code rules/duplicate/remove/refusals); student join is F-11 |
 | F-10 | Export questions to PDF/Word | PLANNED | – | – |
-| F-11 | Student join and exam engine | PLANNED | – | – |
+| F-11 | Student join and exam engine | CORE COMPLETE (join, take, autosave, submit, auto-grade, result) | ACTIVE | LIVE-VERIFIED (2026-09-23, 27 checks through the deployed `session` function); SQL TESTED (rolled-back `session_functions_test.sql`); browser TESTED (`student_e2e.py`, 52 checks) |
 | F-12 | Essay grading, results, statistics, exports | PLANNED | – | – |
 | F-13 | Anti-cheating events and live monitor | PLANNED | – | – |
 | F-14 | Audit log viewer, backups, notifications, user management | PLANNED | – | – |
@@ -32,7 +32,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 ## F-01 Database schema
 
 - Status: COMPLETE for Phases 1–2. Protection: **PROTECTED**.
-- Description: 22 tables + 25 functions + storage bucket, as listed in `02_ARCHITECTURE.md`. Tables for exams, sessions, answers, grades, results, events, retake permissions, backups, class aliases, app settings exist but no code uses them yet.
+- Description: 22 tables + 25 functions + storage bucket, as listed in `02_ARCHITECTURE.md`. The exam and session tables (`exams`, `exam_questions`, `exam_sessions`, `session_answers`, `answer_grades`, `exam_results`, `session_events`, `retake_permissions`, `rate_limits`) are now in use; backups, class aliases and app settings still have no code.
 - Files: **none in git** (ISSUE-001). Design: `docs/design.md` section 3. Live migrations `v2_01`..`v2_12`.
 - Notes: normalized name/class columns on `exam_sessions` are generated columns (`normalize_text`). `questions.legacy_id` links migrated v1 questions. `questions.content_hash` supports duplicate detection.
 - Allowed: additive migrations, bug fixes, new indexes, new functions. Not allowed: dropping/renaming tables in use, opening RLS, granting to anon/authenticated, changing the normalization/hash rule without changing `text.ts` too.
@@ -105,14 +105,19 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 
 - Status: **teacher side LIVE-VERIFIED (2026-09-22)**. Tables (`exams`, `exam_questions`, `retake_permissions`) plus the business-rule functions are live (`supabase/migrations/20260922000000_exams_functions.sql`); the `exams` Edge Function is deployed. Requirements: `docs/design.md` BR-03..BR-06, BR-11, mockup 11 ("New exam") in `docs/mockups/round-2.html`.
 - What exists: `backend/functions/exams/` (list/get/save/remove/set_status/regenerate_code/check_code/duplicate; 24 Deno tests), `screens/exams.js` (list), `screens/examEditor.js` (mockup 11 flow), `api/exams.js`, routes, mock-server handlers, `exams_e2e.py` (25 checks). Live verification record + schema facts: `docs/sql-exams.md`.
-- Verified live with the admin account: create draft (manual selection with weights) → read → update → open → code uniqueness among open exams (refusal + `check_code`) → regenerate code → duplicate as draft → delete; refusal paths (empty manual exam, end-before-start schedule); tokenless 401. Student-facing behavior (join by code, sessions) does not exist yet — that is F-11/TASK-010.
+- Verified live with the admin account: create draft (manual selection with weights) → read → update → open → code uniqueness among open exams (refusal + `check_code`) → regenerate code → duplicate as draft → delete; refusal paths (empty manual exam, end-before-start schedule); tokenless 401. The student side (join by code, sessions) is F-11/TASK-010 — built and live-verified on 2026-09-23.
 - Do not create a second exam-settings mechanism; v1's single `exam_settings` row is intentionally replaced by the `exams` table.
 
 ## F-10 Export questions to PDF/Word — PLANNED (`docs/design.md` section 1.4 lists it as [PENTING], Phase 2; not started).
 
-## F-11 Student join and exam engine — PLANNED
+## F-11 Student join and exam engine
 
-Name + class + code, 1 attempt (normalized), late-start policy, server time enforcement (BR-20), autosave with offline queue (BR-12), submit and automatic grading, remedial, add time. Helpers ready but unused: `_shared/ratelimit.ts` + SQL `rate_limit_hit`.
+- Status: **CORE COMPLETE and LIVE-VERIFIED (2026-09-23)**. Protection: ACTIVE (the student screens must not be rebuilt; the engine contract is recorded in `docs/sql-sessions.md`).
+- What exists: the student page `frontend/index.html` (join → take the test → result) with `assets/js/student/{app.js,api.js,store.js,screens/{join,exam,result}.js,components/question.js}` and `assets/css/student.css`; the Edge Function `backend/functions/session/` (actions `join`, `get`, `save`, `heartbeat`, `event`, `submit`, `result`, `media`; 21 Deno tests); the SQL functions in `supabase/migrations/20260923000000_session_functions.sql` (live) with `supabase/tests/session_functions_test.sql`; mock-server support and `frontend/tests/student_e2e.py` (52 checks).
+- Behavior: name + class + code (the code may be typed in any case, spaces are cleaned), 1 attempt per normalized name+class with a single-use teacher permission for a retake (BR-01/BR-02), the exam's open/scheduled window and the late-start policy (BR-03/BR-04/BR-05), a per-session question snapshot with the answer key kept on the server (BR-09/BR-10), autosave with an offline queue and a local copy that survives a reload (BR-12), a server-backed timer with the 2-minute tolerance (BR-20), page-leave events with the warning and the automatic submit limit (design section 4), submit with automatic grading of multiple choice/true-false/short answer and essays left for the teacher (BR-06/BR-07), and a result screen that honours `result_visibility` + `essay_pending_display` (BR-08).
+- Notes: a second attempt with the same normalized name+class is refused with a clear message; an unfinished attempt is *resumed* instead of duplicated; `expire_sessions()` is written but nothing calls it yet (TASK-015 puts it on a schedule); there is no `beforeunload` guard yet (see `09_KNOWN_ISSUES.md`).
+- Not built (TASK-012 / F-12): the teacher's grading screen for essays, the live monitor, add time / reopen a session (BR-11), remedial permissions in the UI, and statistics. The SQL already supports `reopened` sessions and `extra_seconds`, so those screens do not need schema work.
+- Next: TASK-012 (grading + results) — a pending essay result needs the teacher side before F-11 is a complete exam experience.
 
 ## F-12 Grading, results, statistics, exports — PLANNED (BR-07, BR-08; mockups 13–15).
 

@@ -15,6 +15,12 @@ const PATHS = {
   alert: '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.2v.1"/>',
   sheet: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16"/>',
   pencil: '<path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 013 3L8 19l-4 1z"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  flag: '<path d="M6 4h12v17l-6-4-6 4z"/>',
+  grid: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/>',
+  cloud: '<path d="M7 18a4 4 0 010-8 5 5 0 019.5-1A3.6 3.6 0 0117 18z"/><path d="M9.5 13.5l2 2 3.5-4"/>',
+  play: '<path d="M8.5 5.5l10 6.5-10 6.5z"/>',
+  offline: '<path d="M3 3l18 18"/><path d="M5 12.5a10 10 0 0114 0"/><path d="M8.5 16a5 5 0 018.5 0"/><circle cx="12" cy="19.6" r=".6"/>',
 };
 
 export function icon(name, label) {

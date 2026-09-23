@@ -1,6 +1,6 @@
 # English Daily Test v2, backend
 
-Supabase Edge Functions (Deno/TypeScript) for the v2 platform. Database schema lives in the Supabase project as migrations `v2_01` to `v2_08`. Business rules that must be atomic
+Supabase Edge Functions (Deno/TypeScript) for the v2 platform. The applied migrations are stored in `../supabase/migrations/` (the older `v2_01`..`v2_12` still live only in the Supabase project — ISSUE-001). Business rules that must be atomic
 (saving a question with its answers and labels, deleting or archiving, audit entries) are database functions,
 tested directly in SQL; the Edge Functions validate input, clean text, and call them.
 
@@ -21,10 +21,17 @@ functions/
     db.ts         service-role client (Edge Functions only)
   auth-me/        GET: who is signed in
   question-bank/  POST { action, ... }: list, get, save, remove, archive, restore, check_duplicates, topics,
-                  class_labels, passages, passage_get, passage_save, passage_remove
+                  class_labels, passages, passage_get, passage_save, passage_remove, import_check, import
+  media/          POST { action, ... }: create_upload, register, signed_urls, purge_unused
+  exams/          POST { action, ... }: save, list, get, remove, set_status, check_code, regenerate_code, duplicate
+  session/        POST { action, ... } for students: join, get, save, heartbeat, event, submit, result, media
+                  (join is open but rate limited; every other action needs the signed session token from token.ts)
 tests/
   shared.test.ts        unit tests for the shared code
   question_bank.test.ts input parsing and the question-bank endpoint (with a fake database)
+  media.test.ts         media endpoint input rules
+  exams.test.ts         exams endpoint input rules
+  session.test.ts       student session endpoint input rules and the session token
 ```
 
 ## Rules for new functions
@@ -43,7 +50,11 @@ deno test --allow-env tests/
 
 ## Deploying
 
-With the Supabase CLI, `supabase functions deploy <name> --no-verify-jwt` works as is (imports use `../_shared/`).
+`backend/functions/` is the source of truth; `../supabase/functions/` is a generated, gitignored deploy copy.
+Run `python sync_functions.py` first, then `npx supabase functions deploy <name> --no-verify-jwt --use-api`
+(`--use-api` bundles server-side, so Docker is not needed).
+
+With the Supabase CLI, imports use `../_shared/` as written.
 When deploying by uploading files (dashboard or API), upload each function with its needed `_shared` files and change `../_shared/` to `./_shared/` in the imports.
 Functions verify the caller themselves (`requireStaff`), which is why JWT verification at the gateway is turned off.
 

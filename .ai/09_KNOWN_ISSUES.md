@@ -76,5 +76,21 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 - What the next merge must do: resolve conflicts on the files listed in DEC-021 in favor of `ai-development`, and delete `frontend/tests/import.test.js` + `frontend/assets/js/teacher/import/model.js` (main-only files of the superseded variant) unless the owner says otherwise.
 - Prevention: agents must `git fetch` and diff the actual remote before starting work — a handoff (even `.ai/`) is never proof that the remote has not moved (source-of-truth hierarchy, `00_AI_RULES.md` section 0).
 
+## ISSUE-017 — An exam with a written answer can never become final (no teacher grading screen yet)
+- Severity: MEDIUM (blocks completing the student loop). Status: **OPEN** — planned as TASK-012 (F-12). Found while building the student engine (2026-09-23).
+- Description: `submit_exam_session` grades multiple choice, true/false and short answer and leaves essays alone, so `exam_results.status` stays `pending_review` and `pass_status` `not_final` forever. The student screen says "waiting for your teacher", which is honest, but there is no screen that lets the teacher write those `answer_grades` rows and finalize the result.
+- What is needed: a grading screen (mockup 13) that lists pending sessions per exam, shows the essay text plus the teacher's guide, writes `answer_grades` (`is_auto = false`, `graded_by`), recalculates `exam_results`, and flips the status to `graded` with the final `pass_status`. The database already has every column; only the function and screen are missing.
+- Not a data problem: an ungraded session keeps its answers, its review snapshot and its points; nothing has to be redone when the screen arrives.
+
+## ISSUE-018 — Abandoned student sessions are only closed on demand
+- Severity: LOW. Status: **OPEN** — planned as part of TASK-015 (scheduled jobs).
+- Description: `public.expire_sessions(p_tolerance)` marks silent sessions `auto_submitted`/`timed_out`, but nothing calls it on a schedule, so a student who closes the browser without submitting stays `in_progress` in the database. Their `ends_at` has passed, so a heartbeat, a save, or `exam_join` still closes it correctly the next time that student's phone talks to the server (and the teacher screens will show it as overdue), but the row is not tidied by itself.
+- What is needed: a scheduled call (Supabase cron / `pg_cron`) — the same job that will purge old `rate_limits` rows (`purge_rate_limits` already exists, ISSUE-012).
+
+## ISSUE-019 — The student exam page has no "are you sure you want to leave" browser guard
+- Severity: LOW. Status: **OPEN** (deliberate scope cut, 2026-09-23).
+- Description: leaving or reloading the page is recorded (visibilitychange → `tab_hidden`) and warned about in-app, and the answers are kept in `localStorage` plus the server, so nothing typed is lost. What is missing is the browser-level `beforeunload` confirmation for an accidental back/reload/close. It was left out on purpose because an always-on confirmation annoys honest students and interferes with the automated browser tests; the in-app warning and the server-side limits already cover the anti-cheating requirement (design section 4).
+- If it is added later: register the listener only while a session is `in_progress`, and remove it right after submitting.
+
 ## Legacy v1 issues (outside this repository; not being fixed, DEC-015)
 Summarized from `docs/audit-v1.md`: server does not enforce exam time (H-1); no attempt limit or open/close/code (H-2); teacher password stored plaintext, no login throttling (H-3); token signing secret hard-coded in function code (H-4); no server-side validation of name/class and no rate limit on session creation (H-5); answers only in browser storage until submit (M-1); duplicate result rows possible (M-2). These disappear when v2 replaces v1.

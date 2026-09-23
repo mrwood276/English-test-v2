@@ -12,7 +12,8 @@ python dev-server.py
 ```
 
 Run that in this folder (the one that contains `teacher` and `assets`), then open http://localhost:8000/teacher/ and sign in
-with the admin account created in Supabase Auth.
+with the admin account created in Supabase Auth. The **student** page is the site root: http://localhost:8000/ —
+a student enters their name, class, and the exam code from the teacher, with no account.
 
 **After replacing the folder with a newer version:** stop the old server (Ctrl+C), start it again from the new folder, and press
 Ctrl+Shift+R in the browser. The bottom of the menu shows "Build: ..." so you can see which version is loaded.
@@ -21,28 +22,36 @@ Ctrl+Shift+R in the browser. The bottom of the menu shows "Build: ..." so you ca
 
 ```
 teacher/index.html              teacher and admin app (sign in, then the app shell)
+index.html                      student app (join with name + class + exam code, take the test, see the result)
 assets/css/tokens.css           colors, fonts, sizes (the approved "answer sheet" direction)
 assets/css/base.css             buttons, fields, notices, pills
 assets/css/teacher.css          sign in and app shell
 assets/css/questions.css        question bank list, preview, dialog, toast
+assets/css/student.css          the student screens (join, exam, result) for phones first
 assets/js/core/                 config, http (timeouts, friendly errors), auth (Supabase Auth), api (Edge Functions)
 assets/js/shared/               dom (element builder), rich (safe rich text), icons, ui (toast, confirm dialog, debounce), imageCompress
 assets/js/teacher/app.js        boot and session handling
-assets/js/teacher/router.js     small hash router (#/dashboard, #/questions, #/questions/new, #/questions/edit/<id>, #/questions/import)
-assets/js/teacher/api/          one file per Edge Function (questionBank.js, media.js)
+assets/js/teacher/router.js     small hash router (#/dashboard, #/questions, #/questions/new, #/questions/edit/<id>, #/questions/import, #/exams, #/exams/new, #/exams/edit/<id>)
+assets/js/teacher/api/          one file per Edge Function (questionBank.js, media.js, exams.js)
 assets/js/teacher/import/       readers that turn files or pasted text into questions (csv, xlsx, zip, text, rows, rules)
-assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionEditor, questionImport
+assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionEditor, questionImport, exams, examEditor
 assets/js/teacher/components/   questionView, richTextarea, chipsInput, passageDialog, mediaPicker
 assets/js/teacher/guard.js      unsaved-changes guard used by the editor and the import screen
+assets/js/student/app.js        student boot: reads the saved attempt, resumes it, mounts a screen
+assets/js/student/api.js        calls the session function (join, get, save, heartbeat, event, submit, result, media)
+assets/js/student/store.js      the attempt kept in localStorage (answers, flags, timer, offline queue)
+assets/js/student/screens/      join, exam, result
+assets/js/student/components/   question (one question rendered for answering)
 tests/                          browser tests with a mocked server (mock_server.py, teacher_e2e.py, question_bank_e2e.py,
-                                question_editor_e2e.py, media_e2e.py, question_import_e2e.py) and Deno unit tests (tests/unit/)
+                                question_editor_e2e.py, media_e2e.py, question_import_e2e.py, exams_e2e.py, student_e2e.py)
+                                and Deno unit tests (tests/unit/)
 ```
 
 ## Notes
 
 - The publishable key in `assets/js/core/config.js` is meant to be public. All tables are locked; data only comes through Edge Functions that check who is calling.
 - The sign-in session lives in `sessionStorage`: closing the tab signs the person out.
-- Student pages (join with name, class, and code) are added in the exam engine phase.
+- The student page has **no account**: it joins with a code and keeps its attempt (session token, answers, flags, timer) in `localStorage`, so a reload — even with no connection — resumes the same attempt. The answer key never reaches the browser; the server grades the test.
 - Password reset by email needs the app's address to be set in Supabase Auth (Site URL and redirect URLs), so it is added once the app has a home address.
 
 ## Running the browser test (optional)
@@ -56,4 +65,6 @@ python tests/question_bank_e2e.py
 python tests/question_editor_e2e.py
 python tests/media_e2e.py   # needs the sample files: python tests/make_fixtures.py (once)
 python tests/question_import_e2e.py
+python tests/exams_e2e.py
+python tests/student_e2e.py
 ```
