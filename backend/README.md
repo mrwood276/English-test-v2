@@ -26,12 +26,15 @@ functions/
   exams/          POST { action, ... }: save, list, get, remove, set_status, check_code, regenerate_code, duplicate
   session/        POST { action, ... } for students: join, get, save, heartbeat, event, submit, result, media
                   (join is open but rate limited; every other action needs the signed session token from token.ts)
+  results/        POST { action, ... } for teachers: activity, pending, overview, report, grading_questions,
+                  queue, grade, add_time, reopen, grant_retake, revoke_retake (staff only)
 tests/
   shared.test.ts        unit tests for the shared code
   question_bank.test.ts input parsing and the question-bank endpoint (with a fake database)
   media.test.ts         media endpoint input rules
   exams.test.ts         exams endpoint input rules
   session.test.ts       student session endpoint input rules and the session token
+  results.test.ts       grading/results endpoint input rules (minutes to seconds, score bounds, limits)
 ```
 
 ## Rules for new functions

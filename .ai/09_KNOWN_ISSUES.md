@@ -77,10 +77,10 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 - Prevention: agents must `git fetch` and diff the actual remote before starting work — a handoff (even `.ai/`) is never proof that the remote has not moved (source-of-truth hierarchy, `00_AI_RULES.md` section 0).
 
 ## ISSUE-017 — An exam with a written answer can never become final (no teacher grading screen yet)
-- Severity: MEDIUM (blocks completing the student loop). Status: **OPEN** — planned as TASK-012 (F-12). Found while building the student engine (2026-09-23).
-- Description: `submit_exam_session` grades multiple choice, true/false and short answer and leaves essays alone, so `exam_results.status` stays `pending_review` and `pass_status` `not_final` forever. The student screen says "waiting for your teacher", which is honest, but there is no screen that lets the teacher write those `answer_grades` rows and finalize the result.
-- What is needed: a grading screen (mockup 13) that lists pending sessions per exam, shows the essay text plus the teacher's guide, writes `answer_grades` (`is_auto = false`, `graded_by`), recalculates `exam_results`, and flips the status to `graded` with the final `pass_status`. The database already has every column; only the function and screen are missing.
-- Not a data problem: an ungraded session keeps its answers, its review snapshot and its points; nothing has to be redone when the screen arrives.
+- Severity: MEDIUM (blocked completing the student loop). Status: **CLOSED (2026-09-24, eighth session)** — fixed by TASK-012; no misdiagnosis history.
+- Was: `submit_exam_session` graded multiple choice, true/false and short answer and left essays alone, so `exam_results.status` stayed `pending_review` and `pass_status` `not_final` forever, with no screen to write the `answer_grades` rows.
+- Fix: `supabase/migrations/20260924000000_result_functions.sql` (`save_answer_grade` writes `is_auto = false` plus `graded_by`, then `_session_result_write` recalculates the result and moves `pending_review` → `graded`), the `results` Edge Function, and the grading screen `#/grading/:examId` (mockup 13) with per-question grading in the attempt report too. Contract: `docs/sql-results.md`.
+- Verified: rolled-back SQL assertions (`supabase/tests/result_functions_test.sql`), 18 Deno tests, 59 browser checks, and a live run against the real project (`frontend/tests/live_results_check.py`, 38/38 checks) where two essays were graded and both results turned final — one `passed`, one `failed`.
 
 ## ISSUE-018 — Abandoned student sessions are only closed on demand
 - Severity: LOW. Status: **OPEN** — planned as part of TASK-015 (scheduled jobs).

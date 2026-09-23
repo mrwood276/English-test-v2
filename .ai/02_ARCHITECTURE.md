@@ -17,14 +17,14 @@ Browser (static files, ES modules)                   Supabase project lbhnadqmok
   (student joins with name + class + code, no account)│                                             │
        │  Staff sign in: POST /auth/v1/token ───────► │                                              │
        │                                              │ Edge Functions (Deno)  verify_jwt = false    │
-       │  POST /functions/v1/<name>  Bearer <token> ► │   auth-me, question-bank, media, exams       │
-       │                                              │   session  (students: session token)         │
+       │  POST /functions/v1/<name>  Bearer <token> ► │   auth-me, question-bank, media, exams,      │
+       │                                              │   results  (teachers: grading, reports)      │
        │  POST /functions/v1/session ───────────────► │   requireStaff/session token → validate      │
        │   Bearer <session>.<signature>               │   → callRpc                                  │
        │                                              │              │ service role (bypasses RLS)   │
        │  PUT one-time signed upload URL ───────────► │              ▼                               │
        │   (image/audio bytes go straight to Storage) │ Postgres: 22 tables (RLS on, no policies),   │
-       │                                              │ 47 public functions (business rules, audit)  │
+       │                                              │ 59 public functions (business rules, audit)  │
        ▼                                              │ Storage: private bucket question-media       │
   localStorage: the student's attempt + token          └─────────────────────────────────────────────┘
 ```
@@ -38,16 +38,16 @@ Key property: **the browser never reads or writes a table directly.** Everything
 | `frontend/` | Two static apps: teacher/admin (`teacher/index.html`) and student (`index.html`) |
 | `frontend/assets/js/core/` | `config.js` (URLs, public key, build label), `http.js` (fetch with timeout and friendly errors), `auth.js` (Supabase Auth REST client, session in `sessionStorage`), `api.js` (`callStaffFunction`: adds the token; a 401 clears the session and fires `staff:session-expired`) |
 | `frontend/assets/js/shared/` | `dom.js` (element builder, no innerHTML), `rich.js` (safe display of teacher-written rich text), `icons.js`, `ui.js` (toast, confirm dialog, segmented control, debounce), `imageCompress.js` (shrink photos in the browser) |
-| `frontend/assets/js/teacher/` | `app.js` (boot, sign-in/out, session events), `router.js` (hash routes), `guard.js` (unsaved-changes guard), `api/` (`questionBank.js`, `media.js`, `exams.js`), `components/`, `screens/` |
+| `frontend/assets/js/teacher/` | `app.js` (boot, sign-in/out, session events), `router.js` (hash routes), `guard.js` (unsaved-changes guard), `api/` (`questionBank.js`, `media.js`, `exams.js`, `results.js`), `components/` (incl. `resultBits.js`, `reviewItem.js`), `screens/` (incl. `grading.js`, `gradingQuestion.js`, `examResults.js`, `sessionReport.js`) |
 | `frontend/assets/js/student/` | `app.js` (boot, resumes a saved attempt), `api.js` (the `session` function), `store.js` (attempt state in `localStorage`), `screens/{join,exam,result}.js`, `components/question.js` |
-| `frontend/assets/css/` | `tokens.css` (design tokens), `base.css`, `teacher.css` (sign in, shell), `questions.css` (bank, editor, dialogs, files), `student.css` (student screens, phone first) |
-| `frontend/tests/` | Playwright tests with a mocked server: `teacher_e2e.py`, `question_bank_e2e.py`, `question_editor_e2e.py`, `media_e2e.py`, `question_import_e2e.py`, `exams_e2e.py`, `student_e2e.py`, plus `mock_server.py`, `make_fixtures.py`, `fixtures_dir.py`, and the Deno unit tests in `tests/unit/` (import parsers, incl. zip/xlsx) |
+| `frontend/assets/css/` | `tokens.css` (design tokens), `base.css`, `teacher.css` (sign in, shell), `questions.css` (bank, editor, dialogs, files), `student.css` (student screens, phone first), `results.css` (grading, exam results, attempt report) |
+| `frontend/tests/` | Playwright tests with a mocked server: `teacher_e2e.py`, `question_bank_e2e.py`, `question_editor_e2e.py`, `media_e2e.py`, `question_import_e2e.py`, `exams_e2e.py`, `student_e2e.py`, `results_e2e.py`, plus `mock_server.py`, `make_fixtures.py`, `fixtures_dir.py`, `live_results_check.py` (one-off live script, needs the owner's account), and the Deno unit tests in `tests/unit/` (import parsers, incl. zip/xlsx) |
 | `frontend/dev-server.py` | Local static server that disables caching (needed because ES modules are cached aggressively) |
 | `backend/functions/_shared/` | Shared library: `errors.ts`, `http.ts`, `validate.ts`, `auth.ts`, `rpc.ts`, `db.ts`, `text.ts`, `audit.ts`, `codes.ts`, `ratelimit.ts` |
-| `backend/functions/<name>/` | One Edge Function each: `auth-me`, `question-bank` (`handler.ts` routing, `parse.ts` input parsing), `media`, `exams`, `session` (student-facing; `parse.ts` + `token.ts` signed session token) |
-| `backend/tests/` | Deno tests: `shared.test.ts`, `question_bank.test.ts`, `media.test.ts`, `exams.test.ts`, `session.test.ts` |
-| `supabase/` | `README.md` + `migrations/` (the exams and session SQL, applied live) + `tests/` (rolled-back SQL assertions). Older `v2_01`..`v2_12` are still only in the live project (ISSUE-001) |
-| `docs/` | `design.md`, `audit-v1.md`, `mockups/`, `sql-exams.md`, `sql-sessions.md`, `verification-checklist.md` |
+| `backend/functions/<name>/` | One Edge Function each: `auth-me`, `question-bank` (`handler.ts` routing, `parse.ts` input parsing), `media`, `exams`, `session` (student-facing; `parse.ts` + `token.ts` signed session token), `results` (teacher-facing grading/reports, staff only) |
+| `backend/tests/` | Deno tests: `shared.test.ts`, `question_bank.test.ts`, `media.test.ts`, `exams.test.ts`, `session.test.ts`, `results.test.ts` |
+| `supabase/` | `README.md` + `migrations/` (the exams, session and result SQL, applied live) + `tests/` (rolled-back SQL assertions: `session_functions_test.sql`, `result_functions_test.sql`). Older `v2_01`..`v2_12` are still only in the live project (ISSUE-001) |
+| `docs/` | `design.md`, `audit-v1.md`, `mockups/`, `sql-exams.md`, `sql-sessions.md`, `sql-results.md`, `verification-checklist.md` |
 | `.ai/` | This memory/handoff system |
 
 ## Frontend architecture
@@ -80,6 +80,7 @@ Every Edge Function: `Deno.serve(handle(handler))`.
 | `media` | `create_upload`, `register`, `signed_urls`, `purge_unused` (admin only) | teacher, admin |
 | `exams` | `save`, `list`, `get`, `remove`, `set_status`, `check_code`, `regenerate_code`, `duplicate` | teacher, admin |
 | `session` | `join` (anonymous, rate limited per address), then `get`, `save`, `heartbeat`, `event`, `submit`, `result`, `media` — all with the signed session token | students (no Supabase account) |
+| `results` | `activity`, `pending`, `overview`, `report`, `grading_questions`, `queue`, `grade`, `add_time`, `reopen`, `grant_retake`, `revoke_retake` (all live since v1, 2026-09-24) | teacher, admin |
 
 ## Database architecture (live project, verified)
 
@@ -91,11 +92,11 @@ Every Edge Function: `Deno.serve(handle(handler))`.
 | Master data | `topics`, `class_aliases` | `topics` yes; `class_aliases` not yet |
 | Question bank | `passages`, `questions`, `question_options`, `accepted_answers`, `question_class_labels`, `media_files`, `question_media` | yes |
 | Exams | `exams`, `exam_questions`, `retake_permissions` | **live-verified (2026-09-22)**: SQL functions applied (`supabase/migrations/20260922000000_exams_functions.sql`) + `exams` function deployed; whole teacher flow verified with the admin account. Schema facts (enum columns, position > 0, code CHECK) in `docs/sql-exams.md` |
-| Sessions/results | `exam_sessions`, `session_answers`, `answer_grades`, `exam_results`, `session_events` | **live since 2026-09-23**: the student engine writes/reads all of them through the `session` function; `answer_grades` is only read so far (no grading screen yet — TASK-012/ISSUE-017) |
+| Sessions/results | `exam_sessions`, `session_answers`, `answer_grades`, `exam_results`, `session_events` | **live**: the student engine writes/reads all of them through `session` (2026-09-23); since 2026-09-24 the teacher side writes `answer_grades` and recalculates `exam_results` through the `results` function (TASK-012) |
 
 Key constraints (all verified by SQL tests): one correct option per question; unique exam code among **open** exams; scheduled exams need valid dates; tab-switch limits ordered; unique `(exam_id, normalized name, normalized class, attempt_no)` for the 1-attempt rule; one result per session; result status consistent with pass status; media size cap; question media attached to exactly one of question or passage.
 
-47 public SQL functions (all revoked from public roles; callable only by the service role):
+59 public SQL functions (all revoked from public roles; callable only by the service role):
 
 | Purpose | Functions |
 |---|---|
@@ -108,8 +109,9 @@ Key constraints (all verified by SQL tests): one correct option per question; un
 | Import | `find_similar_batch`, `import_questions` (applied to the live database; migration `v2_12`) |
 | Exams | `_exam_is_open`, `save_exam`, `list_exams`, `get_exam`, `remove_exam`, `set_exam_status`, `exam_code_available`, `regenerate_exam_code`, `duplicate_exam` |
 | Student sessions | `exam_join`, `get_exam_session`, `save_session_answers`, `session_heartbeat`, `log_session_event`, `submit_exam_session`, `get_session_result`, `get_session_media_ids`, `expire_sessions`; helpers `_session_grade`, `_session_public_result`, `_session_question_block`, `_session_key_entry` |
+| Grading/results | `save_answer_grade`, `list_grading_questions`, `get_grading_queue`, `count_pending_grading`, `list_exam_activity`, `list_exam_results`, `get_session_report`, `add_session_time`, `reopen_session`, `grant_retake`, `revoke_retake`; helper `_session_result_write` (the **only** writer of `exam_results`; `_session_grade` was re-created to skip hand-graded questions) |
 
-Migrations in git: `20260922000000_exams_functions.sql` (exams, 2026-09-22), `20260923000000_session_functions.sql` (student engine, 2026-09-23).
+Migrations in git: `20260922000000_exams_functions.sql` (exams, 2026-09-22), `20260923000000_session_functions.sql` (student engine, 2026-09-23), `20260924000000_result_functions.sql` (grading + results, 2026-09-24). All three are applied live; each has an annotated contract in `docs/`.
 
 Live migrations (names only; SQL not in git): `v2_01_foundation`, `v2_02_question_bank`, `v2_03_exams`, `v2_04_sessions_results`, `v2_05_lockdown`, `v2_06_question_content_hash`, `v2_07_text_rules_and_rate_limit`, `v2_08_question_bank_functions`, `v2_09_media_storage`, `v2_10_register_media_path_rule`, `v2_11_media_paths`, `v2_12_import_questions`.
 
@@ -122,6 +124,7 @@ Storage: bucket `question-media`, private, 10 MB limit, mime types image/jpeg, i
 3. **Upload a file:** `mediaPicker` shrinks images → `media` `create_upload` (signed upload URL) → browser PUT (multipart, `cacheControl` + empty-name file field, same as supabase-js `uploadToSignedUrl`) → `media` `register` (server reads real size/type from Storage, then RPC `register_media`; refused files are deleted from Storage) → the editor holds media ids → included in the next `save`.
 4. **View a file:** `media` `signed_urls` (1 hour) → `<img>`/`<audio>` in previews.
 5. **Take a test:** student page → `session` `join` (name + class + code; rate limited; `exam_join` creates the session and copies a per-session snapshot) → the function returns a signed token (`<id>.<HMAC>`, key = `SESSION_TOKEN_SECRET` or the service role key) → `get` (questions, **no answers**), `save` (autosaved answers), `heartbeat` (server time; `expired` past the tolerance), `event` (tab switches) → `submit` → `submit_exam_session` grades objective questions in SQL → `result` renders per the exam's visibility setting. The answer key never leaves the database (BR-09).
+6. **Grade and review:** teacher opens `#/grading/:examId` → `results` `grading_questions` (essay questions with the teacher's guide read live) + `queue` (each student's answer) → `grade` → `save_answer_grade` writes `answer_grades` (`is_auto = false`, `graded_by`) and `_session_result_write` recomputes `exam_results`, flipping `pending_review` → `graded`. `#/results/:examId` reads `overview` + `activity` + `list_exam_results`; `#/results/:examId/session/:sessionId` reads `report` (every answer with the correct one, the events, the actions) and calls `add_time`, `reopen`, `grant_retake`, `revoke_retake`. No endpoint returns the answer key of a running session, and `essay_guidance` is only ever read for a staff payload.
 
 ## Environment and configuration
 
@@ -152,3 +155,4 @@ Do NOT change these casually (each has a decision entry in `06_DECISIONS.md`):
 9. **Questions used by exams are archived, not deleted; each session will store its own snapshot** (DEC-012).
 10. **Separate Supabase project for v2; v1 is untouched** (DEC-001, DEC-015).
 11. **Students have no accounts: a session is a capability proved by a signed token (`<session id>.<HMAC-SHA256>`), and the answer key stays in the database** (DEC-022, BR-09/BR-10).
+12. **`exam_results` has exactly one writer (`_session_result_write`) and a hand-made grade is never overwritten by an automatic re-grade** (DEC-023, BR-18).

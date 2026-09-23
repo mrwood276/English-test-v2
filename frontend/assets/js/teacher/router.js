@@ -4,6 +4,10 @@ import { renderQuestionEditor } from "./screens/questionEditor.js";
 import { renderQuestionImport } from "./screens/questionImport.js";
 import { renderExams } from "./screens/exams.js";
 import { renderExamEditor } from "./screens/examEditor.js";
+import { renderGradingHub } from "./screens/grading.js";
+import { renderGradingQuestion } from "./screens/gradingQuestion.js";
+import { renderExamResults } from "./screens/examResults.js";
+import { renderSessionReport } from "./screens/sessionReport.js";
 import { getLeaveGuard, clearLeaveGuard } from "./guard.js";
 
 const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
@@ -17,6 +21,11 @@ const ROUTES = [
   { pattern: /^#\/exams$/, nav: "#/exams", title: "Exams", render: (c, ctx) => renderExams(c, ctx) },
   { pattern: /^#\/exams\/new$/, nav: "#/exams", title: "New exam", render: (c, ctx) => renderExamEditor(c, ctx, null) },
   { pattern: new RegExp(`^#/exams/edit/(${UUID})$`), nav: "#/exams", title: "Edit exam", render: (c, ctx, m) => renderExamEditor(c, ctx, m) },
+  { pattern: /^#\/grading$/, nav: "#/grading", title: "Grading", render: (c, ctx) => renderGradingHub(c, ctx, "grading") },
+  { pattern: new RegExp(`^#/grading/(${UUID})$`), nav: "#/grading", title: "Grade essays", render: (c, ctx, m) => renderGradingQuestion(c, ctx, { examId: m[1].toLowerCase() }) },
+  { pattern: /^#\/results$/, nav: "#/results", title: "Results", render: (c, ctx) => renderGradingHub(c, ctx, "results") },
+  { pattern: new RegExp(`^#/results/(${UUID})/session/(${UUID})$`), nav: "#/results", title: "Attempt", render: (c, ctx, m) => renderSessionReport(c, ctx, { examId: m[1].toLowerCase(), sessionId: m[2].toLowerCase() }) },
+  { pattern: new RegExp(`^#/results/(${UUID})$`), nav: "#/results", title: "Results", render: (c, ctx, m) => renderExamResults(c, ctx, { examId: m[1].toLowerCase() }) },
 ];
 const DEFAULT_HASH = "#/dashboard";
 

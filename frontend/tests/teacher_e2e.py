@@ -110,7 +110,9 @@ with sync_playwright() as pw:
     check("shows the role", "Admin" in page.inner_text(".me") and "Connected" in page.inner_text(".card"))
     check("the build label is shown", "Build:" in page.inner_text("[data-build]"))
     check("menu has the five sections", len(page.query_selector_all(".nav > *")) == 5)
-    check("dashboard, question bank, and exams are available; grading and results are marked soon", len(page.query_selector_all(".nav span.item")) == 2 and len(page.query_selector_all(".nav a")) == 3)
+    check("every menu item leads somewhere: dashboard, questions, exams, grading, results",
+          len(page.query_selector_all(".nav span.item")) == 0 and len(page.query_selector_all(".nav a")) == 5,
+          f"{len(page.query_selector_all('.nav a'))} links, {len(page.query_selector_all('.nav span.item'))} placeholders")
     me_calls = [c for c in net.calls if c[1] == "/auth-me"]
     check("auth-me is called with the user token", me_calls and me_calls[-1][2] == "Bearer AT1")
     check("the publishable key is sent as apikey", me_calls[-1][3].startswith("sb_publishable_"))

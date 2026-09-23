@@ -1,0 +1,82 @@
+/* Grading and results (TASK-012). Built on the tokens of the approved "answer sheet" direction:
+   blue for actions, yellow for "not final", red for wrong, green for correct. */
+
+/* ---------- the summary line above a results table (mockup 14) ---------- */
+.strip {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px;
+  margin: 0 0 14px; padding: 12px 18px;
+  background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius-m);
+  font-size: 13.5px; color: var(--ink-2);
+}
+.strip span { display: inline-flex; align-items: baseline; gap: 6px; }
+.strip b { font-size: 18px; font-weight: 700; color: var(--ink); }
+
+/* ---------- the hub tables ---------- */
+.grade-layout {
+  display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 12px; align-items: start;
+}
+.grade-questions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.grade-questions .btn { display: inline-flex; align-items: center; gap: 8px; }
+.grade-questions .btn.on { border-color: var(--pen); color: var(--pen); background: var(--pen-tint); }
+.grade-side { position: sticky; top: 16px; max-width: none; }
+.grade-side h2 { font-size: 14px; }
+.grade-main { display: flex; flex-direction: column; gap: 12px; }
+.grade-main .card { max-width: none; }
+.grade-main .qtext { font-size: 16.5px; font-weight: 600; line-height: 1.45; }
+
+.grade-student { width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--line); cursor: pointer; font: inherit; color: inherit; }
+.grade-student:hover { background: var(--paper); }
+.grade-student.on { background: var(--pen-tint); }
+.grade-student .grow { display: flex; flex-direction: column; min-width: 0; }
+.grade-student small { color: var(--ink-2); }
+.grade-student .avatar { width: 28px; height: 28px; font-size: 12px; }
+
+/* ---------- the points bubbles (mockup 13) ---------- */
+.pts { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.pts .bubble.as-btn { width: 34px; height: 34px; }
+.pts .hint { margin-left: 4px; }
+.grade-actions { justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+/* ---------- one attempt (session report) ---------- */
+.report-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 12px; align-items: start; }
+.report-layout .card { max-width: none; }
+.report-layout > .stack { position: sticky; top: 16px; }
+.report-layout .kv-list { display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; margin: 10px 0; }
+.score-line { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.score-big { font-size: 32px; font-weight: 700; color: var(--pen); }
+
+.action-row {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding: 10px 0; border-top: 1px solid var(--line); flex-wrap: wrap;
+}
+.action-row:first-of-type { border-top: 0; }
+.action-row p { margin: 2px 0 0; max-width: 240px; }
+
+.events { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+.ev { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; }
+
+.review-head { justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.review-head h2 { font-size: 16px; }
+.review-list { display: flex; flex-direction: column; gap: 12px; }
+.rev-head { flex-wrap: wrap; gap: 8px; }
+.rev-head .req-points { margin-left: auto; }
+.rev-grade { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+
+/* an answer as the student saw it, with the correct one and the chosen one marked */
+.optlist { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.optlist .opt { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: var(--radius-s); }
+.optlist .opt.chosen { background: var(--pen-tint); }
+.optlist .opt.correct { background: var(--green-tint); }
+.optlist .opt .pill { margin-left: auto; }
+
+.answerbox {
+  white-space: pre-wrap; margin-top: 6px; padding: 12px 14px;
+  background: var(--card); border: 1.5px solid var(--line); border-left: 4px solid var(--pen);
+  border-radius: var(--radius-s); font-size: 15.5px; line-height: 1.6;
+}
+.answerbox .hint { margin: 0; }
+
+@media (max-width: 1100px) {
+  .grade-layout, .report-layout { grid-template-columns: minmax(0, 1fr); }
+  .grade-side, .report-layout > .stack { position: static; }
+}

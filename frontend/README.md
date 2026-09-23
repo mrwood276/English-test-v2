@@ -28,14 +28,19 @@ assets/css/base.css             buttons, fields, notices, pills
 assets/css/teacher.css          sign in and app shell
 assets/css/questions.css        question bank list, preview, dialog, toast
 assets/css/student.css          the student screens (join, exam, result) for phones first
+assets/css/results.css          grading, per-exam results and the attempt report
 assets/js/core/                 config, http (timeouts, friendly errors), auth (Supabase Auth), api (Edge Functions)
 assets/js/shared/               dom (element builder), rich (safe rich text), icons, ui (toast, confirm dialog, debounce), imageCompress
 assets/js/teacher/app.js        boot and session handling
-assets/js/teacher/router.js     small hash router (#/dashboard, #/questions, #/questions/new, #/questions/edit/<id>, #/questions/import, #/exams, #/exams/new, #/exams/edit/<id>)
-assets/js/teacher/api/          one file per Edge Function (questionBank.js, media.js, exams.js)
+assets/js/teacher/router.js     small hash router (#/dashboard, #/questions, #/questions/new, #/questions/edit/<id>, #/questions/import,
+                                #/exams, #/exams/new, #/exams/edit/<id>, #/grading, #/grading/<exam id>, #/results,
+                                #/results/<exam id>, #/results/<exam id>/session/<session id>)
+assets/js/teacher/api/          one file per Edge Function (questionBank.js, media.js, exams.js, results.js)
 assets/js/teacher/import/       readers that turn files or pasted text into questions (csv, xlsx, zip, text, rows, rules)
-assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionEditor, questionImport, exams, examEditor
-assets/js/teacher/components/   questionView, richTextarea, chipsInput, passageDialog, mediaPicker
+assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionEditor, questionImport, exams,
+                                examEditor, grading, gradingQuestion, examResults, sessionReport
+assets/js/teacher/components/   questionView, richTextarea, chipsInput, passageDialog, mediaPicker,
+                                resultBits (status pills, score, formatting), reviewItem (one answer in a report)
 assets/js/teacher/guard.js      unsaved-changes guard used by the editor and the import screen
 assets/js/student/app.js        student boot: reads the saved attempt, resumes it, mounts a screen
 assets/js/student/api.js        calls the session function (join, get, save, heartbeat, event, submit, result, media)
@@ -43,8 +48,9 @@ assets/js/student/store.js      the attempt kept in localStorage (answers, flags
 assets/js/student/screens/      join, exam, result
 assets/js/student/components/   question (one question rendered for answering)
 tests/                          browser tests with a mocked server (mock_server.py, teacher_e2e.py, question_bank_e2e.py,
-                                question_editor_e2e.py, media_e2e.py, question_import_e2e.py, exams_e2e.py, student_e2e.py)
-                                and Deno unit tests (tests/unit/)
+                                question_editor_e2e.py, media_e2e.py, question_import_e2e.py, exams_e2e.py, student_e2e.py,
+                                results_e2e.py) and Deno unit tests (tests/unit/). live_results_check.py talks to the
+                                real backend by hand (owner's account, credentials from the environment)
 ```
 
 ## Notes
@@ -67,4 +73,5 @@ python tests/media_e2e.py   # needs the sample files: python tests/make_fixtures
 python tests/question_import_e2e.py
 python tests/exams_e2e.py
 python tests/student_e2e.py
+python tests/results_e2e.py
 ```

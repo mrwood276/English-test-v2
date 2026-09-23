@@ -47,3 +47,5 @@ jobs:
         run: python frontend/tests/exams_e2e.py
       - name: Student page (join, take the test, result)
         run: python frontend/tests/student_e2e.py
+      - name: Grading and results (teacher side)
+        run: python frontend/tests/results_e2e.py

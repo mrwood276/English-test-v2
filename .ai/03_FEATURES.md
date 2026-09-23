@@ -51,7 +51,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 ## F-03 App shell, router, dashboard
 
 - Status: COMPLETE (dashboard is only a welcome + connection check). Protection: STABLE.
-- Behavior: left menu (Dashboard, Question bank, Exams; Grading, Results shown as "Soon"), hash routes, build label at the bottom of the menu (`APP_BUILD` in `config.js`).
+- Behavior: left menu (all five items live since 2026-09-24: Dashboard, Question bank, Exams, Grading — with a waiting-essays badge — and Results), hash routes, build label at the bottom of the menu (`APP_BUILD` in `config.js`, now "Phase 4, grading and results").
 - Files: `frontend/teacher/index.html`, `assets/js/teacher/router.js`, `guard.js`, `screens/shell.js`, `screens/dashboard.js`, `assets/css/teacher.css`.
 - Notes: the mockup dashboard (running exam with big code, "needs your attention", recent exams) is **not implemented**; it depends on exams.
 - Limitations: on phones the menu takes much vertical space (mockups are desktop for teachers; low priority).
@@ -116,10 +116,16 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 - What exists: the student page `frontend/index.html` (join → take the test → result) with `assets/js/student/{app.js,api.js,store.js,screens/{join,exam,result}.js,components/question.js}` and `assets/css/student.css`; the Edge Function `backend/functions/session/` (actions `join`, `get`, `save`, `heartbeat`, `event`, `submit`, `result`, `media`; 21 Deno tests); the SQL functions in `supabase/migrations/20260923000000_session_functions.sql` (live) with `supabase/tests/session_functions_test.sql`; mock-server support and `frontend/tests/student_e2e.py` (52 checks).
 - Behavior: name + class + code (the code may be typed in any case, spaces are cleaned), 1 attempt per normalized name+class with a single-use teacher permission for a retake (BR-01/BR-02), the exam's open/scheduled window and the late-start policy (BR-03/BR-04/BR-05), a per-session question snapshot with the answer key kept on the server (BR-09/BR-10), autosave with an offline queue and a local copy that survives a reload (BR-12), a server-backed timer with the 2-minute tolerance (BR-20), page-leave events with the warning and the automatic submit limit (design section 4), submit with automatic grading of multiple choice/true-false/short answer and essays left for the teacher (BR-06/BR-07), and a result screen that honours `result_visibility` + `essay_pending_display` (BR-08).
 - Notes: a second attempt with the same normalized name+class is refused with a clear message; an unfinished attempt is *resumed* instead of duplicated; `expire_sessions()` is written but nothing calls it yet (TASK-015 puts it on a schedule); there is no `beforeunload` guard yet (see `09_KNOWN_ISSUES.md`).
-- Not built (TASK-012 / F-12): the teacher's grading screen for essays, the live monitor, add time / reopen a session (BR-11), remedial permissions in the UI, and statistics. The SQL already supports `reopened` sessions and `extra_seconds`, so those screens do not need schema work.
-- Next: TASK-012 (grading + results) — a pending essay result needs the teacher side before F-11 is a complete exam experience.
+- Not built: the live monitor (TASK-013) and the statistics tabs/exports (TASK-012 remainder).
+- Next: TASK-013 (live monitor) — grading, results and the teacher's actions on an attempt exist since 2026-09-24 (see F-12).
 
-## F-12 Grading, results, statistics, exports — PLANNED (BR-07, BR-08; mockups 13–15).
+## F-12 Grading, results (and the teacher's actions on an attempt)
+
+- Status: **CORE COMPLETE and LIVE-VERIFIED (2026-09-24)**. Protection: ACTIVE (extend rather than rebuild; contract in `docs/sql-results.md`).
+- What exists: the menu items **Grading** (with a waiting-essays badge) and **Results**; the hub `#/grading` / `#/results` (every exam that has sessions, with sessions/finished/waiting/average); the essay grading screen `#/grading/:examId` (mockup 13 — question picker with progress, the question plus the teacher's guide, each student's answer, points as answer-sheet bubbles, comment, "Save and next student"); the per-exam results screen `#/results/:examId` (mockup 14 — summary strip with average/highest/lowest/passed/not-final, then one row per student with class (merged names from `class_aliases` — BR-15), score, right/wrong, time used, page leaves, status and a Details link); the attempt report `#/results/:examId/session/:sessionId` (every answer with the correct answer and the student's pick, per-question grading for essays and BR-18 corrections, the event history, and the actions **add time**, **reopen** (BR-11) and **allow / take back a retake** (BR-02)).
+- Backend: `results` Edge Function (11 actions, 18 Deno tests) over `supabase/migrations/20260924000000_result_functions.sql` (live), with `supabase/tests/result_functions_test.sql` for the rules. `_session_result_write` is the only writer of `exam_results`; `_session_grade` now skips questions a teacher graded by hand, so a reopen + second submit cannot undo a correction.
+- Not built (TASK-012 remainder): the **Questions** and **Classes** tabs (mockup 15 — hardest questions, option distribution, average per class) and the **exports** (Excel/CSV/PDF). Statistics are readable from the stored `exam_results.review_snapshot`, so no schema work is needed; an export needs a small dependency-free writer or an owner decision.
+- Notes: a blank essay still needs one click from the teacher (it counts as an answer worth 0), which is deliberate — the result stays honest about "not graded yet".
 
 ## F-13 Anti-cheating and live monitor — PLANNED (design.md section 4; tables `session_events`).
 
