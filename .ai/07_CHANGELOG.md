@@ -3,6 +3,13 @@
 Newest first. Entries below the "Established" entry were reconstructed from git history and the live migration list only; nothing else is claimed.
 Add a new entry for every meaningful change (what, files, database changes, verification).
 
+## 2026-09-23 — Full review pass: every automated check re-run and verified green, TASK-022 added — git `ai-development`
+- Agent: Claude (claude.ai chat, AI Development Reviewer), same day, after the ISSUE-020 and monitor-SQL work above.
+- **Re-ran everything instead of trusting `.ai/`'s claims**: `deno test --allow-env backend/tests/` → **104 passed, 0 failed**; `deno test --allow-env --allow-read --no-check frontend/tests/unit/` → **21 passed, 0 failed**; started `frontend/dev-server.py 8123` and ran all **9** Playwright suites in the order CI uses (`teacher_e2e`, `question_bank_e2e`, `question_editor_e2e`, `media_e2e`, `question_import_e2e`, `exams_e2e`, `student_e2e`, `results_e2e`, `monitor_e2e`) — **every one ALL CHECKS PASSED**, no regressions found in any PROTECTED/STABLE feature (F-01–F-06, F-15).
+- **Code-quality scan** across `frontend/assets` and `backend/functions`: no leftover conflict markers, no `console.log`/`debugger`, no TODO/FIXME/HACK, no hardcoded keys/secrets, no external CDN `<script>` references (confirms the zero-dependency decision still holds), no orphaned JS files, and confirmed the DEC-021 Codex import duplicate exists only on `main`, not here.
+- **Conclusion**: no new CRITICAL/HIGH findings. Release remains **BLOCKED** only on non-code items: one live browser run of `#/monitor` (new **TASK-022**), plus the three existing owner items (ISSUE-007, TASK-007, TASK-008).
+- `.ai/` updated: `05_TASK_QUEUE.md` (NEXT RECOMMENDED TASK rewritten, new **TASK-022** added), this entry. `08_HANDOFF.md` to follow.
+
 ## 2026-09-23 — Monitor SQL applied live: TASK-013 / F-13 now LIVE-VERIFIED — git `ai-development`
 - Agent: Claude (claude.ai chat, AI Development Reviewer), same session as the ISSUE-020 push above, after confirming with the owner that no other agent was active.
 - **Applied live via Supabase MCP**: `supabase/migrations/20260925000000_monitor_overview_fields.sql` (`list_exam_results` gains `answered_count`, `question_count`, `last_heartbeat_at`). Pre-checked that every column the function reads (`last_heartbeat_at`, `tab_switch_count`, `questions_snapshot`, `student_class_normalized`, `student_name_normalized`, `status`, `ends_at`) exists on `exam_sessions` before applying.

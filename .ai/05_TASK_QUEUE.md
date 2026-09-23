@@ -11,7 +11,13 @@ Order follows dependencies. Completed tasks are listed at the end for history (a
 
 **Done since (2026-09-24, eighth session):** **TASK-012 (core) is built and live-verified** — essay grading, the per-exam results screen, the attempt report, add time / reopen (BR-11) and retake permissions (BR-02); **ISSUE-017 closed**. Contract in `docs/sql-results.md`.
 
-**Next recommended: TASK-012 remainder** (Questions/Classes statistics tabs, mockup 15, and the exports) **or** apply `20260925000000_monitor_overview_fields.sql` live so the monitor shows real progress bars. Owner steps still open: disable public sign-up (ISSUE-007), media upload check (TASK-007), `supabase db pull` (TASK-008).
+**Done since (2026-09-23, tenth session — full review pass by Claude/claude.ai, AI Development Reviewer):** ISSUE-020 closed (35 functions were callable by `anon`/`authenticated`, bypassing every Edge Function — fixed live and in git); TASK-013 monitor SQL applied live and verified (F-13 → LIVE-VERIFIED); then **every automated check in the repo was actually re-run, not just read from `.ai/`** — 104 backend tests, 21 import-parser unit tests, and all **9** Playwright suites (teacher, bank, editor, media, import, exams, student, results, monitor) — all green. Code-quality scan (conflict markers, hardcoded secrets, `console.log`/`debugger`, external CDN references, orphaned files, the DEC-021 import duplicate) came back clean on `ai-development`. See `07_CHANGELOG.md` for the full writeup.
+
+**Next recommended: TASK-022** (live-verify the monitor screen against a real running exam) **or** the three owner-only items below — none of these need a code change, so any agent can pick TASK-022 up once an exam is actually running; the owner items need the owner's own account/dashboard access. Release stays **BLOCKED** until all four are done — see `08_HANDOFF.md` RELEASE STATUS.
+- **TASK-022** — one real browser session watching `#/monitor` while an actual exam is open with real students (or a deliberately-created test exam), confirming progress bars / status pills / add-time work against live data, not just the mock server.
+- Disable public sign-up (ISSUE-007) — owner, Supabase Auth dashboard.
+- Media upload check (TASK-007) — owner or agent with the app running, one real image + audio upload against live Storage.
+- `supabase db pull` (TASK-008) — reconcile `v2_01`..`v2_12` (and the ad-hoc `v2_13`..`v2_15` security/monitor fixes from the tenth session) into git migration files matching what's actually live.
 
 **Collision note (DEC-021 / ISSUE-015):** `main` carries Codex/GPT-5's own smaller import implementation (`d21f82d`/`1606aed`/`9c293fc`). Per the owner's 2026-09-22 decision, the `ai-development` implementation described here is the one that continues; do not port Codex's variant. The two will be reconciled at the next deliberate merge into `main` (resolve import files in favor of `ai-development`; drop `frontend/tests/import.test.js` and `frontend/assets/js/teacher/import/model.js`).
 
@@ -101,6 +107,13 @@ Depends on TASK-006 completion. Needs a decision on how to generate PDF/Word wit
 
 ## TASK-020 — Duplicate overview banner in the question list
 - Priority: LOW. Status: PLANNED. Mockup 6 shows "N questions look like duplicates"; needs a new action scanning the bank (`content_hash` groups and trigram pairs).
+
+## TASK-022 — Live-verify the monitor screen against a real running exam
+- Priority: HIGH (release blocker). Status: READY. Feature: F-13. Related: TASK-013 (ISSUE-020's fix and the monitor SQL are both already live and verified at the schema/privilege level — this task is the one remaining piece: seeing it actually render).
+- What's needed: with a real or deliberately-created test exam open and at least one student session in progress, open `#/monitor` and `#/monitor/:examId` in a real browser signed in as staff, and confirm: the hub lists the exam under "in progress"; the per-exam table shows real `answered_count`/`question_count` progress bars (not "—"); time-left counts down; a tab-switch/page-leave event shows up after triggering one from the student side; "Add time" on `#/monitor/:examId/session/:sessionId` actually extends the session (cross-check against `exam_sessions.ends_at`); auto-refresh (30s hub / 15s exam view) updates without a manual reload.
+- Clean up afterward: delete the test exam, its session(s), and any audit/event rows it created — this runs against the real `English_Test_v2` project, not a sandbox.
+- On success: mark F-13 "FULLY LIVE-VERIFIED" in `03_FEATURES.md` and TASK-013 "COMPLETE" in this file; note it in `07_CHANGELOG.md` and `08_HANDOFF.md`.
+- This does not need a code change — any agent with Supabase MCP or the owner's token, plus a way to drive a browser (or the owner doing it manually and reporting back), can do it.
 
 ---
 
