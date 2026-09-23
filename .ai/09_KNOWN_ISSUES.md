@@ -29,8 +29,8 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 - Description: the Supabase security advisor reported it. UNKNOWN whether the current plan allows enabling it. Workaround: strong unique password for the admin and teacher accounts.
 
 ## ISSUE-006 — Only backend tests run in CI
-- Severity: LOW. Status: OPEN. Related: TASK-018.
-- Description: `.github/workflows/backend-tests.yml` runs Deno tests only. Browser tests (Playwright) are run manually and use a mocked server.
+- Severity: LOW. Status: **FIXED (2026-09-22 / closed by TASK-018)**. Related: TASK-018.
+- Resolution: `.github/workflows/frontend-tests.yml` runs Deno unit tests and eight Playwright suites; both workflows have been green on `c495e0d` and later `ai-development` commits. Backend workflow unchanged.
 
 ## ISSUE-007 — Public sign-up by email is still ENABLED in Supabase Auth
 - Severity: MEDIUM. Status: OPEN (owner action; checklist step 1 in `docs/verification-checklist.md`).

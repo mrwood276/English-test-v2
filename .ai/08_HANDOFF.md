@@ -2,26 +2,40 @@
 
 Keep this file current after every meaningful change. It must never describe an outdated state.
 
+## RELEASE STATUS
+
+**`BLOCKED` — not ready for `main`.**
+
+| Check | Result |
+|---|---|
+| Branch / tree | On `ai-development` @ `0115613` (+ pending doc-only commit); working tree otherwise clean |
+| Backend / unit tests this session | **104** / **21** green |
+| CRITICAL open | None found |
+| HIGH blockers for release | None in code; open HIGH known issues are owner/verification (ISSUE-001 remainder, ISSUE-002 media) — documented, not regressions |
+| Incomplete feature that would ship half-done | **F-13 / TASK-013** monitor screens exist with **no** `monitor_e2e.py` and no live verify (MEDIUM) |
+| `main` merge risks | `origin/main` = `9c293fc` (Codex import). Must resolve per DEC-021 in favor of `ai-development`; drop `import/model.js` + `import.test.js` |
+| Doc integrity | Corrected this session (F-12/F-13 summary, ISSUE-006, drift table, snapshot). Prior handoff wrongly said `main` @ `46803f0` |
+
+Gatekeeper will not merge until: (1) owner confirms releasing with known owner-facing leftovers is OK, **or** (2) TASK-013 gets at least a Playwright suite and remaining doc claims are re-checked. Prefer finishing monitor tests before promoting unfinished UI.
+
 ## Branch Context (read this first)
 
 | | |
 |---|---|
-| Stable Branch | `main` — currently at commit `46803f0`. Not the workspace; do not commit normal work here. |
-| Current Development Branch | **`ai-development`** — branched from `main` at `46803f0`; holds the import parsers/screen, the exams work, the CI flake fix (`f7152e5`), the student exam engine (`b0c56bd`, 2026-09-23) and essay grading + the results screens (`c495e0d`, 2026-09-24). This is where you work. |
-| Merged into `main`? | **No.** `ai-development` still has open owner-facing work (TASK-006 step 4 format review, TASK-007 media check). Do not merge it yourself; that is the owner's deliberate decision (DEC-020). |
+| Stable Branch | `main` — **`origin/main` = `9c293fc`** (not `46803f0`; Codex parallel import). Not the normal workspace. |
+| Current Development Branch | **`ai-development`** @ `0115613` — import, exams, student engine, grading/results, monitor screen progress. Work here. |
+| Merged into `main`? | **No.** Release status **BLOCKED** (see above). Owner/gatekeeper deliberate merge only (DEC-020 + Reviewer role). |
 
-Before doing anything: `git checkout ai-development` (or confirm you're on it), `git pull` **and `git fetch origin`** to see the real remote state, `git log --oneline -5` and `git status` — another agent may have pushed since this entry was written. **This handoff was wrong once already**: on 2026-09-21 Codex pushed TASK-006 work straight to `main` while the handoff still said `main` was at `46803f0` (see ISSUE-015 / DEC-021). Never treat this file as proof of the remote state.
+Before doing anything: `git checkout ai-development`, `git pull`, `git fetch origin`, `git log --oneline -5`, `git status`. Never treat this file as proof of the remote state (ISSUE-015).
 
 ## Collision notice (read before touching import files)
 `origin/main` contains Codex/GPT-5's own parallel implementation of the import parsers + screen (commits `d21f82d`, `1606aed`, `9c293fc`, 2026-09-21), which conflicts file-by-file with the `ai-development` implementation. The owner decided (DEC-021, 2026-09-22): **continue with `ai-development`'s version; Codex's `main` commits stay untouched and get superseded at the next deliberate merge.** Do not port Codex's variant back, and do not "reconcile" the two on your own initiative.
 
 ## Last Agent
-Buffy (Freebuff desktop agent, **eighth session** — essay grading, results and the teacher's actions on an attempt; direct git access to `origin`; **live Supabase access via the owner's access token (CLI) + the admin account for the flow check — both session-only, never stored in the repo**).
-
-**Reviewer session (2026-09-23, ninth session):** Solar Pro4 — reviewer / release gatekeeper. Fix unit test type-checking errors (import.test.ts) + TASK-013 live monitor screen progress. Live verification via Supabase CLI: SQL tests PASSED (result_functions_test.sql + session_functions_test.sql), live state clean (0 exams, 0 sessions, 40 questions, 4 audit logs).
+Cursor / Composer — **Development Reviewer + Release Gatekeeper** (intake session). Prior: Solar Pro4 (ninth — monitor screens + import.test.ts types); Buffy (eighth — TASK-012 results live).
 
 ## Date
-2026-09-24 (eighth session) + 2026-09-23 (reviewer session)
+2026-09-23 (gatekeeper intake)
 
 ## Last Completed Task
 - **TASK-012 (core) built and live-verified (eighth session)**: a teacher can now grade written answers, read the results of an exam, and act on a single attempt. SQL in `supabase/migrations/20260924000000_result_functions.sql` (**applied live**; contract, rules and live facts in `docs/sql-results.md`), Edge Function `backend/functions/results/` (**deployed v1**, 18 Deno tests), the Grading/Results menu items with a waiting-essays badge, the essay grading screen (mockup 13), the per-exam results screen (mockup 14), and the attempt report with per-question grading plus **add time / reopen (BR-11)** and **allow a retake (BR-02)**. Rolled-back SQL test `supabase/tests/result_functions_test.sql` (`RESULT ENGINE TESTS PASSED`), `frontend/tests/results_e2e.py` (59 browser checks), a one-off live script `frontend/tests/live_results_check.py` with its `cleanup_live_results.sql`. **ISSUE-017 closed** — a result with an essay can now become final. Live verification: **38/38 checks** against the real project through the deployed function; every test row deleted afterwards (0 exams, 0 sessions, 0 rate-limit rows, 40 questions). Regression: backend **104**, unit 21, all **eight** browser suites green.
@@ -140,19 +154,13 @@ Zero data changes left behind by any session (all verification rows deleted; liv
 See `09_KNOWN_ISSUES.md`. Most important now: ISSUE-007 (public email sign-up still enabled — one dashboard flip), ISSUE-002 (media upload never run live), ISSUE-001 (older migrations still not in git), ISSUE-018 (nothing schedules `expire_sessions`), ISSUE-019 (no `beforeunload` guard on the student page, deliberate). **ISSUE-017 is closed** — the grading screen shipped this session and an essay result can now become final.
 
 ## Recommended Next Task
-**TASK-013 — the live monitor (and the anti-cheating view).** Everything needed for it is already recorded: `session_events` (with severity), `exam_sessions.tab_switch_count` / `last_heartbeat_at` / `ends_at`, `get_session_report` (events + actions + `can_add_time`), and `list_exam_results` (in-progress rows with `remaining_seconds`). What is missing is a screen that refreshes while an exam runs and shows each student's progress, time left and page leaves, plus a monitor for one attempt — mockups 7–9 and 12 in `docs/round-2.html`. If you prefer something smaller first, the TASK-012 remainder (Questions/Classes statistics tabs) uses the same SQL style and no new decisions.
-
-Smaller parallel items: owner format review for import (TASK-006 step 4), TASK-007 media check, ISSUE-010 (duplicate banner).
+1. **Owner choice for release:** either approve promoting `ai-development` → `main` with documented leftovers (monitor untested; owner checklist items), **or** wait until TASK-013 has a Playwright suite.
+2. Otherwise continue development on `ai-development`: finish TASK-013 (`monitor_e2e.py` + live check), or TASK-012 remainder (stats/exports).
 
 ## Suggested Work For Next AI
-1. `git checkout ai-development && git pull`. Read `.ai/00_AI_RULES.md`, this file, `05_TASK_QUEUE.md` TASK-013, then the relevant source — and `docs/sql-results.md` + `docs/sql-sessions.md` before touching anything exam/result-related.
-2. Confirm your environment matches: backend **104** tests, unit 21 (with `--allow-read`), and the **eight** Playwright suites green (teacher, bank, editor, media, import, exams, student, **results**). `python frontend/dev-server.py 8123` serves both apps: the teacher page at `/teacher/index.html`, the student page at `/index.html`. Two SQL tests must pass with `npx supabase db query --linked --file …`: `supabase/tests/session_functions_test.sql` → `SESSION ENGINE TESTS PASSED (all rows rolled back)` and `supabase/tests/result_functions_test.sql` → `RESULT ENGINE TESTS PASSED (all rows rolled back)`.
-3. To deploy or run SQL on v2 you need the owner's access token (`SUPABASE_ACCESS_TOKEN` env var, `npx supabase ...`). Deploy path: `python backend/sync_functions.py` then `npx supabase functions deploy <name> --no-verify-jwt --use-api`. Do not request the token again without need, and never store it in the repo.
-4. Verify against live with the admin account only when the owner asks; clean up every test row afterwards (exams, sessions, audit entries) — the live DB is the real one.
-5. CI status: both workflows are **green on `c495e0d`** (2026-09-24) — the frontend browser job now runs **eight** suites, and the first CI run of `results_e2e` passed. Watch every later push the same way; the browser job is the one that flakes (`playwright install --with-deps chromium` is the slow step).
-6. The review-table select-all is tri-state by design (first click fills the gaps, second clears everything); the default selection leaves exact duplicates and in-file duplicates unchecked. Keep those semantics unless the owner asks otherwise.
-7. After your work: test, update `.ai/` (state, queue, changelog, this file — including the branch/commit fields at the top), commit on `ai-development`, push.
-8. When `ai-development` is eventually merged into `main` (owner's call): resolve the import files in favor of `ai-development` and drop `frontend/tests/import.test.js` + `frontend/assets/js/teacher/import/model.js` (Codex's superseded variant, DEC-021 / ISSUE-015).
+1. `git checkout ai-development && git pull`. Read RELEASE STATUS in this file first.
+2. Confirm: backend **104**, unit **21**. Do not merge to `main` while RELEASE STATUS is BLOCKED unless the owner explicitly overrides.
+3. If continuing TASK-013: add `frontend/tests/monitor_e2e.py` against the mock server (`activity` / `report` already handled), then update F-13 verification.
 
 ## Do NOT Do
 - Do not rebuild the student page or the `session` function: the contract is fixed in `docs/sql-sessions.md` (action names, response fields, `validation`-hinted errors) and the handler + 21 Deno tests + 52 browser checks match it. Extend it instead.

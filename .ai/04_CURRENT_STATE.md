@@ -4,13 +4,13 @@
 
 | Item | Value |
 |---|---|
-|| Last updated | 2026-09-23 (reviewer session — Solar Pro4; fixed unit test type-checking errors) |
-| Last AI agent | Buffy (Freebuff desktop agent; deployed the `results` function and applied its SQL live with the owner's access token — session-only, not stored in the repo) |
-| Development phase | Phase 4 (grading and results), following `docs/design.md` section 5 (Phases 0–3 are done) |
-|| Current focus | **The full exam loop works end to end against the real backend, both sides.** Teacher: question bank, editor, import (`question-bank` v3), media, exams (`exams` v3), and since 2026-09-24 **grading + results** (`results` v1: grade written answers, the per-exam results table, one attempt's report, add time / reopen BR-11, retake permissions BR-02) — SQL in `supabase/migrations/20260924000000_result_functions.sql`, contract in `docs/sql-results.md`. Student (2026-09-23): join, take the test, submit, result — `docs/sql-sessions.md`. **ISSUE-017 is closed: a result with an essay can now become final.** Since 2026-09-23 (reviewer session): **live monitor screen** (#/monitor, #/monitor/:examId, #/monitor/:examId/session/:sessionId) — examMonitor.js + sessionTimeline.js, route + menu item + API calls. Next milestone: TASK-013 Playwright test + live verification, then the statistics tabs and exports. |
-| Branch model | `main` = stable branch. `ai-development` = shared branch where Claude and Codex/GPT do normal work, one agent at a time. See `00_AI_RULES.md` section 12 and DEC-020. `ai-development` is **not yet merged into `main`** — that stays the owner's deliberate decision; the open items are owner-facing (TASK-006 step 4 format review, TASK-007 media check), not missing code. |
-| Current branch / commit | Work is on **`ai-development`**, which holds the student engine (`b0c56bd`, 2026-09-23) and the grading/results work (`c495e0d`, 2026-09-24). Both CI workflows are green on `c495e0d`. `main` itself is unchanged and still points at `46803f0`. |
-| Repository baseline | GitHub is the source. `origin/ai-development` = `c495e0d` (plus the small CI-notes commits after it). **`origin/main` is NOT at `46803f0` anymore**: Codex/GPT-5 pushed its own parallel TASK-006 implementation straight to `main` on 2026-09-21 (`d21f82d`, `1606aed`, `9c293fc`) — see ISSUE-015 and DEC-021 for the owner's resolution (the `ai-development` implementation is the one that continues; `main`'s variant is superseded at the next deliberate merge) |
+| Last updated | 2026-09-23 (Cursor / Composer — Reviewer + Release Gatekeeper intake; doc drift corrected; release **NOT READY**) |
+| Last AI agent | Cursor / Composer (Reviewer + Release Gatekeeper). Prior: Solar Pro4 (monitor screens); Buffy (TASK-012 results live). |
+| Development phase | Phase 4 core done; Phase 5 (monitor) screens started. Phases 0–3 done. |
+| Current focus | **Release gate intake.** On `ai-development` @ `0115613`, tree clean; backend 104 + unit 21 green this session. Full exam loop documented as live-verified by prior agents. Monitor UI exists but has no Playwright suite (UNVERIFIED). **Do not merge to `main` yet.** |
+| Branch model | `main` = stable. `ai-development` = shared AI development (DEC-020). Gatekeeper may promote to `main` only after checklist passes — currently **BLOCKED**. |
+| Current branch / commit | **`ai-development`** @ `0115613` (tracks `origin/ai-development`). |
+| Repository baseline | `origin/ai-development` = `0115613`. **`origin/main` = `9c293fc`** (Codex parallel import; ISSUE-015 / DEC-021 — merge must prefer ai-development import files). |
 
 ## What was inspected to write `.ai/`
 
@@ -60,11 +60,11 @@
 
 | Area | Repository | Live | Consequence |
 |---|---|---|---|
-| `question-bank` | has actions `import_check`, `import` (`handler.ts`, `parse.ts`, tests) | version 2 **without** those actions | Deploying it (TASK-006 step 3) is now the **only** thing between the finished import screen and a working feature: the screen calls the actions and fails with "Nothing was saved" until they are live. Safe: it only adds actions |
-| `exams` | full handler + parser + 24 Deno tests; screens list + editor | **v3 live** (deployed 2026-09-22, redeployed twice while fixing parser defaults; the docs said v1 until 2026-09-24); SQL functions applied live; whole flow live-verified with the admin account (save/get/list/update/open/code-rules/duplicate/remove + refusals + 401 wall) | The exam screens work against the real backend |
-| `results` | handler + parser + 18 Deno tests; grading/results screens | **v1 live** (deployed 2026-09-24) with its SQL applied; the grading loop, the report and the three teacher actions live-verified (38/38 checks) | No drift: the deployed function was built from this repository |
-| `session` | handler + parser + token + 21 Deno tests | **v1 live** (deployed 2026-09-23) with its SQL applied; full student flow live-verified | No drift: the deployed function was built from this repository |
-| `question-bank` | has actions `import_check`, `import` | **v3 live** (deployed 2026-09-22); `import_check` answered live, `list` regression-checked | The import screen works against the real backend; left: owner format review + a real Excel file check |
+| `exams` | full handler + parser + 24 Deno tests; screens list + editor | **v3 live**; SQL applied; flow live-verified | Exam screens work against the real backend |
+| `results` | handler + parser + 18 Deno tests; grading/results screens | **v1 live**; grading loop live-verified (38/38) | No drift |
+| `session` | handler + parser + token + 21 Deno tests | **v1 live**; student flow live-verified | No drift |
+| `question-bank` | has actions `import_check`, `import` | **v3 live**; `import_check` answered live | Import works against real backend; left: owner format review + real Excel file (ISSUE-013 caveat) |
+| Monitor UI (F-13) | `examMonitor.js` / `sessionTimeline.js` + routes | uses existing `results` actions | Screens untested (no `monitor_e2e.py`); not live-verified |
 | SQL migrations | first migration in git: `supabase/migrations/20260922000000_exams_functions.sql` (applied live) | `v2_01`..`v2_12` + the exams functions | ISSUE-001 partially closed; `supabase db pull` can bring the older ones in |
 | Frontend | `APP_BUILD` = "Phase 4, grading and results" | not deployed | The owner runs it locally with `frontend/dev-server.py` |
 

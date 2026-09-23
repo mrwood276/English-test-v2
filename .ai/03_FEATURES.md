@@ -21,8 +21,8 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 | F-09 | Exams (create, exam code, schedule, selection, templates) | Teacher side LIVE-VERIFIED (2026-09-22) | ACTIVE | SQL applied + function live; whole flow verified with the admin account (save/update/open/code rules/duplicate/remove/refusals); student join is F-11 |
 | F-10 | Export questions to PDF/Word | PLANNED | – | – |
 | F-11 | Student join and exam engine | CORE COMPLETE (join, take, autosave, submit, auto-grade, result) | ACTIVE | LIVE-VERIFIED (2026-09-23, 27 checks through the deployed `session` function); SQL TESTED (rolled-back `session_functions_test.sql`); browser TESTED (`student_e2e.py`, 52 checks) |
-| F-12 | Essay grading, results, statistics, exports | PLANNED | – | – |
-| F-13 | Anti-cheating events and live monitor | PLANNED | – | – |
+| F-12 | Essay grading, results, statistics, exports | CORE COMPLETE (stats/exports remain) | ACTIVE | LIVE-VERIFIED (core, 2026-09-24); stats/exports UNVERIFIED |
+| F-13 | Anti-cheating events and live monitor | IN_PROGRESS (screens exist; no Playwright / no live verify) | ACTIVE | UNVERIFIED (screens only, 2026-09-23 reviewer session) |
 | F-14 | Audit log viewer, backups, notifications, user management | PLANNED | – | – |
 | F-15 | Design system and approved mockups | COMPLETE | PROTECTED | Owner-approved |
 | F-16 | Legacy v1 app (outside this repo) | DEPRECATED (live, untouched) | – | – |
@@ -51,7 +51,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 ## F-03 App shell, router, dashboard
 
 - Status: COMPLETE (dashboard is only a welcome + connection check). Protection: STABLE.
-- Behavior: left menu (all five items live since 2026-09-24: Dashboard, Question bank, Exams, Grading — with a waiting-essays badge — and Results), hash routes, build label at the bottom of the menu (`APP_BUILD` in `config.js`, now "Phase 4, grading and results").
+- Behavior: left menu (six items since the TASK-013 monitor progress: Dashboard, Question bank, Exams, Grading — with a waiting-essays badge — Results, and Monitor), hash routes, build label at the bottom of the menu (`APP_BUILD` in `config.js`, now "Phase 4, grading and results").
 - Files: `frontend/teacher/index.html`, `assets/js/teacher/router.js`, `guard.js`, `screens/shell.js`, `screens/dashboard.js`, `assets/css/teacher.css`.
 - Notes: the mockup dashboard (running exam with big code, "needs your attention", recent exams) is **not implemented**; it depends on exams.
 - Limitations: on phones the menu takes much vertical space (mockups are desktop for teachers; low priority).
@@ -127,7 +127,12 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 - Not built (TASK-012 remainder): the **Questions** and **Classes** tabs (mockup 15 — hardest questions, option distribution, average per class) and the **exports** (Excel/CSV/PDF). Statistics are readable from the stored `exam_results.review_snapshot`, so no schema work is needed; an export needs a small dependency-free writer or an owner decision.
 - Notes: a blank essay still needs one click from the teacher (it counts as an answer worth 0), which is deliberate — the result stays honest about "not graded yet".
 
-## F-13 Anti-cheating and live monitor — PLANNED (design.md section 4; tables `session_events`).
+## F-13 Anti-cheating and live monitor
+
+- Status: **IN_PROGRESS** (screens wired; not TESTED / not LIVE-VERIFIED). Protection: ACTIVE.
+- What exists (2026-09-23 reviewer session): `#/monitor`, `#/monitor/:examId` (`examMonitor.js`, auto-refresh 30s), `#/monitor/:examId/session/:sessionId` (`sessionTimeline.js`, auto-refresh 15s); menu item + routes; `results.js` helpers `activeExams()` / `sessionReport()`. Backend data already comes from TASK-012 (`list_exam_activity`, `get_session_report`, `session_events`).
+- Missing: Playwright suite (`monitor_e2e.py` does not exist), live verification against a running exam, and any polish vs mockups 7–9 / 12.
+- Next: TASK-013 remainder in `05_TASK_QUEUE.md`.
 
 ## F-14 Audit log viewer, backups, notifications, user management — PLANNED
 
