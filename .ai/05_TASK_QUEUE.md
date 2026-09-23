@@ -78,9 +78,9 @@ Depends on TASK-006 completion. Needs a decision on how to generate PDF/Word wit
 - Remaining: the **Questions** and **Classes** tabs (mockup 15 — hardest questions, option distribution, average per class) and the **exports** (Excel/CSV/PDF; the frontend has no file-writing helper yet, so this needs a small dependency-free writer or an owner decision — TASK-021 is the related question). The stored `review_snapshot` already holds what the statistics need, so no SQL schema work is needed.
 
 ## TASK-013 — Phase 5: anti-cheating events and live monitor
-- Priority: HIGH. Status: **CORE COMPLETE + TESTED (2026-09-23)**; live SQL apply of overview progress fields still pending. Feature: F-13.
-- Done: monitor hub `#/monitor`, per-exam live table `#/monitor/:examId` (mockup 12), session timeline `#/monitor/:examId/session/:sessionId` (events + add time), menu + routes, auto-refresh, `monitor_e2e.py` (23 checks), CI ninth suite, additive migration `20260925000000_monitor_overview_fields.sql` (not yet applied live).
-- Remaining: apply that migration on the live project; one owner/agent run against a real open exam; optional mass add-time.
+- Priority: HIGH. Status: **CORE COMPLETE + LIVE-VERIFIED (2026-09-23)**. Feature: F-13.
+- Done: monitor hub `#/monitor`, per-exam live table `#/monitor/:examId` (mockup 12), session timeline `#/monitor/:examId/session/:sessionId` (events + add time), menu + routes, auto-refresh, `monitor_e2e.py` (23 checks), CI ninth suite, migration `20260925000000_monitor_overview_fields.sql` — **applied live** (Claude reviewer session, via Supabase MCP): `list_exam_results` now returns `answered_count`, `question_count`, `last_heartbeat_at`; verified idempotent-safe re-apply, columns confirmed present in the live schema, `has_function_privilege` confirmed `anon`/`authenticated` still refused / `service_role` still allowed, security advisor re-checked clean afterward. Live state untouched (0 exams).
+- Remaining: one owner/agent run of `#/monitor` against a real open exam with real students (the progress fields have only been schema/privilege-verified, not seen rendering in the browser against live data); optional mass add-time.
 ## TASK-014 — Phase 6: dashboard and UX polish — PLANNED (mockup 5 dashboard; mobile menu).
 ## TASK-015 — Phase 7: backups (manual + scheduled), audit log viewer, notifications (dashboard + email), scheduled purge jobs — PLANNED (D-06, D-13).
 

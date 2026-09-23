@@ -4,9 +4,9 @@ Keep this file current after every meaningful change. It must never describe an 
 
 ## RELEASE STATUS
 
-**`BLOCKED` — not ready for `main` (unchanged by TASK-013).**
+**`BLOCKED` — not ready for `main`.**
 
-TASK-013 is TESTED against the mock server. Open before release: apply monitor SQL live; owner checklist items (ISSUE-007, TASK-007); careful merge vs Codex import on `main` (DEC-021).
+TASK-013 is LIVE-VERIFIED (schema/privileges; SQL applied 2026-09-23). Open before release: one real browser run of `#/monitor` against a live exam; owner checklist items (ISSUE-007, TASK-007); careful merge vs Codex import on `main` (DEC-021).
 
 ## Branch Context (read this first)
 
@@ -31,9 +31,10 @@ Cursor / Composer — TASK-013 live monitor (screens + e2e + SQL in git) — **a
 ## Last Completed Task
 - **TASK-013 core (TESTED, Cursor/Composer):** live monitor hub, per-exam student table (mockup 12), session timeline with add time; `monitor_e2e.py` 23/23; CI ninth suite; migration `20260925000000_monitor_overview_fields.sql` committed but **not applied live**.
 - **Security review — ISSUE-020 closed (claude.ai chat session, concurrent with the above)**: the exams/session/results function families (TASK-009/010/012) were missing the `REVOKE EXECUTE FROM PUBLIC` that `v2_05`/`v2_08` already apply to the foundation/question-bank functions — Postgres grants EXECUTE to PUBLIC by default on every new function, so 35 functions including `save_exam`, `remove_exam`, `grant_retake`, `add_exam_time`, and `save_answer_grade` were callable directly by `anon`/`authenticated` via `/rest/v1/rpc/<name>`, bypassing `requireStaff()`, the session-token check, rate limiting and audit logging entirely. **Fixed live** (see collision note above) and re-verified clean with the security advisor. Also fixed a WARN: mutable `search_path` on `_exam_is_open`. The rest of the full review checklist (functionality/regression/code-quality/UI) beyond what the release-gate intake below already covered was not reached this session.
+- **TASK-013 monitor SQL applied live (claude.ai chat session, same day, after the push above)**: `supabase/migrations/20260925000000_monitor_overview_fields.sql` was applied to the live project via Supabase MCP after confirming with the owner that no other agent was active. Verified: all columns `list_exam_results()` reads exist on `exam_sessions`, `has_function_privilege()` confirms `anon`/`authenticated` are refused and `service_role` can execute, security advisor re-checked clean, live exam count stayed 0. F-13/TASK-013 marked LIVE-VERIFIED. Not done: a real browser run of `#/monitor` against a live open exam with real students.
 
 ## Remaining Work
-1. Apply `supabase/migrations/20260925000000_monitor_overview_fields.sql` on the live project (`npx supabase db query --linked --file …`).
+1. ~~Apply `supabase/migrations/20260925000000_monitor_overview_fields.sql` on the live project~~ — **done 2026-09-23** (Claude reviewer session, via Supabase MCP; schema/privilege-verified, security advisor clean). Still pending: one real browser run of `#/monitor` against a live open exam.
 2. Optional: one live browser run of `#/monitor` during a real exam.
 3. TASK-012 remainder (statistics tabs / exports) or release gate when owner asks.
 4. Owner: ISSUE-007, TASK-007, TASK-008.

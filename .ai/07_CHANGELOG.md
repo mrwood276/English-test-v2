@@ -3,6 +3,13 @@
 Newest first. Entries below the "Established" entry were reconstructed from git history and the live migration list only; nothing else is claimed.
 Add a new entry for every meaningful change (what, files, database changes, verification).
 
+## 2026-09-23 — Monitor SQL applied live: TASK-013 / F-13 now LIVE-VERIFIED — git `ai-development`
+- Agent: Claude (claude.ai chat, AI Development Reviewer), same session as the ISSUE-020 push above, after confirming with the owner that no other agent was active.
+- **Applied live via Supabase MCP**: `supabase/migrations/20260925000000_monitor_overview_fields.sql` (`list_exam_results` gains `answered_count`, `question_count`, `last_heartbeat_at`). Pre-checked that every column the function reads (`last_heartbeat_at`, `tab_switch_count`, `questions_snapshot`, `student_class_normalized`, `student_name_normalized`, `status`, `ends_at`) exists on `exam_sessions` before applying.
+- **Verified after applying**: `has_function_privilege()` shows `anon`/`authenticated` still refused, `service_role` still allowed (no regression on ISSUE-020's fix); security advisor re-checked clean; live `exams` count unchanged at 0.
+- `.ai/` updated: `03_FEATURES.md` (F-13 row + detail → LIVE-VERIFIED), `05_TASK_QUEUE.md` (TASK-013 → LIVE-VERIFIED), `08_HANDOFF.md` (RELEASE STATUS open-items line, Remaining Work #1 closed, Last Completed Task entry), this entry.
+- **Not done**: a real browser run of `#/monitor` against a live open exam with real students — that's the one remaining item before F-13 is fully done, and it needs a human (or an agent explicitly asked to) running an exam live.
+
 ## 2026-09-23 — Security review: close a PUBLIC-execute gap on 35 exam/session/results functions (ISSUE-020) — git `ai-development`
 - Agent: Claude (claude.ai chat, acting as AI Development Reviewer), working concurrently with the Cursor/Composer reviewer session below — see the "Concurrent-agent collision" note in `08_HANDOFF.md`.
 - **Finding (CRITICAL, missed by the release-gate intake below)**: the exams (TASK-009), session (TASK-010) and results/grading (TASK-012) function families were created without the `REVOKE EXECUTE FROM PUBLIC` that `v2_05`/`v2_08` already apply elsewhere. `anon`/`authenticated` could call all 35 of them directly via `/rest/v1/rpc/<name>` — including `save_exam`, `remove_exam`, `grant_retake`, `add_exam_time`, `save_answer_grade` — completely bypassing `requireStaff()`, the session-token check, rate limiting and audit logging.
