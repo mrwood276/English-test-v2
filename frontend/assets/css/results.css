@@ -11,6 +11,11 @@
 .strip span { display: inline-flex; align-items: baseline; gap: 6px; }
 .strip b { font-size: 18px; font-weight: 700; color: var(--ink); }
 
+.results-tabs { display: flex; gap: 6px; margin: 0 0 12px; border-bottom: 1px solid var(--line); }
+.results-tab { border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--ink-2); cursor: pointer; font: inherit; padding: 8px 12px; }
+.results-tab:hover, .results-tab.on { border-bottom-color: var(--pen); color: var(--pen); }
+.results-stats[hidden], .list-card[hidden] { display: none; }
+
 /* ---------- the hub tables ---------- */
 .grade-layout {
   display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 12px; align-items: start;

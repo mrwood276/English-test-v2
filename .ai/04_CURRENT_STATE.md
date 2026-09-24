@@ -4,10 +4,10 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-24 (GitHub Copilot — added results CSV export) |
+| Last updated | 2026-09-24 (GitHub Copilot — added Classes statistics tab) |
 | Last AI agent | Buffy (Freebuff desktop agent, eleventh session; kept the tenth session's monitor implementation and added on top of it after the owner chose between the two — see `08_HANDOFF.md` collision note). |
 | Development phase | Phase 5 (anti-cheating events and the live monitor) **FULLY LIVE-VERIFIED** on top of Phase 4. |
-| Current focus | **TASK-013 and TASK-022 complete.** Monitor hub + per-exam live table + session timeline (`monitor_e2e.py` 30/30), exam-wide add time, and live browser evidence are complete. TASK-012 remainder now has a tested CSV export; Questions/Classes statistics and XLSX/PDF remain. Release to `main` still not done; three owner-only items remain. |
+| Current focus | **TASK-013 and TASK-022 complete.** Monitor hub + per-exam live table + session timeline (`monitor_e2e.py` 30/30), exam-wide add time, and live browser evidence are complete. TASK-012 now has tested CSV and Classes statistics; Questions statistics and XLSX/PDF remain. Release to `main` still not done; three owner-only items remain. |
 | Branch model | `main` = stable. `ai-development` = shared AI development. |
 | Current branch / commit | **`ai-development`** = `f521ba9` (CSV export follow-up, pushed; prior CI workflows remain green on the parent). The session's first, self-built TASK-013 is parked on a **local** branch `t13-buffy-monitor` (`46b5846`) for reference — never pushed, safe to delete. |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |

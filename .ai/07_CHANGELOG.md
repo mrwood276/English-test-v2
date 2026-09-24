@@ -1,5 +1,11 @@
 # 07 CHANGELOG
 
+## 2026-09-24 — Classes statistics tab (TASK-012 remainder, partial)
+- Agent: GitHub Copilot, branch `ai-development`.
+- Added Scores/Classes tabs to `frontend/assets/js/teacher/screens/examResults.js`. Classes aggregate merged class names, student counts, average score, passed count, and not-final count from the existing results overview payload. Added matching styles in `frontend/assets/css/results.css` and browser assertions in `frontend/tests/results_e2e.py`.
+- Verification: `deno check frontend/assets/js/teacher/screens/examResults.js` and `python frontend/tests/results_e2e.py` passed, including no page errors.
+- Remaining: Questions statistics and XLSX/PDF exports.
+
 ## 2026-09-24 — Results CSV export (TASK-012 remainder, partial)
 - Agent: GitHub Copilot, branch `ai-development`.
 - Added an `Export CSV` action to `frontend/assets/js/teacher/screens/examResults.js`. It exports the already-loaded results rows, includes a UTF-8 BOM for spreadsheet compatibility, escapes CSV quotes/commas/newlines, and uses a sanitized exam-title filename.

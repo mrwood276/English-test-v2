@@ -126,7 +126,7 @@ with sync_playwright() as pw:
     # ---------- one exam's results (mockup 14) ----------
     row.query_selector("a:has-text('Results')").click()
     page.wait_for_selector(".strip")
-    page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 3")
+    page.wait_for_function("document.querySelectorAll('.list-card:not(.results-stats) .qtable tbody tr').length === 3")
     check("the results screen names the exam", "Narrative Text" in page.inner_text("h1"))
     check("the summary strip is there", "average" in page.inner_text(".strip") and "highest" in page.inner_text(".strip"))
     check("the passing grade is repeated", "Passing grade 70" in page.inner_text(".strip"), page.inner_text(".strip"))
@@ -136,6 +136,14 @@ with sync_playwright() as pw:
     check("right and wrong are counted", "2 / 1" in qtable_text(page) or "1 / 2" in qtable_text(page), qtable_text(page))
     check("page leaves are shown", "2" in qtable_text(page))
     check("every row has a way into its details", len(page.query_selector_all(".qtable a:has-text('Details')")) == 3)
+
+    page.click(".results-tab:has-text('Classes')")
+    page.wait_for_function("document.querySelector('.results-stats:not([hidden])') !== null")
+    classes_text = page.inner_text(".results-stats")
+    check("the Classes tab opens", "Classes" in page.inner_text(".results-tabs") and "Class XII TKJ A" in classes_text)
+    check("class statistics show average and passed count", "Average" in classes_text and "Passed" in classes_text and "2" in classes_text)
+    page.click(".results-tab:has-text('Scores')")
+    page.wait_for_function("document.querySelector('.list-card:not([hidden]) .qtable') !== null")
 
     # ---------- one attempt in detail ----------
     page.query_selector(f"tr[data-session='{sid_c}'] a:has-text('Details')").click()
