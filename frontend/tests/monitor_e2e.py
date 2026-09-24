@@ -113,6 +113,30 @@ with sync_playwright() as pw:
     check("full report link is present",
           page.query_selector(f"a[href='#/results/{EXAM_ID}/session/{sid_b}']") is not None)
 
+    # ---------- the exam-wide action: more time for everyone still working ----------
+    page.goto(BASE + f"#/monitor/{EXAM_ID}")
+    page.wait_for_selector("[data-add-all]")
+    check("the board offers time for the whole exam", page.query_selector("#monitor-add-all") is not None)
+    page.select_option("#monitor-add-all", "5")
+    page.click("[data-add-all]")
+    page.wait_for_selector(".dialog")
+    check("giving everyone time asks first",
+          "Add time to everyone" in page.inner_text(".dialog"), page.inner_text(".dialog"))
+    page.click(".dialog button:has-text('Add time')")
+    page.wait_for_function("[...document.querySelectorAll('.toast')].some(t => t.textContent.includes('Time added for 2'))")
+    check("the whole-exam action reached the backend",
+          any(c.get("action") == "add_exam_time" and c.get("minutes") == 5 for c in srv.result_calls),
+          str(srv.result_calls[-3:]))
+    # Bima already had five minutes of his own earlier in this suite, so he now holds ten; Citra's five
+    # are her first, which is what makes this an exam-wide action rather than a second single one.
+    check("every working student got the five minutes",
+          srv.sessions[sid_b].get("extra_seconds") == 600 and srv.sessions[sid_c].get("extra_seconds") == 300,
+          str((srv.sessions[sid_b].get("extra_seconds"), srv.sessions[sid_c].get("extra_seconds"))))
+    check("the finished attempt was not touched", srv.sessions[sid_a].get("extra_seconds") in (None, 0),
+          str(srv.sessions[sid_a].get("extra_seconds")))
+    page.wait_for_selector(f"tr[data-session='{sid_b}']")
+    check("the table still reads after the action", "Bima Saputra" in page.inner_text(".qtable"))
+
     # ---------- empty hub when nobody is working ----------
     page.goto(BASE + "#/monitor")
     # Force no in-progress by grading/submitting remaining — simpler: wipe sessions
@@ -124,6 +148,13 @@ with sync_playwright() as pw:
     check("empty hub explains itself",
           "No exam has students working" in page.inner_text(".main"),
           page.inner_text(".main")[:200])
+
+    # with nobody working, the exam-wide control says so instead of failing on click
+    page.goto(BASE + f"#/monitor/{EXAM_ID}")
+    page.wait_for_selector("[data-add-all]")
+    check("the exam-wide control is disabled when nobody is working",
+          page.query_selector("[data-add-all]").is_disabled(),
+          "button still enabled with no running attempts")
 
     check("no page errors", errors == [], "; ".join(errors[:3]))
     browser.close()

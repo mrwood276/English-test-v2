@@ -4,19 +4,19 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-23 (Cursor / Composer — TASK-013 live monitor completed) |
-| Last AI agent | Cursor / Composer (Reviewer + developer). |
-| Development phase | Phase 5 core (live monitor) done on top of Phase 4. |
-| Current focus | **TASK-013 complete (TESTED).** Monitor hub + per-exam live table + session timeline; `monitor_e2e.py` 23/23; CI ninth suite. Apply `20260925000000_monitor_overview_fields.sql` live for progress bars. Release to `main` still **not** done (owner/gate deliberate). |
+| Last updated | 2026-09-24 (Buffy / Freebuff — exam-wide add time, monitor payload drift fix, TASK-022 live browser run) |
+| Last AI agent | Buffy (Freebuff desktop agent, eleventh session; kept the tenth session's monitor implementation and added on top of it after the owner chose between the two — see `08_HANDOFF.md` collision note). |
+| Development phase | Phase 5 (anti-cheating events and the live monitor) **FULLY LIVE-VERIFIED** on top of Phase 4. |
+| Current focus | **TASK-013 and TASK-022 complete.** Monitor hub + per-exam live table + session timeline (`monitor_e2e.py` 30/30, CI ninth suite), plus the **exam-wide Add time to everyone** action and the monitor-payload drift fix (ISSUE-021). Live evidence: `live_monitor_check.py` 38/38 (payload) and `live_browser_check.py` 20/20 (real browser against a real running exam). Release to `main` still **not** done (owner/gate deliberate; three owner-only items left). |
 | Branch model | `main` = stable. `ai-development` = shared AI development. |
-| Current branch / commit | **`ai-development`** (TASK-013 commit pending). |
+| Current branch / commit | **`ai-development`** — eleventh-session commit on top of `bf43ea6`. |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
 
 ## What was inspected to write `.ai/`
 
 - All files of the repository copy (65 tracked files before `.ai/`), including code, tests, docs, workflow.
 - The **live Supabase project**: migrations list, Edge Function list and versions, tables and RLS state, policies count, functions count, storage buckets, row counts, extensions.
-- Test runs (2026-09-24, from this clone): backend `deno test` = **104 passed**, 0 failed; import parser unit tests = 21 passed; Playwright suites (mocked network) all green — **eight** of them: `teacher_e2e`, `question_bank_e2e`, `question_editor_e2e`, `media_e2e`, `question_import_e2e`, `exams_e2e`, `student_e2e`, `results_e2e` (59 checks); both rolled-back SQL tests pass (`session_functions_test.sql`, `result_functions_test.sql`).
+- Test runs (2026-09-24, eleventh session, from this clone): backend `deno test` = **106 passed**, 0 failed; import parser unit tests = 21 passed; Playwright suites (mocked network) all green — **nine** of them: `teacher_e2e`, `question_bank_e2e`, `question_editor_e2e`, `media_e2e`, `question_import_e2e`, `exams_e2e`, `student_e2e`, `results_e2e` (59 checks), `monitor_e2e` (30 checks).
 - No TODO/FIXME comments exist in the code (scan returned nothing).
 
 ## Live system facts (verified 2026-09-21)
@@ -26,7 +26,8 @@
 | Tables | 22, all RLS on, 0 policies (public and storage schemas) |
 | Public SQL functions | 25 |
 | Migrations applied | `v2_01` .. `v2_12` (12) |
-| Edge Functions (as of 2026-09-24) | `auth-me` v1, `question-bank` v3, `media` v1, **`exams` v3**, `session` v1, **`results` v1**; all ACTIVE, `verify_jwt=false` |
+| Edge Functions (as of 2026-09-24, eleventh session) | `auth-me` v1, `question-bank` v3, `media` v1, `exams` v3, `session` v1, **`results` v4** (grading/reports + the monitor + exam-wide add time); all ACTIVE, `verify_jwt=false` |
+| Public SQL functions | **60** (verified live on 2026-09-24; the eleventh session added `add_exam_time` and dropped the duplicate `list_live_sessions`) |
 | Storage | bucket `question-media`, private, 10 MB limit |
 | Data (2026-09-24) | 40 questions (0 archived), 5 passages, 13 topics, 0 media files, **0 exams, 0 sessions, 0 answers, 0 grades, 0 results, 0 session events, 0 retake permissions, 0 rate-limit rows**, 1 profile (admin), 4 audit rows — every verification row was deleted again |
 | Public SQL functions | **59** (was 47; TASK-012 added 12) |

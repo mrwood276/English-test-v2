@@ -20,6 +20,8 @@ export const results = {
   grade: ({ sessionId, questionId, points, feedback }) =>
     call({ action: "grade", session_id: sessionId, question_id: questionId, points, feedback }).then((r) => r.grade),
   addTime: (sessionId, minutes) => call({ action: "add_time", session_id: sessionId, minutes }).then((r) => r.session),
+  /** BR-11 for a whole exam: more time for every attempt that is still working (the monitor). */
+  addExamTime: (examId, minutes) => call({ action: "add_exam_time", exam_id: examId, minutes }).then((r) => r.added),
   reopen: (sessionId, minutes) => call({ action: "reopen", session_id: sessionId, minutes }).then((r) => r.session),
   grantRetake: (sessionId) => call({ action: "grant_retake", session_id: sessionId }).then((r) => r.retake),
   revokeRetake: (sessionId) => call({ action: "revoke_retake", session_id: sessionId }).then((r) => r.retake),

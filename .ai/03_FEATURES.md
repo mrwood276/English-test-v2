@@ -22,7 +22,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 | F-10 | Export questions to PDF/Word | PLANNED | – | – |
 | F-11 | Student join and exam engine | CORE COMPLETE (join, take, autosave, submit, auto-grade, result) | ACTIVE | LIVE-VERIFIED (2026-09-23, 27 checks through the deployed `session` function); SQL TESTED (rolled-back `session_functions_test.sql`); browser TESTED (`student_e2e.py`, 52 checks) |
 | F-12 | Essay grading, results, statistics, exports | CORE COMPLETE (stats/exports remain) | ACTIVE | LIVE-VERIFIED (core, 2026-09-24); stats/exports UNVERIFIED |
-| F-13 | Anti-cheating events and live monitor | CORE COMPLETE (screens + tests) | ACTIVE | LIVE-VERIFIED (`monitor_e2e.py` + live schema/privilege check, 2026-09-23); real browser run against a live open exam still pending |
+| F-13 | Anti-cheating events and live monitor | COMPLETE (screens + exam-wide add time + tests) | ACTIVE | **FULLY LIVE-VERIFIED (2026-09-24)**: real browser against a real running exam (`live_browser_check.py`, 20/20) + the payload-level check (`live_monitor_check.py`, 38/38); `monitor_e2e.py` 30/30 |
 | F-14 | Audit log viewer, backups, notifications, user management | PLANNED | – | – |
 | F-15 | Design system and approved mockups | COMPLETE | PROTECTED | Owner-approved |
 | F-16 | Legacy v1 app (outside this repo) | DEPRECATED (live, untouched) | – | – |
@@ -127,7 +127,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 - Not built (TASK-012 remainder): the **Questions** and **Classes** tabs (mockup 15 — hardest questions, option distribution, average per class) and the **exports** (Excel/CSV/PDF). Statistics are readable from the stored `exam_results.review_snapshot`, so no schema work is needed; an export needs a small dependency-free writer or an owner decision.
 - Notes: a blank essay still needs one click from the teacher (it counts as an answer worth 0), which is deliberate — the result stays honest about "not graded yet".
 
-## F-13 Anti-cheating and live monitor
+## F-13 Anti-cheating events and the live monitor
 
 - Status: **CORE COMPLETE and LIVE-VERIFIED (2026-09-23)**. Protection: ACTIVE (extend rather than rebuild).
 - What exists: `#/monitor` (exams with students working), `#/monitor/:examId` (mockup 12 table: progress, time left, page leaves, Saved / Left the page / Offline / Need a look), `#/monitor/:examId/session/:sessionId` (event history + add time while they work); menu item; auto-refresh 30s / 15s; `liveStatusPill` / shared event labels in `resultBits.js`.

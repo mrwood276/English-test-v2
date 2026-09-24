@@ -71,6 +71,11 @@
 .monitor-layout .card { max-width: none; }
 .monitor-events { max-height: 420px; }
 
+/* the exam-wide "add time to everyone" control in the monitor head */
+.add-all { align-items: center; gap: 8px; }
+.add-all .chip-select { max-width: 150px; min-height: 34px; }
+.add-all .btn:disabled, .add-all .chip-select:disabled { opacity: .55; }
+
 .review-head { justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
 .review-head h2 { font-size: 16px; }
 .review-list { display: flex; flex-direction: column; gap: 12px; }

@@ -600,6 +600,24 @@ class Server:
             return ok({"session": {"status": s["status"], "extra_seconds": s["extra_seconds"],
                                    "ends_at": iso(s["ends_at"]),
                                    "remaining_seconds": max(0, int(s["ends_at"] - time.time()))}})
+        if a == "add_exam_time":
+            # Mirrors public.add_exam_time: every attempt still running gets the seconds, the finished
+            # ones are untouched, and it refuses a step outside 1 minute .. 2 hours or nobody working.
+            exam = exam_or_err()
+            if not exam: return
+            seconds = int(body.get("minutes", 0)) * 60
+            if seconds < 60 or seconds > 7200:
+                return err(400, "Time can be added in steps between 1 minute and 2 hours.")
+            working = [x for x in self.sessions.values()
+                       if x["exam"] == exam["code"] and x["status"] in ("in_progress", "reopened")]
+            if not working:
+                return err(400, "Nobody is taking this test right now, so there is no one to give time to.")
+            for x in working:
+                x["ends_at"] += seconds
+                x["extra_seconds"] = x.get("extra_seconds", 0) + seconds
+                x["last_heartbeat_at"] = time.time()
+            return ok({"added": {"updated": len(working), "added_seconds": seconds,
+                                 "remaining_seconds": max(0, int(max(x["ends_at"] for x in working) - time.time()))}})
         if a in ("grant_retake", "revoke_retake"):
             s = self.sessions.get(body.get("session_id"))
             if not s: return err(400, "That test session was not found.")

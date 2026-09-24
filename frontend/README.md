@@ -28,17 +28,20 @@ assets/css/base.css             buttons, fields, notices, pills
 assets/css/teacher.css          sign in and app shell
 assets/css/questions.css        question bank list, preview, dialog, toast
 assets/css/student.css          the student screens (join, exam, result) for phones first
-assets/css/results.css          grading, per-exam results and the attempt report
+assets/css/results.css          grading, per-exam results, the attempt report and the live monitor
 assets/js/core/                 config, http (timeouts, friendly errors), auth (Supabase Auth), api (Edge Functions)
 assets/js/shared/               dom (element builder), rich (safe rich text), icons, ui (toast, confirm dialog, debounce), imageCompress
 assets/js/teacher/app.js        boot and session handling
 assets/js/teacher/router.js     small hash router (#/dashboard, #/questions, #/questions/new, #/questions/edit/<id>, #/questions/import,
-                                #/exams, #/exams/new, #/exams/edit/<id>, #/grading, #/grading/<exam id>, #/results,
+                                #/exams, #/exams/new, #/exams/edit/<id>, #/monitor, #/monitor/<exam id>,
+                                #/monitor/<exam id>/session/<session id>, #/grading, #/grading/<exam id>, #/results,
                                 #/results/<exam id>, #/results/<exam id>/session/<session id>)
 assets/js/teacher/api/          one file per Edge Function (questionBank.js, media.js, exams.js, results.js)
 assets/js/teacher/import/       readers that turn files or pasted text into questions (csv, xlsx, zip, text, rows, rules)
 assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionEditor, questionImport, exams,
-                                examEditor, grading, gradingQuestion, examResults, sessionReport
+                                examEditor, examMonitor (the live board, with exam-wide add time),
+                                sessionTimeline (one attempt while it runs), grading, gradingQuestion,
+                                examResults, sessionReport
 assets/js/teacher/components/   questionView, richTextarea, chipsInput, passageDialog, mediaPicker,
                                 resultBits (status pills, score, formatting), reviewItem (one answer in a report)
 assets/js/teacher/guard.js      unsaved-changes guard used by the editor and the import screen
@@ -49,8 +52,12 @@ assets/js/student/screens/      join, exam, result
 assets/js/student/components/   question (one question rendered for answering)
 tests/                          browser tests with a mocked server (mock_server.py, teacher_e2e.py, question_bank_e2e.py,
                                 question_editor_e2e.py, media_e2e.py, question_import_e2e.py, exams_e2e.py, student_e2e.py,
-                                results_e2e.py, monitor_e2e.py) and Deno unit tests (tests/unit/). live_results_check.py talks to the
-                                real backend by hand (owner's account, credentials from the environment)
+                                results_e2e.py, monitor_e2e.py) and Deno unit tests (tests/unit/). Three one-off
+                                scripts talk to the real backend by hand (owner's account, password from the
+                                environment): live_results_check.py (the grading loop),
+                                live_monitor_check.py (the monitor payload + exam-wide add time;
+                                cleanup_live_monitor.sql removes what it created) and live_browser_check.py
+                                (the same check driven through the real screens in Chromium)
 ```
 
 ## Notes

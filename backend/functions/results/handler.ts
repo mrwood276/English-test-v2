@@ -16,6 +16,7 @@ const ACTIONS = [
   "queue",             // one essay question against every student who took it
   "grade",             // grade one answer by hand (BR-07, BR-18)
   "add_time",          // BR-11: more time while the test runs
+  "add_exam_time",     // BR-11 at exam scope: more time for everyone still working
   "reopen",            // BR-11: let a collected student continue
   "grant_retake",      // BR-02: the teacher allows one more attempt
   "revoke_retake",     // take an unused permission back
@@ -81,6 +82,15 @@ export function createHandler(getDb: () => Db) {
         return {
           session: await callRpc(db, "add_session_time", {
             p_session_id: asUuid(b.session_id, "Session"),
+            p_seconds: asSeconds(b.minutes, "Minutes"),
+            p_actor: me.userId,
+          }),
+        };
+
+      case "add_exam_time":
+        return {
+          added: await callRpc(db, "add_exam_time", {
+            p_exam_id: asUuid(b.exam_id, "Exam"),
             p_seconds: asSeconds(b.minutes, "Minutes"),
             p_actor: me.userId,
           }),

@@ -139,6 +139,28 @@ Deno.test("add_time refuses a window the database would reject anyway", async ()
   assert.equal(calls.length, 0);
 });
 
+Deno.test("add_exam_time gives the whole exam time in one call", async () => {
+  const { db, calls } = fakeDb(() => ({ data: { updated: 3, added_seconds: 300 } }));
+  const h = createHandler(() => db);
+  const res = await h(post({ action: "add_exam_time", exam_id: EXAM, minutes: 5 }));
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { added: { updated: 3, added_seconds: 300 } });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].name, "add_exam_time");
+  assert.equal(calls[0].args.p_exam_id, EXAM);
+  assert.equal(calls[0].args.p_seconds, 300);
+  assert.equal(calls[0].args.p_actor, TEACHER);
+});
+
+Deno.test("add_exam_time takes the same window as one session's time", async () => {
+  const { db, calls } = fakeDb();
+  const h = createHandler(() => db);
+  assert.equal((await h(post({ action: "add_exam_time", exam_id: EXAM, minutes: 0 }))).status, 400);
+  assert.equal((await h(post({ action: "add_exam_time", exam_id: EXAM, minutes: 121 }))).status, 400);
+  assert.equal((await h(post({ action: "add_exam_time", minutes: 5 }))).status, 400);
+  assert.equal(calls.length, 0);
+});
+
 Deno.test("retake actions pass the session and the actor", async () => {
   const { db, calls } = fakeDb(() => ({ data: { granted: true } }));
   const h = createHandler(() => db);

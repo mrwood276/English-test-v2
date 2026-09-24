@@ -1,8 +1,9 @@
 import { h, mount } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
+import { toast, confirmDialog } from "../../shared/ui.js";
 import { results } from "../api/results.js";
 import { SessionExpiredError } from "../../core/auth.js";
-import { fmtDuration, liveStatusPill } from "../components/resultBits.js";
+import { fmtDuration, liveStatusPill, minutesSelect } from "../components/resultBits.js";
 
 const errorText = (err) => err.message || "Something went wrong. Please try again.";
 const ignorable = (err) => err instanceof SessionExpiredError;
@@ -85,6 +86,11 @@ function renderExamSessions(container, examId) {
   const title = h("h1", {}, "Monitor");
   const subtitle = h("p", { class: "sub" }, "Loading…");
   const actions = h("div", { class: "head-actions" });
+  // Built once and re-appended on every load, so the minutes a teacher picked survive the refresh.
+  // The exam-wide twin of BR-11: a class that started late gets five more minutes in one action.
+  const addAllMinutes = minutesSelect({ id: "monitor-add-all", value: 5 });
+  const addAllBtn = h("button", { class: "btn small", type: "button", "data-add-all": "" }, "Add time to everyone");
+  const addAll = h("div", { class: "row add-all" }, addAllMinutes, addAllBtn);
   const strip = h("div", { class: "strip" });
   const tbody = h("tbody");
   const status = h("div", { class: "list-status", role: "status" });
@@ -155,7 +161,15 @@ function renderExamSessions(container, examId) {
       subtitle.textContent = `Code ${exam.access_code}${exam.ends_at ? ` · closes ${new Date(exam.ends_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}`;
       actions.replaceChildren(
         h("a", { class: "btn ghost", href: `#/results/${examId}` }, icon("chart"), "Results"),
-        h("a", { class: "btn ghost", href: `#/exams/edit/${examId}` }, icon("doc"), "Open the exam"));
+        h("a", { class: "btn ghost", href: `#/exams/edit/${examId}` }, icon("doc"), "Open the exam"),
+        addAll);
+      // Nobody working means nothing to give time to; the button says why instead of failing.
+      const working = summary.in_progress || 0;
+      addAllBtn.disabled = working === 0;
+      addAllMinutes.disabled = working === 0;
+      addAll.title = working === 0
+        ? "Nobody is working on this test right now."
+        : `Every student still working gets ${addAllMinutes.value} more minutes.`;
       strip.replaceChildren(
         h("span", {}, h("b", {}, String(summary.in_progress || 0)), " working"),
         h("span", {}, h("b", {}, String(summary.with_result || 0)), " submitted"),
@@ -178,6 +192,23 @@ function renderExamSessions(container, examId) {
       status.replaceChildren(h("p", { class: "sub" }, errorText(err)));
     }
   }
+
+  addAllBtn.addEventListener("click", async () => {
+    const minutes = Number(addAllMinutes.value);
+    const ok = await confirmDialog({
+      title: "Add time to everyone still working?",
+      message: `${minutes} more minutes for every student still on this test. Students who already sent theirs in are not touched.`,
+      confirmLabel: "Add time",
+    });
+    if (!ok) return;
+    addAllBtn.disabled = true;
+    try {
+      const res = await results.addExamTime(examId, minutes);
+      toast(`Time added for ${res.updated} ${res.updated === 1 ? "student" : "students"}.`);
+      await load();
+    } catch (err) { if (!ignorable(err)) toast(errorText(err), "bad"); }
+    finally { addAllBtn.disabled = false; }
+  });
 
   return startRefresh(container, state, load, 15_000);
 }
