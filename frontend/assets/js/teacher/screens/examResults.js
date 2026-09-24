@@ -7,6 +7,31 @@ import { fmtDuration, fmtScore, statusPill, summaryStrip } from "../components/r
 const errorText = (err) => err.message || "Something went wrong. Please try again.";
 const ignorable = (err) => err instanceof SessionExpiredError;
 
+function csvCell(value) {
+  const text = value === null || value === undefined ? "" : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function downloadCsv(exam, rows) {
+  const columns = ["Name", "Class", "Attempt", "Score", "Right", "Wrong", "Time used (seconds)", "Page leaves", "Status"];
+  const lines = [columns, ...rows.map((r) => [
+    r.student_name,
+    r.class_display || r.student_class,
+    r.attempt_no,
+    r.has_result ? r.percentage : "",
+    r.has_result ? r.correct_count : "",
+    r.has_result ? r.wrong_count : "",
+    r.has_result ? r.time_used_seconds : "",
+    r.tab_switch_count,
+    r.has_result ? (r.pass_status || r.result_status) : r.status,
+  ])].map((line) => line.map(csvCell).join(","));
+  const blob = new Blob([`\uFEFF${lines.join("\r\n")}\r\n`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = h("a", { href: url, download: `${(exam.title || "results").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "results"}.csv" });
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 /** The results of one exam (mockup 14): summary line, then one row per student who joined. */
 export function renderExamResults(container, ctx, { examId }) {
   const state = { overview: null, requestId: 0 };
@@ -75,6 +100,8 @@ export function renderExamResults(container, ctx, { examId }) {
       strip.replaceChildren(...summaryStrip(summary, exam.passing_grade).children);
 
       actions.replaceChildren();
+      actions.append(h("button", { class: "btn ghost", type: "button", "data-export-csv": "true" }, icon("sheet"), "Export CSV"));
+      actions.querySelector("[data-export-csv]").addEventListener("click", () => downloadCsv(exam, overview.rows));
       if (summary.pending_essays > 0) {
         actions.append(h("a", { class: "btn", href: `#/grading/${examId}` }, icon("pencil"), `Grade ${summary.pending_essays} ${summary.pending_essays === 1 ? "essay" : "essays"}`));
       }

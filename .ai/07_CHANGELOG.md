@@ -1,5 +1,11 @@
 # 07 CHANGELOG
 
+## 2026-09-24 — Results CSV export (TASK-012 remainder, partial)
+- Agent: GitHub Copilot, branch `ai-development`.
+- Added an `Export CSV` action to `frontend/assets/js/teacher/screens/examResults.js`. It exports the already-loaded results rows, includes a UTF-8 BOM for spreadsheet compatibility, escapes CSV quotes/commas/newlines, and uses a sanitized exam-title filename.
+- Verification: `python frontend/tests/results_e2e.py` passed all checks with no page errors; `python -m py_compile frontend/tests/results_e2e.py` and `git diff --check` passed.
+- Remaining: Questions/Classes statistics and XLSX/PDF exports.
+
 Newest first. Entries below the "Established" entry were reconstructed from git history and the live migration list only; nothing else is claimed.
 Add a new entry for every meaningful change (what, files, database changes, verification).
 
