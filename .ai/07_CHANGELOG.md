@@ -1,6 +1,6 @@
 # 07 CHANGELOG
 
-## 2026-09-24 — Excel export on the results screen, and the Questions tab made honest — git `ai-development` (see git log)
+## 2026-09-24 — Excel export on the results screen, and the Questions tab made honest — git `ai-development` (`a046a11`; both CI workflows green on it)
 - Agent: Buffy (Freebuff desktop agent, twelfth session). Branch: `ai-development`. **No database change, nothing deployed.**
 - **Read the remote before building** (the lesson from the last collision): `origin/ai-development` had moved five commits past this clone — a GitHub Copilot session had already shipped the CSV export and the Classes/Questions tabs. So this session did not rebuild them. It **verified** them first (backend 106, unit 21, and all nine browser suites green at `46dafac`), **fixed two real defects in the new Questions tab**, then built the export the mockup shows beside CSV.
 - **Excel export (mockup 14: Excel / CSV / PDF on the right of the results screen)**: new `frontend/assets/js/teacher/export/`.
