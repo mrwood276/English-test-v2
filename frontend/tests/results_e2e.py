@@ -1,7 +1,7 @@
 """Browser test of the teacher grading and results screens with a mocked server (TASK-012).
 Run: python3 frontend/tests/results_e2e.py  (expects dev-server on 8123, like the other suites)
 """
-import sys, time
+import pathlib, re, sys, time, zipfile
 
 sys.path.insert(0, "frontend/tests")
 from playwright.sync_api import sync_playwright
@@ -147,8 +147,58 @@ with sync_playwright() as pw:
     questions_text = page.inner_text(".results-stats:not([hidden])")
     check("the Questions tab opens", "Accuracy" in questions_text and "Most chosen" in questions_text)
     check("question statistics show accuracy", "%" in questions_text and "Bold" in questions_text)
+    q_rows = page.eval_on_selector_all(".results-stats:not([hidden]) tbody tr",
+                                       "rows => rows.map(r => [...r.cells].map(c => c.textContent))")
+    stats_by_type = {r[1]: r for r in q_rows}
+    check("every question of the exam is listed", len(q_rows) == 4, str(q_rows))
+    check("the essays are counted as answered", stats_by_type.get("essay", [])[2] == "2", str(stats_by_type.get("essay")))
+    check("a written answer is not offered as a most-chosen one",
+          stats_by_type.get("essay", ["", "", "", "", ""])[4] == "—", str(stats_by_type.get("essay")))
+    check("the most chosen option keeps the capitals the teacher typed",
+          stats_by_type.get("multiple_choice", ["", "", "", "", ""])[4] == f"{right_mc[:40]}{'…' if len(right_mc) > 40 else ''} (2)",
+          f"{stats_by_type.get('multiple_choice')} for {right_mc!r}")
     page.click(".results-tab:has-text('Scores')")
     page.wait_for_function("document.querySelector('.list-card:not([hidden]) .qtable') !== null")
+
+    # ---------- the exports (mockup 14 puts Excel and CSV on the right of the results screen) ----------
+    with page.expect_download() as wanted:
+        page.click("button[data-export-xlsx]")
+    download = wanted.value
+    export_name = re.sub(r"[^a-z0-9]+", "-", exam["title"], flags=re.I).strip("-")
+    check("the Excel export is named after the exam", download.suggested_filename == f"{export_name}.xlsx",
+          download.suggested_filename)
+    with zipfile.ZipFile(download.path()) as package:
+        check("the Excel export is a sound zip archive (every CRC checks out)", package.testzip() is None)
+        names = package.namelist()
+        check("the package holds the parts Excel looks for",
+              {"[Content_Types].xml", "_rels/.rels", "xl/workbook.xml", "xl/_rels/workbook.xml.rels"}.issubset(set(names))
+              and "xl/worksheets/sheet1.xml" in names, str(names))
+        sheet = package.read("xl/worksheets/sheet1.xml").decode("utf-8")
+    rows_xml = re.findall(r"<row [^>]*>(.*?)</row>", sheet)
+
+    def row_of(name):
+        return next((body for body in rows_xml if f">{name}<" in body), "")
+
+    check("the sheet starts with the column names", "Score" in rows_xml[0] and "Page leaves" in rows_xml[0], rows_xml[0])
+    check("every student is in the sheet", all(row_of(n) for n in ("Aisyah Putri", "Bima Saputra", "Citra Lestari")))
+    check("a finished student's score is a number a spreadsheet can add up",
+          re.search(r'<c r="D\d+"><v>\d+(\.\d+)?</v></c>', row_of("Aisyah Putri")) is not None, row_of("Aisyah Putri"))
+    check("an attempt still running has no score at all", 'r="D' not in row_of("Bima Saputra"), row_of("Bima Saputra"))
+
+    with page.expect_download() as wanted:
+        page.click("button[data-export-csv]")
+    download = wanted.value
+    check("the CSV export is named after the exam", download.suggested_filename == f"{export_name}.csv",
+          download.suggested_filename)
+    csv_export = pathlib.Path(download.path()).read_text(encoding="utf-8-sig")
+    csv_lines = [line for line in csv_export.splitlines() if line.strip()]
+    check("the CSV export has a header and one line per attempt", len(csv_lines) == 4, str(csv_lines))
+    check("the CSV export starts with the column names",
+          csv_lines[0].startswith("Name,Class,Attempt,Score,Right,Wrong"), csv_lines[0])
+    check("the CSV export carries the same numbers",
+          re.search(r"^Aisyah Putri,Class XII TKJ A,1,[\d.]+,(\d+),(\d+),\d+,\d+,(passed|failed|not_final)$", csv_export, re.M) is not None, csv_export)
+    check("an attempt still running has holes in the CSV too",
+          re.search(r"^Bima Saputra,Class XII TKJ A,1,,,,,2,in_progress$", csv_export, re.M) is not None, csv_export)
 
     # ---------- one attempt in detail ----------
     page.query_selector(f"tr[data-session='{sid_c}'] a:has-text('Details')").click()

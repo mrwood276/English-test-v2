@@ -4,10 +4,10 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-24 (GitHub Copilot — completed Questions statistics tab) |
-| Last AI agent | Buffy (Freebuff desktop agent, eleventh session; kept the tenth session's monitor implementation and added on top of it after the owner chose between the two — see `08_HANDOFF.md` collision note). |
+| Last updated | 2026-09-24 (Buffy — Excel export on the results screen, Questions-tab defects fixed) |
+| Last AI agent | Buffy (Freebuff desktop agent, twelfth session: read the remote first, verified the GitHub Copilot session's CSV/statistics work that had landed meanwhile, fixed two real defects in its Questions tab, then built the Excel export). The eleventh session kept the tenth session's monitor implementation and added on top of it — see `08_HANDOFF.md` collision note. |
 | Development phase | Phase 5 (anti-cheating events and the live monitor) **FULLY LIVE-VERIFIED** on top of Phase 4. |
-| Current focus | **TASK-013 and TASK-022 complete.** Monitor hub + per-exam live table + session timeline (`monitor_e2e.py` 30/30), exam-wide add time, and live browser evidence are complete. TASK-012 statistics and CSV export are tested; only XLSX/PDF exports remain. Release to `main` still not done; three owner-only items remain. |
+| Current focus | **TASK-013 and TASK-022 complete.** Monitor hub + per-exam live table + session timeline (`monitor_e2e.py` 30/30), exam-wide add time, and live browser evidence are complete. TASK-012 statistics and the CSV **and Excel** exports are built and tested; only the **PDF class summary** remains, and that needs the owner's decision on its content. Release to `main` still not done; three owner-only items remain. |
 | Branch model | `main` = stable. `ai-development` = shared AI development. |
 | Current branch / commit | **`ai-development`** = `f521ba9` (CSV export follow-up, pushed; prior CI workflows remain green on the parent). The session's first, self-built TASK-013 is parked on a **local** branch `t13-buffy-monitor` (`46b5846`) for reference — never pushed, safe to delete. |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
@@ -62,10 +62,10 @@
 | Area | Repository | Live | Consequence |
 |---|---|---|---|
 | `exams` | full handler + parser + 24 Deno tests; screens list + editor | **v3 live**; SQL applied; flow live-verified | Exam screens work against the real backend |
-| `results` | handler + parser + 18 Deno tests; grading/results screens | **v1 live**; grading loop live-verified (38/38) | No drift |
+| `results` | handler + parser + 20 Deno tests; grading/results screens + the monitor and the exports | **v4 live** (grading, reports, the monitor `overview` and exam-wide add time); grading loop live-verified (38/38) | No drift |
 | `session` | handler + parser + token + 21 Deno tests | **v1 live**; student flow live-verified | No drift |
 | `question-bank` | has actions `import_check`, `import` | **v3 live**; `import_check` answered live | Import works against real backend; left: owner format review + real Excel file (ISSUE-013 caveat) |
-| Monitor UI (F-13) | `examMonitor.js` / `sessionTimeline.js` + routes | uses existing `results` actions | Screens untested (no `monitor_e2e.py`); not live-verified |
+| Monitor UI (F-13) | `examMonitor.js` / `sessionTimeline.js` + routes, `monitor_e2e.py` (30 checks) | reads the `results` function's `overview`/`report` actions (v4 live) | No drift — live-verified in a real browser (TASK-022, 20/20) |
 | SQL migrations | first migration in git: `supabase/migrations/20260922000000_exams_functions.sql` (applied live) | `v2_01`..`v2_12` + the exams functions | ISSUE-001 partially closed; `supabase db pull` can bring the older ones in |
 | Frontend | `APP_BUILD` = "Phase 4, grading and results" | not deployed | The owner runs it locally with `frontend/dev-server.py` |
 
@@ -85,7 +85,7 @@
 
 ## Work in progress
 
-- **TASK-012 grading and results**, on branch `ai-development`: core complete and live-verified (see the summary table and `docs/sql-results.md`). Remaining in this task: the Questions/Classes statistics tabs (mockup 15) and the exports. The **live monitor** is TASK-013; `expire_sessions()` exists but nothing schedules it (TASK-015).
+- **TASK-012 grading and results**, on branch `ai-development`: core complete and live-verified (see the summary table and `docs/sql-results.md`). Remaining in this task: only the **PDF class summary** — the Questions/Classes statistics tabs and the CSV/Excel exports are built and tested (2026-09-24). The **live monitor** is TASK-013; `expire_sessions()` exists but nothing schedules it (TASK-015).
 - **TASK-009 Exams**, on branch `ai-development`: teacher side built, applied live and verified (see `docs/sql-exams.md`).
 - **TASK-006 Import questions**, on branch `ai-development`: browser work complete (parsers, screen, tests, templates). Remaining: step 3 — deploy `question-bank` with the import actions (needs Supabase access, else BLOCKED) and step 4 — show the owner the proposed file formats before calling the feature done for teachers.
 

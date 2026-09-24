@@ -21,6 +21,7 @@ const PATHS = {
   cloud: '<path d="M7 18a4 4 0 010-8 5 5 0 019.5-1A3.6 3.6 0 0117 18z"/><path d="M9.5 13.5l2 2 3.5-4"/>',
   play: '<path d="M8.5 5.5l10 6.5-10 6.5z"/>',
   offline: '<path d="M3 3l18 18"/><path d="M5 12.5a10 10 0 0114 0"/><path d="M8.5 16a5 5 0 018.5 0"/><circle cx="12" cy="19.6" r=".6"/>',
+  download: '<path d="M12 4v11"/><path d="M7.5 11.5l4.5 4.5 4.5-4.5"/><path d="M5 20h14"/>',
 };
 
 export function icon(name, label) {

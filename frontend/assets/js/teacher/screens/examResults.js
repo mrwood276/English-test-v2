@@ -2,34 +2,29 @@ import { h, mount } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
 import { results } from "../api/results.js";
 import { SessionExpiredError } from "../../core/auth.js";
+import { buildXlsx } from "../export/xlsx.js";
+import { COLUMNS, csvText, exportFileName, resultRows } from "../export/resultsTable.js";
 import { fmtDuration, fmtScore, statusPill, summaryStrip } from "../components/resultBits.js";
 
 const errorText = (err) => err.message || "Something went wrong. Please try again.";
 const ignorable = (err) => err instanceof SessionExpiredError;
 
-function csvCell(value) {
-  const text = value === null || value === undefined ? "" : String(value);
-  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+/** Hands a built file to the browser (a download, not a new tab). */
+function saveFile(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = h("a", { href: url, download: fileName });
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function downloadCsv(exam, rows) {
-  const columns = ["Name", "Class", "Attempt", "Score", "Right", "Wrong", "Time used (seconds)", "Page leaves", "Status"];
-  const lines = [columns, ...rows.map((r) => [
-    r.student_name,
-    r.class_display || r.student_class,
-    r.attempt_no,
-    r.has_result ? r.percentage : "",
-    r.has_result ? r.correct_count : "",
-    r.has_result ? r.wrong_count : "",
-    r.has_result ? r.time_used_seconds : "",
-    r.tab_switch_count,
-    r.has_result ? (r.pass_status || r.result_status) : r.status,
-  ])].map((line) => line.map(csvCell).join(","));
-  const blob = new Blob([`\uFEFF${lines.join("\r\n")}\r\n`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = h("a", { href: url, download: `${(exam.title || "results").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "results"}.csv` });
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  saveFile(new Blob([csvText(resultRows(rows))], { type: "text/csv;charset=utf-8" }), exportFileName(exam, "csv"));
+}
+
+function downloadXlsx(exam, rows) {
+  const bytes = buildXlsx(exam.title, [COLUMNS, ...resultRows(rows)]);
+  const type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  saveFile(new Blob([bytes], { type }), exportFileName(exam, "xlsx"));
 }
 
 function classStats(rows) {
@@ -46,6 +41,12 @@ function classStats(rows) {
   return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// A written answer counts as right when the teacher gave it every point (the server leaves is_correct
+// null for essays: they are a judgement, not a key).
+const isCorrect = (item) => item.is_correct === true
+  || (item.type === "essay" && Number(item.points) >= Number(item.max_points));
+
+/** Questions from hardest to easiest, counting only the attempts the reports came from. */
 function questionStats(reports) {
   const groups = new Map();
   for (const report of reports) {
@@ -57,9 +58,12 @@ function questionStats(reports) {
       const chosen = String(item.chosen || "").trim();
       if (chosen) {
         group.answered += 1;
-        if (item.is_correct === true || (item.type === "essay" && Number(item.points) >= Number(item.max_points))) group.correct += 1;
-        const choice = chosen.toLowerCase();
-        group.choices.set(choice, (group.choices.get(choice) || 0) + 1);
+        if (isCorrect(item)) group.correct += 1;
+        // Case-insensitively, but the first spelling seen is the one shown (options keep their capitals).
+        const key = chosen.toLowerCase();
+        const seen = group.choices.get(key) || { text: chosen, count: 0 };
+        seen.count += 1;
+        group.choices.set(key, seen);
       }
       groups.set(item.question_id, group);
     }
@@ -71,9 +75,16 @@ function questionStats(reports) {
   });
 }
 
+const clip = (text, limit = 40) => (text.length > limit ? `${text.slice(0, limit)}…` : text);
+
+/**
+ * What most students picked. Only closed questions have "a" most-chosen answer: an essay's answer is a whole
+ * paragraph, so listing it here would say nothing (its point count is in the accuracy column already).
+ */
 function mostChosen(group) {
-  const choice = [...group.choices.entries()].sort((a, b) => b[1] - a[1])[0];
-  return choice ? `${choice[0]} (${choice[1]})` : "—";
+  if (group.type === "essay") return "—";
+  const best = [...group.choices.values()].sort((a, b) => b.count - a.count)[0];
+  return best ? `${clip(best.text)} (${best.count})` : "—";
 }
 
 /** The results of one exam (mockup 14): summary line, then one row per student who joined. */
@@ -139,25 +150,43 @@ export function renderExamResults(container, ctx, { examId }) {
   questionsTab.addEventListener("click", async () => {
     showTab("questions");
     if (questionsPanel.dataset.loaded) return;
+    const finished = (state.overview?.rows || []).filter((row) => row.has_result);
+    if (finished.length === 0) {
+      questionsPanel.replaceChildren(h("p", { class: "sub" }, "Question statistics appear once students have finished the test."));
+      return;
+    }
     questionsPanel.replaceChildren(h("p", { class: "sub" }, "Loading question statistics…"));
-    try {
-      const reports = await Promise.all((state.overview?.rows || []).filter((row) => row.has_result).map((row) => results.report(row.session_id)));
-      const stats = questionStats(reports);
-      questionsPanel.replaceChildren(
-        h("div", { class: "table-wrap" },
-          h("table", { class: "qtable" },
-            h("thead", {}, h("tr", {}, h("th", {}, "Question"), h("th", {}, "Type"), h("th", {}, "Answered"), h("th", {}, "Accuracy"), h("th", {}, "Most chosen"))),
-            h("tbody", {}, stats.map((group) => h("tr", {},
-              h("td", {}, h("b", {}, `${group.position}. ${String(group.body || "").replace(/<[^>]*>/g, "").slice(0, 80)}`)),
+    // One report per finished attempt (the report is the only place a graded answer is read from). One failing
+    // report must not throw away the other students' numbers.
+    const settled = await Promise.allSettled(finished.map((row) => results.report(row.session_id)));
+    const reports = settled.filter((one) => one.status === "fulfilled").map((one) => one.value);
+    if (reports.length === 0) {
+      const first = settled.find((one) => one.status === "rejected");
+      questionsPanel.replaceChildren(h("p", { class: "sub" }, first ? errorText(first.reason) : "No reports could be loaded."));
+      return;
+    }
+    const attempts = `${reports.length} finished ${reports.length === 1 ? "attempt" : "attempts"}`;
+    const missing = settled.length - reports.length;
+    const note = h("div", { class: "stats-note" }, h("p", { class: "sub" },
+      missing ? `From ${attempts} · ${missing} report${missing === 1 ? "" : "s"} could not be loaded · hardest question first`
+        : `From ${attempts} · hardest question first`));
+
+    questionsPanel.replaceChildren(
+      note,
+      h("div", { class: "table-wrap" },
+        h("table", { class: "qtable" },
+          h("thead", {}, h("tr", {}, h("th", {}, "Question"), h("th", {}, "Type"), h("th", {}, "Answered"), h("th", {}, "Accuracy"), h("th", {}, "Most chosen"))),
+          h("tbody", {}, questionStats(reports).map((group) => {
+            const body = String(group.body || "").replace(/<[^>]*>/g, "");
+            return h("tr", {},
+              h("td", {}, h("b", { title: body }, `${group.position}. ${clip(body, 80)}`)),
               h("td", {}, group.type),
               h("td", {}, String(group.answered)),
               h("td", {}, group.answered ? `${Math.round(group.correct / group.answered * 100)}%` : "—"),
-              h("td", {}, mostChosen(group))))))),
-      );
-      questionsPanel.dataset.loaded = "true";
-    } catch (err) {
-      questionsPanel.replaceChildren(h("p", { class: "sub" }, errorText(err)));
-    }
+              h("td", {}, mostChosen(group)));
+          })))),
+    );
+    questionsPanel.dataset.loaded = "true";
   });
 
   function row(r) {
@@ -193,8 +222,11 @@ export function renderExamResults(container, ctx, { examId }) {
       strip.replaceChildren(...summaryStrip(summary, exam.passing_grade).children);
 
       actions.replaceChildren();
-      actions.append(h("button", { class: "btn ghost", type: "button", "data-export-csv": "true" }, icon("sheet"), "Export CSV"));
-      actions.querySelector("[data-export-csv]").addEventListener("click", () => downloadCsv(exam, overview.rows));
+      const excel = h("button", { class: "btn ghost", type: "button", "data-export-xlsx": "true" }, icon("download"), "Export Excel");
+      excel.addEventListener("click", () => downloadXlsx(exam, overview.rows));
+      const csv = h("button", { class: "btn ghost", type: "button", "data-export-csv": "true" }, icon("sheet"), "Export CSV");
+      csv.addEventListener("click", () => downloadCsv(exam, overview.rows));
+      actions.append(excel, csv);
       if (summary.pending_essays > 0) {
         actions.append(h("a", { class: "btn", href: `#/grading/${examId}` }, icon("pencil"), `Grade ${summary.pending_essays} ${summary.pending_essays === 1 ? "essay" : "essays"}`));
       }

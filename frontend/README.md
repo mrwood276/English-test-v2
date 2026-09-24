@@ -38,6 +38,9 @@ assets/js/teacher/router.js     small hash router (#/dashboard, #/questions, #/q
                                 #/results/<exam id>, #/results/<exam id>/session/<session id>)
 assets/js/teacher/api/          one file per Edge Function (questionBank.js, media.js, exams.js, results.js)
 assets/js/teacher/import/       readers that turn files or pasted text into questions (csv, xlsx, zip, text, rows, rules)
+assets/js/teacher/export/       writers for the results exports, built in the browser with no dependency
+                                (zip.js and xlsx.js; resultsTable.js is the one table the CSV and the Excel file
+                                are both made from, so the two cannot drift apart)
 assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionEditor, questionImport, exams,
                                 examEditor, examMonitor (the live board, with exam-wide add time),
                                 sessionTimeline (one attempt while it runs), grading, gradingQuestion,
@@ -70,7 +73,7 @@ tests/                          browser tests with a mocked server (mock_server.
 ## Running the browser test (optional)
 
 ```
-deno test --allow-env --allow-read --no-check tests/unit/   # import parser unit tests (Deno)
+deno test --allow-env --allow-read --no-check tests/unit/   # import parsers + export writers (Deno)
 pip install playwright && playwright install chromium
 python dev-server.py 8123
 python tests/teacher_e2e.py
@@ -80,6 +83,6 @@ python tests/media_e2e.py   # needs the sample files: python tests/make_fixtures
 python tests/question_import_e2e.py
 python tests/exams_e2e.py
 python tests/student_e2e.py
-python tests/results_e2e.py
+python tests/results_e2e.py  # includes downloading the CSV and the Excel export and opening the .xlsx with Python
 python tests/monitor_e2e.py
 ```

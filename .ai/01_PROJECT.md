@@ -7,7 +7,7 @@
 | Name | English Daily Test v2 (working title "English Testing Platform"; Claude project "APP_V2") |
 | Repository | `mrwood276/English-test-v2` (GitHub, public) |
 | Purpose | A web platform for English **daily tests** (ulangan harian) at one school, grades X, XI, XII, all majors |
-| Development stage | **Phase 5 (anti-cheating events and the live monitor) done.** Foundation, auth, question bank, editor, media, import, exams (teacher side), the student exam engine, essay grading + results and the live monitor are all built — the teacher, exam, import, student, grading and monitor flows are live against the v2 project (the monitor was watched in a real browser while a real exam ran, 2026-09-24). Not finished: the statistics tabs and exports (TASK-012 remainder), dashboard/polish (TASK-014), backups/jobs/notifications (TASK-015) |
+| Development stage | **Phase 5 (anti-cheating events and the live monitor) done.** Foundation, auth, question bank, editor, media, import, exams (teacher side), the student exam engine, essay grading + results and the live monitor are all built — the teacher, exam, import, student, grading and monitor flows are live against the v2 project (the monitor was watched in a real browser while a real exam ran, 2026-09-24). Not finished: the PDF class summary (the last piece of TASK-012), dashboard/polish (TASK-014), backups/jobs/notifications (TASK-015) |
 | Deployment | v2 is **not deployed anywhere yet**; it runs locally against the live Supabase project. Hosting for the frontend is UNKNOWN (not chosen). The older v1 app is live on a separate static host + separate Supabase project and is **outside this repository** |
 
 ## Problem being solved
