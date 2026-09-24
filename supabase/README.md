@@ -3,7 +3,7 @@
 Project: **English_Test_v2** (region ap-southeast-1, Singapore), reference `lbhnadqmokloyfarrzfv`.
 
 - The database schema is stored in the project as migrations `v2_01` to `v2_15`, and (as of 2026-09-24) also in `supabase/migrations/` in this repository — see below.
-- Edge Functions live in `../backend/functions` (`auth-me`, `question-bank`, `media`, `exams`, `session`, `results`). All six are deployed live.
+- Edge Functions live in `../backend/functions` (`auth-me`, `question-bank`, `media`, `exams`, `session`, `results`, `audit`). The first six are deployed live; `audit` (the admin's audit-log viewer, TASK-015) is in git pending its first deploy.
 
 To keep the SQL of the migrations in this repository, run this once on your computer with the Supabase CLI:
 

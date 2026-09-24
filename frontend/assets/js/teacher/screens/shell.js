@@ -15,6 +15,9 @@ const NAV = [
   { route: "#/monitor", label: "Monitor", icon: "grid" },
 ];
 
+// The audit log is an admin job (design.md 1.2), so admins see one more menu item.
+const ADMIN_NAV = [...NAV, { route: "#/audit", label: "Audit log", icon: "clock" }];
+
 /** The signed-in shell. The menu matches the approved mockups. */
 export function renderShell(root, ctx) {
   const { user } = ctx;
@@ -35,7 +38,7 @@ export function renderShell(root, ctx) {
   const nav = h(
     "nav",
     { class: "nav", "aria-label": "Main" },
-    NAV.map((item) =>
+    (user.role === "admin" ? ADMIN_NAV : NAV).map((item) =>
       item.route
         ? h("a", { href: item.route, "data-route": item.route }, icon(item.icon), item.label, item.badge ? badge : null)
         : h("span", { class: "item", "aria-disabled": "true", title: "Coming in a later phase" }, icon(item.icon), item.label, h("span", { class: "soon pill" }, "Soon")),

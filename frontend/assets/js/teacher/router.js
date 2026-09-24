@@ -10,6 +10,7 @@ import { renderExamResults } from "./screens/examResults.js";
 import { renderSessionReport } from "./screens/sessionReport.js";
 import { renderExamMonitor } from "./screens/examMonitor.js";
 import { renderSessionTimeline } from "./screens/sessionTimeline.js";
+import { renderAuditLog } from "./screens/auditLog.js";
 import { getLeaveGuard, clearLeaveGuard } from "./guard.js";
 
 const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
@@ -31,6 +32,7 @@ const ROUTES = [
   { pattern: /^#\/monitor$/, nav: "#/monitor", title: "Monitor", render: (c, ctx) => renderExamMonitor(c, ctx) },
   { pattern: new RegExp(`^#/monitor/(${UUID})$`), nav: "#/monitor", title: "Monitor", render: (c, ctx, m) => renderExamMonitor(c, ctx, { examId: m[1].toLowerCase() }) },
   { pattern: new RegExp(`^#/monitor/(${UUID})/session/(${UUID})$`), nav: "#/monitor", title: "Session", render: (c, ctx, m) => renderSessionTimeline(c, ctx, { examId: m[1].toLowerCase(), sessionId: m[2].toLowerCase() }) },
+  { pattern: /^#\/audit$/, nav: "#/audit", title: "Audit log", render: (c, ctx) => renderAuditLog(c, ctx) },
 ];
 const DEFAULT_HASH = "#/dashboard";
 

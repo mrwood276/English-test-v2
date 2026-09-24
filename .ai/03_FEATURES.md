@@ -23,7 +23,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 | F-11 | Student join and exam engine | CORE COMPLETE (join, take, autosave, submit, auto-grade, result) | ACTIVE | LIVE-VERIFIED (2026-09-23, 27 checks through the deployed `session` function); SQL TESTED (rolled-back `session_functions_test.sql`); browser TESTED (`student_e2e.py`, 52 checks) |
 | F-12 | Essay grading, results, statistics, exports | COMPLETE except the PDF class summary | ACTIVE | LIVE-VERIFIED (core, 2026-09-24); statistics and the CSV/Excel exports TESTED (browser, 2026-09-24) |
 | F-13 | Anti-cheating events and live monitor | COMPLETE (screens + exam-wide add time + tests) | ACTIVE | **FULLY LIVE-VERIFIED (2026-09-24)**: real browser against a real running exam (`live_browser_check.py`, 20/20) + the payload-level check (`live_monitor_check.py`, 38/38); `monitor_e2e.py` 30/30 |
-| F-14 | Audit log viewer, backups, notifications, user management | PLANNED | – | – |
+| F-14 | Audit log viewer (built), backups, notifications, user management | **PARTIAL — viewer COMPLETE, not yet live** | ACTIVE | Viewer TESTED (SQL + Deno + browser); live apply/deploy pending |
 | F-15 | Design system and approved mockups | COMPLETE | PROTECTED | Owner-approved |
 | F-16 | Legacy v1 app (outside this repo) | DEPRECATED (live, untouched) | – | – |
 
@@ -137,9 +137,14 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 - Tests: `frontend/tests/monitor_e2e.py` (23 checks); CI runs it as the ninth browser suite. Mock server returns the new overview fields.
 - Not built: mass "add time to everyone", one real browser run against a live open exam, scheduled `expire_sessions` (TASK-015).
 
-## F-14 Audit log viewer, backups, notifications, user management — PLANNED
+## F-14 Audit log viewer (built), backups, notifications, user management
 
-Audit entries are already **written** (table `audit_logs`) by all SQL write functions; no viewer exists. Notifications: dashboard + email (DEC-017), email provider not chosen.
+- Status: **viewer COMPLETE in git (2026-09-29), NOT yet live**. Protection: ACTIVE.
+- The audit-log **viewer** (first TASK-015 slice): an admin-only menu item ("Audit log", `#/audit`) and table — When / Who / Action / Entity / Details — newest first, 25 per page, with an action filter, an entity-type filter, a time-window select (All time / 7 / 30 / 90 days) and Clear. `Who` resolves the actor's name from `profiles` and says "System" for a row without an actor. Read-only; the screen only ever calls `list`.
+- Files: `frontend/assets/js/teacher/screens/auditLog.js`, `api/audit.js`, route + admin menu in `router.js` / `shell.js`; Edge Function `backend/functions/audit/` (action `list`; the **only** staff endpoint restricted to `["admin"]` — design.md 1.2: teachers cannot manage the system's audit log); SQL `list_audit_logs` in `supabase/migrations/20260929000000_audit_functions.sql` (security definer, execute revoked from public/anon/authenticated like everything else; contract: `docs/sql-audit.md`).
+- Tests: `backend/tests/audit.test.ts` (8), `frontend/tests/audit_e2e.py` (25 checks), `supabase/tests/audit_functions_test.sql` (rolled-back live assertions — **run it after applying the migration live**). All green locally 2026-09-29.
+- **Pending (needs a live connection — see `08_HANDOFF.md`):** apply the migration (`npx supabase db query --linked --file supabase/migrations/20260929000000_audit_functions.sql`), run the SQL test, `python backend/sync_functions.py` + `npx supabase functions deploy audit --no-verify-jwt --use-api`, then flip the statuses here to LIVE-VERIFIED.
+- Not started (rest of TASK-015): backups (manual + scheduled), notifications (dashboard + email — needs the owner to choose a provider, DEC-017), scheduled purge jobs (`expire_sessions`, `purge_orphan_media`, `purge_rate_limits` — need pg_cron live), user management.
 
 ## F-15 Design system and approved mockups
 

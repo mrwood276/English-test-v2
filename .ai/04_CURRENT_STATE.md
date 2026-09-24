@@ -4,19 +4,19 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-24 (Codex — TASK-014 CI follow-up) |
-| Last AI agent | Codex (fifteenth session: pulled `ai-development`, watched the new dashboard suite in CI, fixed its setup error at the root, and verified both workflows green). |
-| Development phase | Phase 5 **FULLY LIVE-VERIFIED**; Phase 6 dashboard/UX polish complete and CI-verified. |
-| Current focus | **TASK-014 complete and closed in CI.** TASK-012 is down to the owner-dependent **PDF class summary**. Next code work: TASK-015 (jobs/audit/notifications) or TASK-020 (duplicate banner). |
+| Last updated | 2026-09-29 (Claude — TASK-015 audit-log viewer slice) |
+| Last AI agent | Claude Code (sixteenth session: pulled `ai-development`, built the admin audit-log viewer — SQL + Edge Function + screen + tests — all local checks green; live apply/deploy deferred to an agent with a live connection). |
+| Development phase | Phase 5 **FULLY LIVE-VERIFIED**; Phase 6 dashboard/UX polish complete and CI-verified; Phase 7 first slice (audit viewer) built in git. |
+| Current focus | **TASK-015 audit-log viewer DONE in git (TESTED); live apply + deploy pending (needs a live connection).** Remaining TASK-015: backups, notifications (owner must choose a provider, DEC-017), scheduled purge jobs (need pg_cron live). TASK-012 is down to the owner-dependent **PDF class summary**. Next code work: TASK-020 (duplicate banner) or the live apply of the audit slice. |
 | Branch model | `main` = stable. `ai-development` = shared AI development. |
-| Current branch / commit | **`ai-development`**; verified product change `2ea6ac0` (dashboard-test setup fix on top of `dab2a48`, TASK-014 dashboard/mobile-menu work). This handoff adds a docs-only commit on top. Backend run #36 and Frontend run #28 are green at `2ea6ac0`. |
+| Current branch / commit | **`ai-development`**; this session adds the TASK-015 audit-viewer commit on top of `2f5de2c` (docs-only regression check). All local suites green before the commit. |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
 
 ## What was inspected to write `.ai/`
 
 - All files of the repository copy (65 tracked files before `.ai/`), including code, tests, docs, workflow.
 - The **live Supabase project**: migrations list, Edge Function list and versions, tables and RLS state, policies count, functions count, storage buckets, row counts, extensions.
-- Test runs (2026-09-24, fifteenth session, from this clone): backend `deno test --allow-env backend/tests/` = **106 passed**, 0 failed; all frontend unit tests = **31 passed**, 0 failed; `git diff --check` = clean. GitHub Actions at `2ea6ac0`: Backend tests run #36 green; Frontend tests run #28 green, including all ten mocked browser suites (`dashboard_e2e.py` passed). This Windows agent still has no Python/Playwright runtime.
+- Test runs (2026-09-29, sixteenth session, from this clone): backend `deno test --allow-env backend/tests/` = **114 passed** (106 + 8 new audit tests), 0 failed; all frontend unit tests = **31 passed**, 0 failed; all **eleven** mocked browser suites green locally (`audit_e2e.py` 25/25 new; teacher, monitor, dashboard, results, question_bank, question_editor, media, question_import, exams, student all pass after the menu went from six to seven items); `deno check backend/functions/audit/index.ts` clean; `git diff --check` clean. **This Windows agent now DOES have Python 3.12 + Playwright + Chromium working** (the "no runtime" note from earlier sessions is stale — verified by actually running the suites).
 - No TODO/FIXME comments exist in the code (scan returned nothing).
 
 ## Live system facts (verified 2026-09-21)
@@ -71,12 +71,15 @@
 | `question-bank` | has actions `import_check`, `import` | **v3 live**; `import_check` answered live | Import works against real backend; left: owner format review + real Excel file (ISSUE-013 caveat) |
 | Monitor UI (F-13) | `examMonitor.js` / `sessionTimeline.js` + routes, `monitor_e2e.py` (30 checks) | reads the `results` function's `overview`/`report` actions (v4 live) | No drift — live-verified in a real browser (TASK-022, 20/20) |
 | Dashboard (F-03) | `dashboard.js` reads the existing `exams` and `results` APIs; `dashboard_e2e.py` added | live SQL activity fields applied; Edge Function unchanged | No drift |
+| **Audit viewer (F-14)** | migration `20260929000000_audit_functions.sql` + `audit` Edge Function + `#/audit` screen, all tested | **NOT applied live / NOT deployed** (this machine has no live connection) | The screen exists but shows nothing real until the next agent applies + deploys — see `08_HANDOFF.md` |
 | SQL migrations | first migration in git: `supabase/migrations/20260922000000_exams_functions.sql` (applied live) | `v2_01`..`v2_12` + the exams functions | ISSUE-001 partially closed; `supabase db pull` can bring the older ones in |
 | Frontend | `APP_BUILD` = "Phase 4, grading and results" | not deployed | The owner runs it locally with `frontend/dev-server.py` |
 
 ## Recently completed work (newest first)
 
-1. **TASK-014 dashboard and UX polish (2026-09-24, CI green)**: mockup-5 dashboard (big code, live preview, essays/page exits, recent pass-rate meters, 30-second refresh) built on existing payloads (DEC-026); phone menu compacted into a sticky one-row scroll; `list_exam_activity` extended with `passed`/`failed` and applied live; `dashboard_e2e.py` and the CI workflow verified green in Actions.
+1. **TASK-015 slice — admin audit-log viewer (2026-09-29, in git, TESTED)**: SQL `list_audit_logs` (migration `20260929000000_audit_functions.sql`, service-role-only, validation with friendly hints; contract `docs/sql-audit.md`), rolled-back live test `supabase/tests/audit_functions_test.sql` (run it when the migration is applied), Edge Function `backend/functions/audit/` (action `list`, the only staff endpoint restricted to `["admin"]` — design.md 1.2), `audit.test.ts` (8), admin-only menu item "Audit log" + screen `#/audit` (When/Who/Action/Entity/Details, action + entity + time-window filters, pager, "System" for actor-less rows), `api/audit.js`, mock-server audit handler + `audit_e2e.py` (25 checks), CI step added, menu-count assertions updated 6→7 (teacher/monitor suites). **Live apply + deploy pending — see `08_HANDOFF.md`.**
+
+2. **TASK-014 dashboard and UX polish (2026-09-24, CI green)**: mockup-5 dashboard (big code, live preview, essays/page exits, recent pass-rate meters, 30-second refresh) built on existing payloads (DEC-026); phone menu compacted into a sticky one-row scroll; `list_exam_activity` extended with `passed`/`failed` and applied live; `dashboard_e2e.py` and the CI workflow verified green in Actions.
 
 2. **TASK-012 core — grading, results, teacher actions on an attempt (2026-09-24)**: SQL functions in `supabase/migrations/20260924000000_result_functions.sql` (applied live; `docs/sql-results.md`); `_session_result_write` as the single writer of `exam_results` and `_session_grade` re-created to skip hand-graded questions (DEC-023); the `results` Edge Function deployed (11 staff-only actions); the Grading screen (mockup 13), the per-exam results screen (mockup 14), the attempt report with per-question grading and add time / reopen / retake; `supabase/tests/result_functions_test.sql` (rolled back), 18 Deno tests, `results_e2e.py` (59 checks); CI now runs eight suites; live-verified with the admin account (38/38) and cleaned up afterwards. **ISSUE-017 closed.**
 2. **TASK-010 student exam engine (2026-09-23)**: SQL functions in `supabase/migrations/20260923000000_session_functions.sql` (applied live; `docs/sql-sessions.md`); `session` Edge Function deployed (signed session token, per-address join limit, per-session autosave limit, media signing); the student page `frontend/index.html` (join → take the test → result) with offline-tolerant autosave, a server-backed timer, the answer sheet, page-leave warnings and the auto-submit limit; `supabase/tests/session_functions_test.sql` (rolled back), 21 Deno tests, `student_e2e.py` (52 checks); live-verified with the admin account (27/27) and cleaned up afterwards.
@@ -94,7 +97,7 @@
 
 - **TASK-012**, on branch `ai-development**: only the **PDF class summary** remains, and it needs the owner's decision on the one-page content. CSV/Excel and both statistics tabs are built and tested.
 - **TASK-006**, on branch `ai-development`: deployed and working; remaining is the owner's review of the proposed import formats and one real Excel/Google-Sheets file.
-- **TASK-015** is the next ordinary code task: scheduled `expire_sessions()` / `purge_rate_limits()`, an audit-log viewer, and dashboard/email notifications.
+- **TASK-015**: the **audit-log viewer slice is DONE in git (TESTED)**; what remains in the task — backups, notifications, scheduled purge jobs — plus **applying the viewer live** (migration + SQL test + deploy), needs a live connection or owner decisions.
 
 ## Pending work (see `05_TASK_QUEUE.md`)
 
@@ -124,8 +127,9 @@ None from this session. The earlier `media_e2e.py` fixture-size quirk in ISSUE-0
 
 ## Current priorities
 
-1. **TASK-015**: scheduled jobs, audit-log viewer, and notifications.
-2. **TASK-020**: the question-bank duplicate-overview banner.
+1. **Apply the audit slice live** (migration + `supabase/tests/audit_functions_test.sql` + deploy `audit`) — any agent with a live Supabase connection; steps in `08_HANDOFF.md`.
+2. **TASK-015 remainder**: scheduled jobs (needs pg_cron live), backups, notifications (needs the owner's email-provider decision, DEC-017).
+3. **TASK-020**: the question-bank duplicate-overview banner.
 3. Ask the owner what the PDF class summary should contain (the last TASK-012 piece) and whether the proposed import formats are accepted.
 4. Owner-only release steps: disable public sign-up and run one real media upload.
 

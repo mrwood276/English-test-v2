@@ -53,3 +53,5 @@ jobs:
         run: python frontend/tests/monitor_e2e.py
       - name: Dashboard (teacher side)
         run: python frontend/tests/dashboard_e2e.py
+      - name: Audit log (admin side)
+        run: python frontend/tests/audit_e2e.py

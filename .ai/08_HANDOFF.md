@@ -6,7 +6,7 @@ Keep this file current after every meaningful change. It must never describe an 
 
 **`BLOCKED` — not ready for `main`.**
 
-The TASK-014 dashboard/mobile-menu work is complete and CI-verified at `2ea6ac0`. Two owner-only release blockers remain: disable public sign-up in Supabase Auth (ISSUE-007) and verify one real image/audio upload against live Storage (TASK-007). The low-priority migration-tracking follow-up in ISSUE-001 also needs a real database connection/password.
+The TASK-015 audit-log viewer is complete and fully tested in git. Two owner-only release blockers remain: disable public sign-up in Supabase Auth (ISSUE-007) and verify one real image/audio upload against live Storage (TASK-007). The low-priority migration-tracking follow-up in ISSUE-001 also needs a real database connection/password.
 
 Do not merge `ai-development` into `main` unless the owner explicitly overrides this.
 
@@ -15,14 +15,14 @@ Do not merge `ai-development` into `main` unless the owner explicitly overrides 
 | | |
 |---|---|
 | Stable branch | `main`. Do not develop or merge here without the owner's explicit decision. |
-| Development branch | **`ai-development`**. Its current head is this docs-only handoff commit on top of the verified product state `2ea6ac0` (itself on `dab2a48`, TASK-014 dashboard/mobile-menu work). |
-| Starting point | `origin/ai-development` was pulled with `git pull --ff-only` before work; it was already at `dab2a48`. |
-| Push / CI status | The first frontend run at `dab2a48` failed `dashboard_e2e.py` on a test-setup `KeyError`. The setup fix was pushed as `2ea6ac0`; Backend run #36 and Frontend run #28 are both green. |
+| Development branch | **`ai-development`**. Its head after this session is the TASK-015 audit-viewer commit on top of `2f5de2c` (the docs-only regression check). |
+| Starting point | This session started at `2f5de2c` with a clean tree; `origin/ai-development` had not moved. |
+| Push / CI status | Backend run #36 and Frontend run #28 were green at `2ea6ac0`. **The new commit adds an eleventh browser suite (`audit_e2e.py`) to CI — watch that first run.** |
 | Live database | **English_Test_v2** (`lbhnadqmokloyfarrzfv`). Do not touch the v1 project `Exam_Data_Base`. |
 
 ## LAST AGENT
 
-Codex — fifteenth session, 2026-09-24. It pulled the shared branch, watched the first dashboard CI run, inspected the real Actions log, fixed the missing mock-server setup at the root, re-ran the available Deno tests, and confirmed the follow-up Actions run green.
+Claude Code — sixteenth session, 2026-09-29. It pulled `ai-development`, built the first TASK-015 slice (the admin audit-log viewer: SQL migration + Edge Function + screen + three test layers) entirely in git, ran every available suite locally (all green, including the new ones, on the first run), and deferred the live apply + deploy to the next agent because this machine has no live Supabase connection.
 
 ## CREDENTIAL / COLLISION WARNING
 
@@ -31,96 +31,70 @@ Codex — fifteenth session, 2026-09-24. It pulled the shared branch, watched th
 
 ## LAST COMPLETED TASK
 
-**TASK-014 — Phase 6 dashboard and UX polish (now complete and CI-green).**
+**TASK-015 slice 1 — the admin audit-log viewer (TESTED in git; live apply pending).**
 
-- The teacher dashboard now follows mockup 5: the currently open exam with its facts and 52-px access code, copy/change/close actions, a live preview using the existing `liveStatusPill`, working/class counts, attention rows, and the latest finished exams with a pass-rate meter.
-- The phone shell now uses a sticky compact header: brand and signed-in person on the first row, all six menu links in one horizontally scrollable row.
-- `list_exam_activity` was extended additively with `passed` and `failed`; the dashboard has no second read path (DEC-026).
-- No class-merge dashboard row was invented: the results merge UI does not exist yet, so a dead button would only add a second, premature implementation.
-- The first frontend Actions run failed before an assertion because `dashboard_e2e.py` called `open_exam_row(CODE)` before registering the session exam. The test now calls `session_exam(CODE)` first and then mirrors it with `open_exam_row(CODE)`.
-- The follow-up run at `2ea6ac0` passed: Backend run #36 and Frontend run #28, including all ten mocked browser suites and `dashboard_e2e.py`, are green.
+Every staff action has written an `audit_logs` row since v2_08 (BR-13); nothing could read them. This slice adds the read side, admin-only (design.md 1.2 — teachers cannot manage the system audit log):
 
-## CURRENT STATE
+- **SQL** `list_audit_logs(p_limit, p_offset, p_action, p_entity_type, p_days)` → `{total, rows}` newest-first, `actor_name` from profiles, friendly validation hints. Service-role-only like every other staff function (DEC-002, ISSUE-020). Migration: `supabase/migrations/20260929000000_audit_functions.sql` — **in git, NOT yet applied live.**
+- **Edge Function** `backend/functions/audit/` — action `list`, body key `filter_action` (because `action` is the endpoint's own enum); the one staff endpoint that requires role `admin` (`requireStaff(req, db, ["admin"])`) — **in git, NOT yet deployed.**
+- **Screen** `#/audit` — admin-only menu item "Audit log" (`ADMIN_NAV` in `shell.js`), table When/Who/Action/Entity/Details, debounced action/entity filters + day-window chip-select + Clear, pager (25/page), "System" for actor-less rows, empty states. New `api/audit.js` + `screens/auditLog.js`; `router.js`/`shell.js` edited; no CSS changes.
+- The write side (`write_audit`, `backend/functions/_shared/audit.ts`) is untouched — the viewer is read-only.
 
-- The dashboard reads only:
-  - `exams.list({ status: "open", sort: "newest" })`
-  - `results.activity()`
-  - `results.overview(examId)`
-- `startRefresh()` now lives in `frontend/assets/js/shared/ui.js`; both the monitor and dashboard use that one implementation.
-- `supabase/migrations/20260928000000_dashboard_activity_fields.sql` is tracked in git and **already applied live**. It re-creates `list_exam_activity` and adds `passed` / `failed`.
-- No Edge Function redeploy was needed: the existing `results` activity handler passes the SQL function's JSON through unchanged.
-- Live verification after the change: `list_exam_activity(false)` returned `[]` with the live project's 0 exams and 0 sessions; `pg_proc.proacl` is still `{postgres=X/postgres,service_role=X/postgres}`; `has_function_privilege()` says service-role execute is true and anon/authenticated execute is false.
-- Security advisor after the change: only the expected RLS-no-policy INFO findings (22 tables) and the pre-existing leaked-password-protection WARN. No new security finding was introduced.
-- No data rows were created or left behind.
+## THE LIVE APPLY — THE NEXT AGENT'S FIRST JOB
 
-## TESTING PERFORMED
+This machine had no live Supabase connection, so the feature is **TESTED, not LIVE-VERIFIED**. An agent with one (Supabase MCP or CLI) must, in order:
 
-Available local checks were run from this Windows clone:
+1. Confirm with the owner that no other AI session is active.
+2. `npx supabase db query --linked --file supabase/migrations/20260929000000_audit_functions.sql` (or Supabase MCP `execute_sql` with the file's contents) — the migration is idempotent (drops the function first).
+3. `npx supabase db query --linked --file supabase/tests/audit_functions_test.sql` — success is the error `AUDIT VIEWER TESTS PASSED (all rows rolled back)`; everything rolls back, so live row counts must not change.
+4. `python backend/sync_functions.py` (keeps `supabase/functions` in sync; output is gitignored).
+5. `npx supabase functions deploy audit --no-verify-jwt --use-api`.
+6. One live smoke check: tokenless call → 401; a teacher (none exists yet — the profile is admin) would get 403; admin `list` → `{total: 4, rows: [...the four real audit rows...]}`.
+7. Flip the statuses to LIVE-VERIFIED: `03_FEATURES.md` (F-14), `04_CURRENT_STATE.md` (drift table), `02_ARCHITECTURE.md` ("deploy pending" notes), this file, and the "Applied live" header line in the migration file. Commit + push the doc flips.
 
-- Backend: `deno test --allow-env backend/tests/` → **106 passed, 0 failed**.
+## TESTING PERFORMED (all local, all green, first run)
+
+- Backend: `deno test --allow-env backend/tests/` → **114 passed, 0 failed** (106 existing + 8 new `audit.test.ts`).
 - Frontend unit: `deno test --allow-env --allow-read --no-check frontend/tests/unit/` → **31 passed, 0 failed**.
-- `git diff --check` → clean.
-- GitHub Actions at `2ea6ac0` → Backend run #36 and Frontend run #28 green; the browser job passed all ten suites, including `dashboard_e2e.py`.
-- Supabase live function/ACL/security checks from the fourteenth session remain the latest live verification; this session made no database change.
-
-This Windows environment still has no Python or Playwright, so browser execution was delegated to GitHub Actions as designed. The first dashboard run exposed the test-setup error; the follow-up Actions run is green, so TASK-014's browser suite is verified.
+- Browser (mocked): new `frontend/tests/audit_e2e.py` → **25/25**; all **ten** existing suites still green after the teacher menu went from six to seven items (`teacher_e2e.py`, `monitor_e2e.py` assertions updated): teacher, question bank, question editor, media, question import, exams, student, results, monitor, dashboard.
+- `deno check backend/functions/audit/index.ts` → clean. `git diff --check` → clean.
+- **The runtime note in older `.ai/` files was stale**: this Windows clone DOES have Python 3.12 + Playwright + Chromium working (verified by actually running the suites). `04_CURRENT_STATE.md` has been corrected.
+- `supabase/tests/audit_functions_test.sql` is written but could NOT be run here (no live connection). It seeds rows under the `audit_test` entity marker so live data can never disturb its counts, and ends with `AUDIT VIEWER TESTS PASSED (all rows rolled back)`.
 
 ## DATABASE CHANGES
 
-- **This session changed no database, schema, Edge Function, or live data.**
-- From the completed TASK-014 work: new git migration `supabase/migrations/20260928000000_dashboard_activity_fields.sql`.
-- Applied live via Supabase MCP.
-- Change: `list_exam_activity(boolean)` now returns `passed` and `failed`; every existing field and action remains unchanged.
-- No tables, RLS policies, roles, Edge Function code, or application secrets were changed.
-- No Edge Function was redeployed.
+- **No live database was touched this session.** Everything landed in git only.
+- In git, pending live apply: `supabase/migrations/20260929000000_audit_functions.sql` — one new function `list_audit_logs`, no tables, no policies, no grants to public/anon/authenticated.
 
-## FILES CHANGED
+## FILES CHANGED (this session)
 
-- This CI-closure session:
-  - `frontend/tests/dashboard_e2e.py`
-  - `.ai/03_FEATURES.md`, `04_CURRENT_STATE.md`, `05_TASK_QUEUE.md`, `07_CHANGELOG.md`, `08_HANDOFF.md`
-- Earlier TASK-014 work already on the branch:
-- Dashboard/shared frontend:
-  - `frontend/assets/js/teacher/screens/dashboard.js`
-  - `frontend/assets/js/teacher/screens/examMonitor.js`
-  - `frontend/assets/js/shared/ui.js`
-  - `frontend/assets/js/shared/icons.js`
-  - `frontend/assets/css/teacher.css`
-- SQL/docs:
-  - `supabase/migrations/20260928000000_dashboard_activity_fields.sql`
-  - `docs/sql-results.md`
-- Tests/CI:
-  - `frontend/tests/dashboard_e2e.py` (new)
-  - `frontend/tests/mock_server.py`
-  - `frontend/tests/teacher_e2e.py`
-  - `.github/workflows/frontend-tests.yml`
-- `.ai/`: `01_PROJECT.md`, `03_FEATURES.md`, `04_CURRENT_STATE.md`, `05_TASK_QUEUE.md`, `06_DECISIONS.md`, `07_CHANGELOG.md`, `08_HANDOFF.md`, `09_KNOWN_ISSUES.md`.
+- New: `supabase/migrations/20260929000000_audit_functions.sql`, `supabase/tests/audit_functions_test.sql`, `backend/functions/audit/{index.ts,handler.ts}`, `backend/tests/audit.test.ts`, `frontend/assets/js/teacher/api/audit.js`, `frontend/assets/js/teacher/screens/auditLog.js`, `frontend/tests/audit_e2e.py`, `docs/sql-audit.md`.
+- Edited: `frontend/assets/js/teacher/router.js`, `frontend/assets/js/teacher/screens/shell.js`, `frontend/tests/mock_server.py`, `frontend/tests/teacher_e2e.py`, `frontend/tests/monitor_e2e.py`, `.github/workflows/frontend-tests.yml`, `supabase/README.md`, `.ai/02_ARCHITECTURE.md`, `.ai/03_FEATURES.md`, `.ai/04_CURRENT_STATE.md`, `.ai/05_TASK_QUEUE.md`, `.ai/07_CHANGELOG.md`, `.ai/08_HANDOFF.md`.
 
 ## REMAINING WORK
 
-1. Ordinary next code task: **TASK-015** (scheduled `expire_sessions()` / `purge_rate_limits()`, audit-log viewer, notifications) or **TASK-020** (duplicate-overview banner).
-2. Owner decision: what belongs on the PDF class summary (the last TASK-012 piece).
-3. Owner-only release steps: disable public sign-up (ISSUE-007) and run one real image/audio upload against live Storage (TASK-007).
-4. Low-priority follow-up: reconcile the three already-live but untracked migration rows described in ISSUE-001, using a real DB connection/password.
-5. A human/owner walkthrough of the new dashboard against the real project is still valuable even after CI is green.
+1. **Apply the audit slice live** (the numbered sequence above) — any agent with a live connection.
+2. Ordinary next code task: **TASK-020** (duplicate-overview banner) or the TASK-015 remainder — scheduled purge jobs need pg_cron on the live project; notifications need the owner's email-provider decision (DEC-017); backups likewise need live access.
+3. Owner decision: what belongs on the PDF class summary (the last TASK-012 piece).
+4. Owner-only release steps: disable public sign-up (ISSUE-007) and run one real image/audio upload against live Storage (TASK-007).
+5. Low-priority follow-up: reconcile the three already-live but untracked migration rows (ISSUE-001), using a real DB connection/password.
 
 ## SUGGESTED WORK FOR NEXT AI
 
 1. Start on `ai-development`; run `git status --short --branch` and `git pull --ff-only` **before** changing anything.
 2. Read `04_CURRENT_STATE.md`, `05_TASK_QUEUE.md`, `09_KNOWN_ISSUES.md`, and this file. Let source code, database facts, tests, and git history win over stale `.ai/` notes.
-3. CI is already green at `2ea6ac0` (Backend #36, Frontend #28). Re-check it only if the remote has moved.
-4. Continue with TASK-015 or TASK-020. Do not invent a random feature if the queue is empty; audit documented debt instead.
+3. If you have a live Supabase connection, do THE LIVE APPLY above, watch the CI run (eleven browser suites now), then flip the statuses.
+4. Otherwise continue with TASK-020. Do not invent a random feature if the queue is empty; audit documented debt instead.
 5. Before any live-DB or git-push action, confirm with the owner that no other AI session is active. Previous sessions collided twice; if a push is rejected, park the work on a local branch and ask the owner rather than forcing it.
 
 ## DO NOT DO
 
 - Do not work on `main`, merge to `main`, force-push, reset hard, or delete either branch.
-- Do not rebuild the project, workflow, dashboard, monitor, results, exams, student engine, or auth system.
-- Do not add a dashboard-only SQL read function or a second monitor read path.
-- Do not copy `liveStatusPill` logic into the dashboard; import the existing component.
-- Do not add frontend dependencies, a build step, RLS policies, direct browser table access, or public function grants.
+- Do not rebuild the project, workflow, dashboard, monitor, results, exams, student engine, auth system, or the audit viewer this session finished.
+- Do not add a second audit read path, a teacher-facing audit view, or public function grants; the viewer reads only via the admin-only `audit` Edge Function.
+- Do not touch `write_audit` or `backend/functions/_shared/audit.ts` (the write side) or change what `audit_logs` records.
+- Do not add frontend dependencies, a build step, RLS policies, or direct browser table access.
 - Do not send answer keys to students or put them in session snapshots, events, logs, or audit changes.
-- Do not implement the dashboard class-merge row until the real results merge UI exists.
 - Do not reopen TASK-014 without a new concrete defect; its browser suite is green in Actions at `2ea6ac0`.
 - Do not touch the v1 project (`Exam_Data_Base`).
 - Do not push secrets or owner credentials anywhere.

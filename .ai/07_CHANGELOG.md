@@ -1,5 +1,16 @@
 # 07 CHANGELOG
 
+## 2026-09-29 — TASK-015 slice 1: the admin audit-log viewer, built and tested in git — git `ai-development`
+- Agent: Claude Code (sixteenth session). Branch: `ai-development`; started from `2f5de2c` after a clean-tree check. **No live database or Edge deploy — this machine has no live Supabase connection; the live apply is the next agent's step (commands in `08_HANDOFF.md`).**
+- **What was built** (read side only; the write side `write_audit`/`_shared/audit.ts` is untouched):
+  - SQL: `supabase/migrations/20260929000000_audit_functions.sql` adds `list_audit_logs(p_limit, p_offset, p_action, p_entity_type, p_days)` → `{total, rows}` newest-first, `actor_name` joined from profiles, validation raises with `hint='validation'`, `security definer` + revoke from public/anon/authenticated (DEC-002, ISSUE-020). Contract: `docs/sql-audit.md` (new).
+  - Edge: `backend/functions/audit/` (action `list`; body key `filter_action` because `action` is the endpoint enum) — the one staff endpoint restricted to `["admin"]` (design.md 1.2; teachers cannot read the system audit log).
+  - Screen: `#/audit` (menu item "Audit log", admin-only `ADMIN_NAV`), table When/Who/Action/Entity/Details, action/entity/day filters (debounced inputs, chip-select), pager, "System" for actor-less rows, empty states. New files `api/audit.js`, `screens/auditLog.js`; `router.js`/`shell.js` edited; no CSS changes.
+- **Tests (all green, first run):** backend `deno test --allow-env backend/tests/` **114/114** (106 + 8 new `audit.test.ts`); unit **31/31**; new `audit_e2e.py` **25/25**; all ten existing browser suites still green after the teacher menu went 6→7 (assertions updated in `teacher_e2e.py` and `monitor_e2e.py`); `deno check backend/functions/audit/index.ts` clean; `git diff --check` clean. **This Windows clone now has Python 3.12 + Playwright + Chromium working** — the old "no runtime" notes are stale.
+- `supabase/tests/audit_functions_test.sql` (new) uses the rolled-back-transaction technique, seeds rows under the `audit_test` entity marker so live data can never disturb the counts, and ends with `AUDIT VIEWER TESTS PASSED`. **Run it after applying the migration live.**
+- CI: `.github/workflows/frontend-tests.yml` gained the eleventh browser step (`audit_e2e.py`). The next Actions run must be watched.
+- Status: **TESTED (in git), not live.** F-14 viewer complete; remaining TASK-015: backups, notifications (DEC-017 owner decision), scheduled purge jobs (pg_cron).
+
 ## 2026-09-24 — Post-TASK-014 regression check: everything re-run, nothing broken — git `ai-development` (`fcfd69c`)
 - Agent: Claude (claude.ai chat, AI Development Reviewer). No code or database change — verification only, after `ai-development` had moved 7 commits since this session last touched it (Excel export, TASK-014 dashboard, its CI fix).
 - **Re-ran from scratch**: backend `deno test --allow-env backend/tests/` → **106/106**; unit `deno test --allow-env --allow-read --no-check frontend/tests/unit/` → **31/31**; all **ten** Playwright suites (teacher, bank, editor, media, import, exams, student, results, monitor, dashboard) → all green. `question_editor_e2e.py` failed once on a click racing a toast animation (`<html> intercepts pointer events`) and passed clean (72/72) on an immediate re-run — a timing flake, not a regression; left as-is.

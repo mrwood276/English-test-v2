@@ -40,6 +40,8 @@ class Server:
         self.session_events = []; self.session_seconds = None; self.session_media_urls = {}
         # teacher side (results function)
         self.manual_grades = {}; self.retakes = {}; self.result_calls = []; self.class_aliases = {}
+        # admin side (audit function)
+        self.audit_rows = []; self.audit_calls = []
         self.passages = [{"id": "pa1", "title": "The Lost Wallet", "body": "Dina found a <u>brown</u> wallet.", "question_count": 3}, {"id": "pa2", "title": "The Smart Monkey", "body": "A clever monkey sat on a branch.", "question_count": 1}]
     def item(self, q):
         return {k: q[k] for k in ["id", "type", "body", "topic", "difficulty", "weight", "class_labels", "has_audio", "has_image", "has_passage", "used_in_exams", "is_archived"]} | {"updated_at": "2026-09-20T00:00:00Z"}
@@ -94,6 +96,8 @@ class Server:
             return self.handle_session(route, req)
         if "/functions/v1/results" in url:
             return self.handle_results(route, req)
+        if "/functions/v1/audit" in url:
+            return self.handle_audit(route, req)
         if "/auth-me" in url:
             return route.fulfill(status=200, content_type="application/json", body=json.dumps({"user": {"id": "u1", "fullName": "Admin", "role": "admin"}}))
         body = json.loads(req.post_data or "{}"); a = body.get("action"); self.calls.append(body)
@@ -650,6 +654,41 @@ class Server:
             if existing["used"]: return err(400, "That retake was already used, so it cannot be taken back.")
             del self.retakes[key]
             return ok({"retake": {"revoked": True}})
+        return err(400, "Unknown action")
+
+    # ---------- admin side: the audit log (TASK-015) ----------
+
+    def audit_seed(self):
+        """Six recorded actions: mixed actions and entities, one system row, one 40 days old."""
+        t = time.time()
+        self.audit_rows = [
+            {"id": 1, "created_at": iso(t - 55 * 60), "actor_id": "u1", "actor_name": "Admin", "action": "question.create", "entity_type": "question", "entity_id": "q-1", "changes": {"body": "Past simple of go"}},
+            {"id": 2, "created_at": iso(t - 44 * 60), "actor_id": None, "actor_name": None, "action": "grade", "entity_type": "exam_session", "entity_id": "s-1", "changes": {"points": 3}},
+            {"id": 3, "created_at": iso(t - 33 * 60), "actor_id": "u2", "actor_name": "Ms. Rina", "action": "grade", "entity_type": "exam_session", "entity_id": "s-2", "changes": {}},
+            {"id": 4, "created_at": iso(t - 22 * 60), "actor_id": "u1", "actor_name": "Admin", "action": "add_time", "entity_type": "exam_session", "entity_id": "s-2", "changes": {"minutes": 5}},
+            {"id": 5, "created_at": iso(t - 11 * 60), "actor_id": "u1", "actor_name": "Admin", "action": "passage.update", "entity_type": "passage", "entity_id": "p-9", "changes": {}},
+            {"id": 6, "created_at": iso(t - 40 * 86400), "actor_id": "u1", "actor_name": "Admin", "action": "retake_grant", "entity_type": "exam_session", "entity_id": "s-1", "changes": {}},
+        ]
+
+    def handle_audit(self, route, req):
+        body = json.loads(req.post_data or "{}"); a = body.get("action")
+        self.audit_calls.append(body)
+        def ok(data): route.fulfill(status=200, content_type="application/json", body=json.dumps(data))
+        def err(status, msg): route.fulfill(status=status, content_type="application/json", body=json.dumps({"error": msg, "code": "bad_request"}))
+
+        if a == "list":
+            limit = body.get("limit") or 50
+            offset = body.get("offset") or 0
+            rows = self.audit_rows
+            if body.get("filter_action"):
+                rows = [r for r in rows if r["action"] == body["filter_action"]]
+            if body.get("entity_type"):
+                rows = [r for r in rows if r["entity_type"] == body["entity_type"]]
+            if body.get("days"):
+                since = time.time() - int(body["days"]) * 86400
+                rows = [r for r in rows if datetime.datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")).timestamp() >= since]
+            rows = sorted(rows, key=lambda r: r["created_at"], reverse=True)
+            return ok({"logs": {"total": len(rows), "rows": rows[offset:offset + limit]}})
         return err(400, "Unknown action")
 
     def exam_row(self, e):

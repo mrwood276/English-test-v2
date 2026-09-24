@@ -123,9 +123,9 @@ with sync_playwright() as pw:
     check("the dashboard offers a new exam", page.query_selector("a:has-text('New exam')") is not None)
     check("shows the role in the menu", "Admin" in page.inner_text(".me"))
     check("the build label is shown", "Build:" in page.inner_text("[data-build]"))
-    check("menu has the six sections", len(page.query_selector_all(".nav > *")) == 6)
-    check("every menu item leads somewhere: dashboard, questions, exams, grading, results, monitor",
-          len(page.query_selector_all(".nav span.item")) == 0 and len(page.query_selector_all(".nav a")) == 6,
+    check("menu has the seven sections", len(page.query_selector_all(".nav > *")) == 7)
+    check("every menu item leads somewhere: dashboard, questions, exams, grading, results, monitor, audit",
+          len(page.query_selector_all(".nav span.item")) == 0 and len(page.query_selector_all(".nav a")) == 7,
           f"{len(page.query_selector_all('.nav a'))} links, {len(page.query_selector_all('.nav span.item'))} placeholders")
     me_calls = [c for c in net.calls if c[1] == "/auth-me"]
     check("auth-me is called with the user token", me_calls and me_calls[-1][2] == "Bearer AT1")
