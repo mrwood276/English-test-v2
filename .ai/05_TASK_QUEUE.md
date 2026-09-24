@@ -17,11 +17,12 @@ Order follows dependencies. Completed tasks are listed at the end for history (a
 
 **Done since (2026-09-24, twelfth session — Buffy):** the remote was read **before** building (the lesson from the collision): a GitHub Copilot session had already shipped the CSV export and the Classes/Questions tabs, so they were **verified** (backend 106, unit 21, nine suites green at `46dafac`), two real defects in the new Questions tab were **fixed**, and the **Excel export** of mockup 14 was built — a dependency-free ZIP/xlsx writer whose output the repository's own import reader reads back in the unit tests (unit 21 → **31**, `results_e2e` 64 → **79** checks). TASK-012 is now down to the PDF class summary.
 
-**Next recommended: the PDF class summary** (mockup 14's third export — it needs the owner's decision on what a one-page class summary should hold) or **TASK-014** (dashboard/UX polish) — both are ordinary feature work with no owner dependency. Release is down to the **three owner-only items** below — see `08_HANDOFF.md` RELEASE STATUS.
+**Done since (2026-09-24, thirteenth session — Claude/claude.ai, AI Development Reviewer):** **TASK-008 closed** — all 12 missing migrations (`v2_01`..`v2_12`) pulled from the live project and committed to git verbatim; `supabase/README.md` updated. Found (and documented, not yet fixed — needs a real DB connection) a small reverse discrepancy: three already-committed migrations have no matching row in the live migration-tracking table.
+
+**Next recommended: the PDF class summary** (mockup 14's third export — needs the owner's decision on what a one-page class summary should hold) or **TASK-014** (dashboard/UX polish) — both are ordinary feature work with no owner dependency. **TASK-022 and TASK-008 are both done.** Release is down to the **two owner-only items** below — see `08_HANDOFF.md` RELEASE STATUS.
 - **TASK-022 — COMPLETE (2026-09-24)**: the live browser run is `frontend/tests/live_browser_check.py` (20/20 against the real project with a real exam being taken). Progress bars render as `1/2`, the countdown as `29m 44s`, the pills as `Saved` / `Left the page` / `Need a look` / done, the board refreshes itself every 15 s, and the exam-wide **Add time to everyone** button moved three running students' clocks in the database while leaving the finished one alone.
 - Disable public sign-up (ISSUE-007) — owner, Supabase Auth dashboard.
 - Media upload check (TASK-007) — owner or agent with the app running, one real image + audio upload against live Storage.
-- `supabase db pull` (TASK-008) — reconcile `v2_01`..`v2_12` (and the ad-hoc `v2_13`..`v2_15` security/monitor fixes from the tenth session) into git migration files matching what's actually live.
 
 **Collision note (DEC-021 / ISSUE-015):** `main` carries Codex/GPT-5's own smaller import implementation (`d21f82d`/`1606aed`/`9c293fc`). Per the owner's 2026-09-22 decision, the `ai-development` implementation described here is the one that continues; do not port Codex's variant. The two will be reconciled at the next deliberate merge into `main` (resolve import files in favor of `ai-development`; drop `frontend/tests/import.test.js` and `frontend/assets/js/teacher/import/model.js`).
 
@@ -58,9 +59,10 @@ Order follows dependencies. Completed tasks are listed at the end for history (a
 - Note: run `purge_unused` (admin) afterwards if test files were left unattached.
 
 ## TASK-008 — Store database migrations in the repository
-- Priority: HIGH. Status: READY (needs Supabase access: `supabase db pull` or reading `supabase_migrations.schema_migrations`). Issue: ISSUE-001.
+- Priority: HIGH. Status: **DONE (2026-09-24)**. Issue: ISSUE-001.
 - Description: Export the SQL of `v2_01`..`v2_12` into `supabase/migrations/` (one file per migration, same order/names) so the database can be rebuilt from git.
-- Acceptance: files match what is applied; `supabase/README.md` updated; `00_AI_RULES.md` section 8 rule is now satisfiable for future migrations.
+- Resolution: pulled the exact live SQL from `supabase_migrations.schema_migrations` via Supabase MCP (CLI `supabase link`/`db pull` don't work in a claude.ai chat sandbox — `api.supabase.com` isn't reachable there, and `db pull` needs a DB password anyway) and committed all 12 files verbatim, matching the CLI's naming convention and exact timestamps. `supabase/README.md` updated.
+- **Follow-up (small, low priority)**: the reverse gap — `20260922000000_exams_functions.sql`, `20260923000000_session_functions.sql`, `20260924000000_result_functions.sql` have no matching row in `supabase_migrations.schema_migrations` even though they're live — see ISSUE-001's "new discrepancy" note. Needs a real DB connection (CLI + password) to fix properly; not an agent-alone task.
 
 ## TASK-009 — Exams: create, edit, code, schedule, selection, templates
 - Priority: HIGH. Status: **TEACHER SIDE DONE + LIVE-VERIFIED (2026-09-22)**; the student side (join/exam engine) is TASK-010. Feature: F-09.
