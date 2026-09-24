@@ -9,7 +9,7 @@
 | Development phase | Phase 5 (anti-cheating events and the live monitor) **FULLY LIVE-VERIFIED** on top of Phase 4. |
 | Current focus | **TASK-013 and TASK-022 complete.** Monitor hub + per-exam live table + session timeline (`monitor_e2e.py` 30/30), exam-wide add time, and live browser evidence are complete. TASK-012 remainder now has a tested CSV export; Questions/Classes statistics and XLSX/PDF remain. Release to `main` still not done; three owner-only items remain. |
 | Branch model | `main` = stable. `ai-development` = shared AI development. |
-| Current branch / commit | **`ai-development`** = `4d07b42` (eleventh session, pushed; both CI workflows green on it, including the frontend job's nine suites). The session's first, self-built TASK-013 is parked on a **local** branch `t13-buffy-monitor` (`46b5846`) for reference — never pushed, safe to delete. |
+| Current branch / commit | **`ai-development`** = `f521ba9` (CSV export follow-up, pushed; prior CI workflows remain green on the parent). The session's first, self-built TASK-013 is parked on a **local** branch `t13-buffy-monitor` (`46b5846`) for reference — never pushed, safe to delete. |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
 
 ## What was inspected to write `.ai/`
