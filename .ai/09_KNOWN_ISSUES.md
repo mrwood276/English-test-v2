@@ -34,9 +34,10 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 - Resolution: `.github/workflows/frontend-tests.yml` runs Deno unit tests and eight Playwright suites; both workflows have been green on `c495e0d` and later `ai-development` commits. Backend workflow unchanged.
 
 ## ISSUE-007 — Public sign-up by email is still ENABLED in Supabase Auth
-- Severity: MEDIUM. Status: OPEN (owner action; checklist step 1 in `docs/verification-checklist.md`).
+- Severity: MEDIUM. Status: **FIXED (2026-09-24, owner-confirmed)**.
 - Description: the owner was asked to disable public signups in the Supabase dashboard (so nobody can create accounts). Even if enabled, a new account has no `profiles` row and is refused by `requireStaff` (403), so data stays protected.
-- **LIVE-VERIFIED (2026-09-22, publishable key only, read-only probe of `auth/v1/settings`): email sign-ups are still ON.** The setting has not been changed yet. Owner must flip it off in Dashboard → Authentication → Providers → Email.
+- **2026-09-22**: LIVE-VERIFIED still ON (publishable key, read-only probe of `auth/v1/settings`).
+- **2026-09-24**: the owner disabled it in Dashboard → Authentication → Providers → Email. **Not independently re-verified this session** — the claude.ai chat sandbox cannot reach `*.supabase.co` at all (network egress blocks the host entirely, confirmed via `x-deny-reason: host_not_allowed`; no access token or credential can work around a network-level host block). A future agent with real network access (Claude Code, Claude in Chrome, or the owner) can confirm with a plain `GET https://lbhnadqmokloyfarrzfv.supabase.co/auth/v1/settings` (with the publishable key as `apikey`) and check `"disable_signup": true`, or just try creating a new account and confirm it's refused.
 
 ## ISSUE-008 — Placeholder display name for the admin
 - Severity: LOW. Status: OPEN. `profiles.full_name` is "Admin" (the owner did not give a name). There is no UI to change it.

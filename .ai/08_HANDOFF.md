@@ -6,7 +6,9 @@ Keep this file current after every meaningful change. It must never describe an 
 
 **`BLOCKED` — not ready for `main`.**
 
-The TASK-015 audit-log viewer is complete and fully tested in git. Two owner-only release blockers remain: disable public sign-up in Supabase Auth (ISSUE-007) and verify one real image/audio upload against live Storage (TASK-007). The low-priority migration-tracking follow-up in ISSUE-001 also needs a real database connection/password.
+The TASK-015 audit-log viewer is complete and fully tested in git (not yet applied live — see below). The TASK-014 dashboard/mobile-menu work is complete and CI-verified at `2ea6ac0`. **One release blocker remains: TASK-007** — verify one real image/audio upload against live Storage. ISSUE-007 (public sign-up) was disabled by the owner on 2026-09-24 (not independently re-verified — see ISSUE-007; the claude.ai chat sandbox cannot reach `*.supabase.co` at all). The low-priority migration-tracking follow-up in ISSUE-001 also needs a real database connection/password. **Non-blocking but needed before TASK-015 is fully done**: apply `supabase/migrations/20260929000000_audit_functions.sql` live and run `supabase/tests/audit_functions_test.sql`.
+
+A staff test account is ready for TASK-007: `testguru211l@gmail.com` (a `profiles` row with `role = 'teacher'`, `is_active = true` was added 2026-09-24 for it). **Important, sandbox limitation**: a claude.ai chat session's network cannot reach `*.supabase.co`/`*.supabase.com` at all (confirmed via `x-deny-reason: host_not_allowed` on every attempt, including with a valid Management API token) — Storage upload, Edge Function calls, and the Auth password-grant login all need HTTP access to that host, so **TASK-007 cannot be completed from a claude.ai chat session**, no matter what credential is provided. It needs the owner testing manually in a browser, or an agent with real network access (Claude Code, Claude in Chrome).
 
 Do not merge `ai-development` into `main` unless the owner explicitly overrides this.
 
