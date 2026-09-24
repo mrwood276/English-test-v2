@@ -1,5 +1,12 @@
 # 07 CHANGELOG
 
+## 2026-09-24 — Post-TASK-014 regression check: everything re-run, nothing broken — git `ai-development` (`fcfd69c`)
+- Agent: Claude (claude.ai chat, AI Development Reviewer). No code or database change — verification only, after `ai-development` had moved 7 commits since this session last touched it (Excel export, TASK-014 dashboard, its CI fix).
+- **Re-ran from scratch**: backend `deno test --allow-env backend/tests/` → **106/106**; unit `deno test --allow-env --allow-read --no-check frontend/tests/unit/` → **31/31**; all **ten** Playwright suites (teacher, bank, editor, media, import, exams, student, results, monitor, dashboard) → all green. `question_editor_e2e.py` failed once on a click racing a toast animation (`<html> intercepts pointer events`) and passed clean (72/72) on an immediate re-run — a timing flake, not a regression; left as-is.
+- **Live DB re-checked** after the new `20260928000000_dashboard_activity_fields.sql`: security advisor still shows only the expected 22 zero-policy INFO items plus the pre-existing ISSUE-005 WARN; `has_function_privilege()` confirms `list_exam_activity` still refuses `anon`/`authenticated` and allows only `service_role` — no regression on ISSUE-020's fix.
+- Code-quality scan (conflict markers, `console.log`/`debugger`, TODO/FIXME, external CDN references) re-run across the newly-added dashboard code — clean.
+- ISSUE-007 and TASK-007 remain the only two release blockers; neither is actionable from this session (ISSUE-007 needs the Supabase Auth **dashboard/Management API**, unreachable from this sandbox; TASK-007 needs the owner's admin password for a real upload, not provided and not something that should be pasted into chat).
+
 ## 2026-09-24 — TASK-014 CI closure: dashboard test setup fixed and Actions green — git `ai-development` (`2ea6ac0`)
 - Agent: Codex (fifteenth session). Branch: `ai-development`; started from `dab2a48` after `git pull --ff-only`.
 - **What CI found:** Frontend Actions run #27 at `dab2a48` failed before a dashboard assertion ran. `dashboard_e2e.py` called `srv.open_exam_row("DASH01")`, but that helper mirrors an already-registered session exam into the teacher `exams` store; the test had not first registered the session exam, so the mock server raised `KeyError: 'DASH01'`. This was a test-setup bug, not a dashboard product bug.
