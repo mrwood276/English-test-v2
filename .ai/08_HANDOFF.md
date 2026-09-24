@@ -29,12 +29,13 @@ On 2026-09-23, **two AI reviewer sessions were active on `ai-development` at onc
 Both are idempotent, so nothing broke, but this violates the "one agent at a time, sequential" rule this file itself states. **The collision was harmless only by luck (both changes happened to be the same idempotent REVOKE) — if it happens again, stop and let the owner coordinate before either agent writes to the live project or pushes git.** The three ad-hoc DB versions above are consolidated into one git-tracked file: `supabase/migrations/20260926000000_security_lockdown_function_execute.sql`. See ISSUE-020 for the full writeup. The owner confirmed after this that no other agent remains active.
 
 ## Last Agent
-GitHub Copilot — Classes statistics tab (no Supabase access or database changes).
+GitHub Copilot — Questions statistics tab (no Supabase access or database changes).
 
 ## Date
 2026-09-24
 
 ## Last Completed Task
+- **TASK-012 partial — Questions statistics:** `#/results/:examId` now has lazy-loaded Questions statistics using existing staff reports, with hardest-question accuracy, answered counts, and most-chosen answers. Scores, Classes, and Questions flows pass `results_e2e.py` with no page errors; no database changes.
 - **TASK-012 partial — Classes statistics:** `#/results/:examId` now switches between Scores and Classes. Classes aggregate merged class names, student counts, averages, passed, and not-final counts from the existing overview rows. `results_e2e.py` passes with no page errors; CSV export remains available.
 - **TASK-012 partial — CSV export:** `#/results/:examId` now has an `Export CSV` button using the loaded overview rows. CSV values are escaped, UTF-8 BOM-prefixed, and downloaded with a sanitized exam-title filename. Focused `results_e2e.py` passed with no page errors.
 - **TASK-022 done — the monitor was watched in a real browser against a real running exam (eleventh session, 20/20 checks)**: `frontend/tests/live_browser_check.py` (new, one-off, not in CI) creates an exam through the API with **non-default** tab limits, has four students join through the `session` function (quiet / at the warn limit / at the flag limit / submitted), then drives the **local teacher app** (served by `dev-server.py`) against the **real project** with a real admin session. What it saw: the hub lists the running exam with its code; the board shows all four students with real progress bars (`1/2`), a real countdown (`29m 44s`), the exit counts and the four pills (`Saved` / `Left the page` / `Need a look` / done); **Add time to everyone** asks first, toasts `Time added for 3`, and the three running students' clocks moved five minutes in the database while the finished one stayed at 0; the board counted down on its own 15-second timer with no manual reload; no console errors. Every test row was deleted afterwards (`cleanup_live_monitor.sql`; live state 0 exams, 0 sessions, 0 answers, 0 results, 0 events, 0 rate-limit rows, 40 questions).
@@ -56,7 +57,7 @@ Cursor / Composer — TASK-013 live monitor (screens + e2e + SQL in git) — **a
 4. Owner-only (release blockers, cannot be done by an agent alone): disable public sign-up (ISSUE-007), media upload check (TASK-007), `supabase db pull` to reconcile `v2_01`..`v2_15` into git (TASK-008).
 
 ## Recommended Next Task
-**The TASK-012 remainder — the Questions statistics tab, then XLSX/PDF exports.** Classes and CSV are implemented from the existing overview payload. Question-level statistics still need a staff-facing contract over `review_snapshot`; no schema change should be assumed until that payload is designed and tested.
+**The TASK-012 remainder — XLSX/PDF exports.** CSV, Classes, and Questions statistics are implemented. XLSX/PDF still need a dependency-free format decision or an approved writer approach under DEC-007.
 
 If you would rather harden what exists, **TASK-015** holds the real gaps: nothing schedules `expire_sessions()` (ISSUE-018), `purge_rate_limits()` runs only by hand (ISSUE-012), and the audit log that every write already records has no viewer.
 

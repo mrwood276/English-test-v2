@@ -1,5 +1,11 @@
 # 07 CHANGELOG
 
+## 2026-09-24 — Questions statistics tab (TASK-012 remainder, partial)
+- Agent: GitHub Copilot, branch `ai-development`.
+- Added the lazy-loaded Questions tab to `frontend/assets/js/teacher/screens/examResults.js`. It reads existing staff session reports and displays hardest-question ordering, type, answered count, accuracy, and most-chosen answer. Added browser coverage alongside Scores and Classes.
+- Verification: `deno check frontend/assets/js/teacher/screens/examResults.js` and `python frontend/tests/results_e2e.py` passed with no page errors.
+- Remaining: XLSX/PDF exports.
+
 ## 2026-09-24 — Classes statistics tab (TASK-012 remainder, partial)
 - Agent: GitHub Copilot, branch `ai-development`.
 - Added Scores/Classes tabs to `frontend/assets/js/teacher/screens/examResults.js`. Classes aggregate merged class names, student counts, average score, passed count, and not-final count from the existing results overview payload. Added matching styles in `frontend/assets/css/results.css` and browser assertions in `frontend/tests/results_e2e.py`.

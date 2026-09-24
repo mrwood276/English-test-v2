@@ -46,6 +46,36 @@ function classStats(rows) {
   return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function questionStats(reports) {
+  const groups = new Map();
+  for (const report of reports) {
+    for (const item of report.review || []) {
+      const group = groups.get(item.question_id) || {
+        id: item.question_id, position: item.position, body: item.body, type: item.type,
+        answered: 0, correct: 0, choices: new Map(),
+      };
+      const chosen = String(item.chosen || "").trim();
+      if (chosen) {
+        group.answered += 1;
+        if (item.is_correct === true || (item.type === "essay" && Number(item.points) >= Number(item.max_points))) group.correct += 1;
+        const choice = chosen.toLowerCase();
+        group.choices.set(choice, (group.choices.get(choice) || 0) + 1);
+      }
+      groups.set(item.question_id, group);
+    }
+  }
+  return [...groups.values()].sort((a, b) => {
+    const left = a.answered ? a.correct / a.answered : 0;
+    const right = b.answered ? b.correct / b.answered : 0;
+    return left - right || a.position - b.position;
+  });
+}
+
+function mostChosen(group) {
+  const choice = [...group.choices.entries()].sort((a, b) => b[1] - a[1])[0];
+  return choice ? `${choice[0]} (${choice[1]})` : "—";
+}
+
 /** The results of one exam (mockup 14): summary line, then one row per student who joined. */
 export function renderExamResults(container, ctx, { examId }) {
   const state = { overview: null, requestId: 0 };
@@ -57,7 +87,9 @@ export function renderExamResults(container, ctx, { examId }) {
   const tabs = h("div", { class: "results-tabs", role: "tablist", "aria-label": "Results views" });
   const scoresTab = h("button", { class: "results-tab on", type: "button", role: "tab", "aria-selected": "true" }, "Scores");
   const classesTab = h("button", { class: "results-tab", type: "button", role: "tab", "aria-selected": "false" }, "Classes");
+  const questionsTab = h("button", { class: "results-tab", type: "button", role: "tab", "aria-selected": "false" }, "Questions");
   const classesPanel = h("div", { class: "card list-card results-stats", hidden: true });
+  const questionsPanel = h("div", { class: "card list-card results-stats", hidden: true });
   const tbody = h("tbody");
   const status = h("div", { class: "list-status", role: "status" });
 
@@ -85,20 +117,48 @@ export function renderExamResults(container, ctx, { examId }) {
           tbody)),
       status),
     classesPanel,
+    questionsPanel,
   );
 
-  tabs.append(scoresTab, classesTab);
+  tabs.append(scoresTab, classesTab, questionsTab);
   function showTab(tab) {
     const scores = tab === "scores";
+    const classes = tab === "classes";
     scoresTab.classList.toggle("on", scores);
-    classesTab.classList.toggle("on", !scores);
+    classesTab.classList.toggle("on", classes);
+    questionsTab.classList.toggle("on", !scores && !classes);
     scoresTab.setAttribute("aria-selected", String(scores));
-    classesTab.setAttribute("aria-selected", String(!scores));
+    classesTab.setAttribute("aria-selected", String(classes));
+    questionsTab.setAttribute("aria-selected", String(!scores && !classes));
     tbody.closest(".list-card").hidden = !scores;
-    classesPanel.hidden = scores;
+    classesPanel.hidden = !classes;
+    questionsPanel.hidden = scores || classes;
   }
   scoresTab.addEventListener("click", () => showTab("scores"));
   classesTab.addEventListener("click", () => showTab("classes"));
+  questionsTab.addEventListener("click", async () => {
+    showTab("questions");
+    if (questionsPanel.dataset.loaded) return;
+    questionsPanel.replaceChildren(h("p", { class: "sub" }, "Loading question statistics…"));
+    try {
+      const reports = await Promise.all((state.overview?.rows || []).filter((row) => row.has_result).map((row) => results.report(row.session_id)));
+      const stats = questionStats(reports);
+      questionsPanel.replaceChildren(
+        h("div", { class: "table-wrap" },
+          h("table", { class: "qtable" },
+            h("thead", {}, h("tr", {}, h("th", {}, "Question"), h("th", {}, "Type"), h("th", {}, "Answered"), h("th", {}, "Accuracy"), h("th", {}, "Most chosen"))),
+            h("tbody", {}, stats.map((group) => h("tr", {},
+              h("td", {}, h("b", {}, `${group.position}. ${String(group.body || "").replace(/<[^>]*>/g, "").slice(0, 80)}`)),
+              h("td", {}, group.type),
+              h("td", {}, String(group.answered)),
+              h("td", {}, group.answered ? `${Math.round(group.correct / group.answered * 100)}%` : "—"),
+              h("td", {}, mostChosen(group))))))),
+      );
+      questionsPanel.dataset.loaded = "true";
+    } catch (err) {
+      questionsPanel.replaceChildren(h("p", { class: "sub" }, errorText(err)));
+    }
+  });
 
   function row(r) {
     const details = h("a", { class: "link-btn", href: `#/results/${examId}/session/${r.session_id}` }, "Details");

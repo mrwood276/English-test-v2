@@ -142,6 +142,11 @@ with sync_playwright() as pw:
     classes_text = page.inner_text(".results-stats")
     check("the Classes tab opens", "Classes" in page.inner_text(".results-tabs") and "Class XII TKJ A" in classes_text)
     check("class statistics show average and passed count", "Average" in classes_text and "Passed" in classes_text and "2" in classes_text)
+    page.click(".results-tab:has-text('Questions')")
+    page.wait_for_function("document.querySelector('.results-stats:not([hidden]) tbody tr') !== null")
+    questions_text = page.inner_text(".results-stats:not([hidden])")
+    check("the Questions tab opens", "Accuracy" in questions_text and "Most chosen" in questions_text)
+    check("question statistics show accuracy", "%" in questions_text and "Bold" in questions_text)
     page.click(".results-tab:has-text('Scores')")
     page.wait_for_function("document.querySelector('.list-card:not([hidden]) .qtable') !== null")
 
