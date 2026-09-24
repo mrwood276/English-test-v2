@@ -4,19 +4,19 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-24 (Codex — TASK-014 dashboard and phone-menu polish) |
-| Last AI agent | Codex (fourteenth session: pulled `ai-development` first, continued the in-progress TASK-014 baton, built mockup 5 without adding a second read path, and closed the phone-menu issue). |
-| Development phase | Phase 5 **FULLY LIVE-VERIFIED**; Phase 6 dashboard/UX polish complete (dashboard browser-tested against the mock server; first CI run of its new suite to be watched). |
-| Current focus | **TASK-014 complete.** The teacher dashboard now shows the running exam with its big code, attention items, and recent results. TASK-012 is down to the owner-dependent **PDF class summary**. Next code work: TASK-015 (jobs/audit/notifications) or TASK-020 (duplicate banner). |
+| Last updated | 2026-09-24 (Codex — TASK-014 CI follow-up) |
+| Last AI agent | Codex (fifteenth session: pulled `ai-development`, watched the new dashboard suite in CI, fixed its setup error at the root, and verified both workflows green). |
+| Development phase | Phase 5 **FULLY LIVE-VERIFIED**; Phase 6 dashboard/UX polish complete and CI-verified. |
+| Current focus | **TASK-014 complete and closed in CI.** TASK-012 is down to the owner-dependent **PDF class summary**. Next code work: TASK-015 (jobs/audit/notifications) or TASK-020 (duplicate banner). |
 | Branch model | `main` = stable. `ai-development` = shared AI development. |
-| Current branch / commit | **`ai-development`** = the TASK-014 dashboard/mobile-menu commit in this handoff, on top of `9c02b9b` (TASK-008 migrations). Push and CI status are recorded in `08_HANDOFF.md`. |
+| Current branch / commit | **`ai-development`**; verified product change `2ea6ac0` (dashboard-test setup fix on top of `dab2a48`, TASK-014 dashboard/mobile-menu work). This handoff adds a docs-only commit on top. Backend run #36 and Frontend run #28 are green at `2ea6ac0`. |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
 
 ## What was inspected to write `.ai/`
 
 - All files of the repository copy (65 tracked files before `.ai/`), including code, tests, docs, workflow.
 - The **live Supabase project**: migrations list, Edge Function list and versions, tables and RLS state, policies count, functions count, storage buckets, row counts, extensions.
-- Test runs (2026-09-24, fourteenth session, from this clone): backend `deno test --allow-env backend/tests/` = **106 passed**, 0 failed; all frontend unit tests = **31 passed**, 0 failed; `deno check` on the changed JS modules = clean; `git diff --check` = clean. The new `dashboard_e2e.py` is committed for CI because this Windows agent has no Python/Playwright runtime; the previous nine mocked browser suites remain the CI baseline.
+- Test runs (2026-09-24, fifteenth session, from this clone): backend `deno test --allow-env backend/tests/` = **106 passed**, 0 failed; all frontend unit tests = **31 passed**, 0 failed; `git diff --check` = clean. GitHub Actions at `2ea6ac0`: Backend tests run #36 green; Frontend tests run #28 green, including all ten mocked browser suites (`dashboard_e2e.py` passed). This Windows agent still has no Python/Playwright runtime.
 - No TODO/FIXME comments exist in the code (scan returned nothing).
 
 ## Live system facts (verified 2026-09-21)
@@ -76,7 +76,7 @@
 
 ## Recently completed work (newest first)
 
-1. **TASK-014 dashboard and UX polish (2026-09-24)**: mockup-5 dashboard (big code, live preview, essays/page exits, recent pass-rate meters, 30-second refresh) built on existing payloads (DEC-026); phone menu compacted into a sticky one-row scroll; `list_exam_activity` extended with `passed`/`failed` and applied live; `dashboard_e2e.py` and the CI workflow updated.
+1. **TASK-014 dashboard and UX polish (2026-09-24, CI green)**: mockup-5 dashboard (big code, live preview, essays/page exits, recent pass-rate meters, 30-second refresh) built on existing payloads (DEC-026); phone menu compacted into a sticky one-row scroll; `list_exam_activity` extended with `passed`/`failed` and applied live; `dashboard_e2e.py` and the CI workflow verified green in Actions.
 
 2. **TASK-012 core — grading, results, teacher actions on an attempt (2026-09-24)**: SQL functions in `supabase/migrations/20260924000000_result_functions.sql` (applied live; `docs/sql-results.md`); `_session_result_write` as the single writer of `exam_results` and `_session_grade` re-created to skip hand-graded questions (DEC-023); the `results` Edge Function deployed (11 staff-only actions); the Grading screen (mockup 13), the per-exam results screen (mockup 14), the attempt report with per-question grading and add time / reopen / retake; `supabase/tests/result_functions_test.sql` (rolled back), 18 Deno tests, `results_e2e.py` (59 checks); CI now runs eight suites; live-verified with the admin account (38/38) and cleaned up afterwards. **ISSUE-017 closed.**
 2. **TASK-010 student exam engine (2026-09-23)**: SQL functions in `supabase/migrations/20260923000000_session_functions.sql` (applied live; `docs/sql-sessions.md`); `session` Edge Function deployed (signed session token, per-address join limit, per-session autosave limit, media signing); the student page `frontend/index.html` (join → take the test → result) with offline-tolerant autosave, a server-backed timer, the answer sheet, page-leave warnings and the auto-submit limit; `supabase/tests/session_functions_test.sql` (rolled back), 21 Deno tests, `student_e2e.py` (52 checks); live-verified with the admin account (27/27) and cleaned up afterwards.
@@ -92,7 +92,6 @@
 
 ## Work in progress
 
-- **TASK-014**, on branch `ai-development`: implementation complete; the only outstanding verification step is watching the first CI run of the new `dashboard_e2e.py` suite after the push.
 - **TASK-012**, on branch `ai-development**: only the **PDF class summary** remains, and it needs the owner's decision on the one-page content. CSV/Excel and both statistics tabs are built and tested.
 - **TASK-006**, on branch `ai-development`: deployed and working; remaining is the owner's review of the proposed import formats and one real Excel/Google-Sheets file.
 - **TASK-015** is the next ordinary code task: scheduled `expire_sessions()` / `purge_rate_limits()`, an audit-log viewer, and dashboard/email notifications.
@@ -114,7 +113,7 @@ No code task is blocked. Release remains blocked on the two owner-only items: pu
 
 ## Known regressions
 
-None from this session. One pre-existing environment quirk was found and left alone: `media_e2e.py` expects the generated `small.png` fixture to be exactly 467 bytes, but the installed Pillow writes 468 bytes, so that single check fails locally after running `make_fixtures.py`. It is unrelated to the import work (media code untouched). See `09_KNOWN_ISSUES.md` ISSUE-014 for the exact description.
+None from this session. The earlier `media_e2e.py` fixture-size quirk in ISSUE-014 was fixed on 2026-09-22; the test now compares against the generated file's real size.
 
 ## Current risks
 
@@ -122,15 +121,13 @@ None from this session. One pre-existing environment quirk was found and left al
 2. Media upload untested against real Storage (ISSUE-002 / TASK-007).
 3. Public email sign-up is still enabled (ISSUE-007).
 4. v1 keeps serving real students with its known weaknesses (`docs/audit-v1.md`); owner decided not to patch it (DEC-015).
-5. The new `dashboard_e2e.py` suite has not yet had its first CI run on this Windows agent (no Python/Playwright runtime).
 
 ## Current priorities
 
-1. Watch the first CI run of the tenth browser suite (`dashboard_e2e.py`) after this push; if it fails, fix the product/test at the root rather than hiding the error.
-2. **TASK-015**: scheduled jobs, audit-log viewer, and notifications.
-3. **TASK-020**: the question-bank duplicate-overview banner.
-4. Ask the owner what the PDF class summary should contain (the last TASK-012 piece) and whether the proposed import formats are accepted.
-5. Owner-only release steps: disable public sign-up and run one real media upload.
+1. **TASK-015**: scheduled jobs, audit-log viewer, and notifications.
+2. **TASK-020**: the question-bank duplicate-overview banner.
+3. Ask the owner what the PDF class summary should contain (the last TASK-012 piece) and whether the proposed import formats are accepted.
+4. Owner-only release steps: disable public sign-up and run one real media upload.
 
 ## How SQL business rules were tested (technique)
 

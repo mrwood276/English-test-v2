@@ -1,5 +1,12 @@
 # 07 CHANGELOG
 
+## 2026-09-24 — TASK-014 CI closure: dashboard test setup fixed and Actions green — git `ai-development` (`2ea6ac0`)
+- Agent: Codex (fifteenth session). Branch: `ai-development`; started from `dab2a48` after `git pull --ff-only`.
+- **What CI found:** Frontend Actions run #27 at `dab2a48` failed before a dashboard assertion ran. `dashboard_e2e.py` called `srv.open_exam_row("DASH01")`, but that helper mirrors an already-registered session exam into the teacher `exams` store; the test had not first registered the session exam, so the mock server raised `KeyError: 'DASH01'`. This was a test-setup bug, not a dashboard product bug.
+- **Fix:** `dashboard_e2e.py` now calls `srv.session_exam(CODE)` first and then `srv.open_exam_row(CODE)` to mirror that same exam into the `exams.list` store, preserving the one-exam payload used by the dashboard.
+- **Verification:** backend `deno test --allow-env backend/tests/` = **106/106**; frontend unit `deno test --allow-env --allow-read --no-check frontend/tests/unit/` = **31/31**; `git diff --check` clean. GitHub Actions at `2ea6ac0`: Backend run #36 green; Frontend run #28 green, including all ten mocked browser suites and the dashboard suite.
+- **No product, database, Edge Function, or schema changes.** No live Supabase data was touched. Files: `frontend/tests/dashboard_e2e.py` and `.ai/` docs.
+
 ## 2026-09-24 — TASK-014: mockup-5 dashboard and compact phone menu — git `ai-development`
 - Agent: Codex (fourteenth session). Branch: `ai-development`, continued from the in-progress baton rather than starting a new system.
 - **Dashboard (mockup 5)**: `frontend/assets/js/teacher/screens/dashboard.js` replaces the welcome/connection-check placeholder.
