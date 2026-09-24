@@ -147,9 +147,9 @@ with sync_playwright() as pw:
     page.select_option("#qb-difficulty", ""); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 25")
 
     # --- navigation
-    page.click("a[data-route='#/dashboard']"); page.wait_for_selector("h1:has-text('Welcome')")
+    page.click("a[data-route='#/dashboard']"); page.wait_for_selector("h1:has-text('Dashboard')")
     check("dashboard link works", page.get_attribute("a[data-route='#/dashboard']", "aria-current") == "page" and page.is_hidden(".qtable") if page.query_selector(".qtable") else True)
-    page.evaluate("location.hash = '#/nowhere'"); page.wait_for_selector("h1:has-text('Welcome')")
+    page.evaluate("location.hash = '#/nowhere'"); page.wait_for_selector("h1:has-text('Dashboard')")
     check("unknown address falls back to the dashboard", True)
     page.click("a[data-route='#/questions']"); page.wait_for_selector(".qtable"); wait_rows(page, 25)
     check("filters start fresh when coming back", page.input_value("#qb-search") == "")

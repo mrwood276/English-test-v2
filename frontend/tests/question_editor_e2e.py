@@ -197,7 +197,7 @@ with sync_playwright() as pw:
     page.click("dialog button:has-text('Keep editing')"); page.wait_for_function("document.querySelector('dialog') === null")
     check("keep editing stays and keeps the text", page.url.endswith("#/questions/new") and page.input_value("#q-body") == "FORCE_SERVER_ERROR")
     page.click("a[data-route='#/dashboard']"); page.wait_for_selector("dialog[open]")
-    page.click("dialog button:has-text('Leave')"); page.wait_for_selector("h1:has-text('Welcome')")
+    page.click("dialog button:has-text('Leave')"); page.wait_for_selector("h1:has-text('Dashboard')")
     check("leaving anyway works from the menu too", page.url.endswith("#/dashboard"))
 
     # ---- editing an existing question
