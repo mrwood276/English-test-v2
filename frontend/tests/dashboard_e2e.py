@@ -20,7 +20,8 @@ def check(name, cond, detail=""):
 
 
 srv = Server()
-exam = srv.open_exam_row(CODE)
+exam = srv.session_exam(CODE)
+srv.open_exam_row(CODE)
 EXAM_ID = exam["id"]
 by_type = {q["type"]: q for q in exam["questions"]}
 mc, tf, sa, es = by_type["multiple_choice"], by_type["true_false"], by_type["short_answer"], by_type["essay"]
