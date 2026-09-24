@@ -1,6 +1,6 @@
 import { h, mount } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
-import { toast, confirmDialog } from "../../shared/ui.js";
+import { toast, confirmDialog, startRefresh } from "../../shared/ui.js";
 import { results } from "../api/results.js";
 import { SessionExpiredError } from "../../core/auth.js";
 import { fmtDuration, liveStatusPill, minutesSelect } from "../components/resultBits.js";
@@ -211,18 +211,4 @@ function renderExamSessions(container, examId) {
   });
 
   return startRefresh(container, state, load, 15_000);
-}
-
-function startRefresh(container, state, load, ms) {
-  load();
-  state.timer = setInterval(() => { if (document.contains(container)) load(); }, ms);
-  const observer = new MutationObserver(() => {
-    if (!document.contains(container)) cleanup();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-  function cleanup() {
-    if (state.timer) { clearInterval(state.timer); state.timer = null; }
-    observer.disconnect();
-  }
-  return cleanup;
 }

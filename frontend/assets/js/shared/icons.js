@@ -22,6 +22,7 @@ const PATHS = {
   play: '<path d="M8.5 5.5l10 6.5-10 6.5z"/>',
   offline: '<path d="M3 3l18 18"/><path d="M5 12.5a10 10 0 0114 0"/><path d="M8.5 16a5 5 0 018.5 0"/><circle cx="12" cy="19.6" r=".6"/>',
   download: '<path d="M12 4v11"/><path d="M7.5 11.5l4.5 4.5 4.5-4.5"/><path d="M5 20h14"/>',
+  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 011-1h10"/>',
 };
 
 export function icon(name, label) {

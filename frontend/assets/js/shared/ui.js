@@ -56,3 +56,23 @@ export function segmented({ label, name, options, value, onChange }) {
   }
   return { el: wrap, set: (val) => { for (const [v, input] of inputs) input.checked = v === val; } };
 }
+
+/**
+ * Keeps a live screen fresh: reloads every `ms` while the screen is still in the document,
+ * and stops (timer + observer) the moment another route replaces it.
+ * Shared by the monitor boards and the dashboard; `state.timer` is reused so a second
+ * call for the same screen can never stack a second interval.
+ */
+export function startRefresh(container, state, load, ms) {
+  load();
+  state.timer = setInterval(() => { if (document.contains(container)) load(); }, ms);
+  const observer = new MutationObserver(() => {
+    if (!document.contains(container)) cleanup();
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+  function cleanup() {
+    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+    observer.disconnect();
+  }
+  return cleanup;
+}

@@ -4,19 +4,19 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-24 (Buffy — Excel export on the results screen, Questions-tab defects fixed) |
-| Last AI agent | Buffy (Freebuff desktop agent, twelfth session: read the remote first, verified the GitHub Copilot session's CSV/statistics work that had landed meanwhile, fixed two real defects in its Questions tab, then built the Excel export). The eleventh session kept the tenth session's monitor implementation and added on top of it — see `08_HANDOFF.md` collision note. |
-| Development phase | Phase 5 (anti-cheating events and the live monitor) **FULLY LIVE-VERIFIED** on top of Phase 4. |
-| Current focus | **TASK-013 and TASK-022 complete.** Monitor hub + per-exam live table + session timeline (`monitor_e2e.py` 30/30), exam-wide add time, and live browser evidence are complete. TASK-012 statistics and the CSV **and Excel** exports are built and tested; only the **PDF class summary** remains, and that needs the owner's decision on its content. Release to `main` still not done; three owner-only items remain. |
+| Last updated | 2026-09-24 (Codex — TASK-014 dashboard and phone-menu polish) |
+| Last AI agent | Codex (fourteenth session: pulled `ai-development` first, continued the in-progress TASK-014 baton, built mockup 5 without adding a second read path, and closed the phone-menu issue). |
+| Development phase | Phase 5 **FULLY LIVE-VERIFIED**; Phase 6 dashboard/UX polish complete (dashboard browser-tested against the mock server; first CI run of its new suite to be watched). |
+| Current focus | **TASK-014 complete.** The teacher dashboard now shows the running exam with its big code, attention items, and recent results. TASK-012 is down to the owner-dependent **PDF class summary**. Next code work: TASK-015 (jobs/audit/notifications) or TASK-020 (duplicate banner). |
 | Branch model | `main` = stable. `ai-development` = shared AI development. |
-| Current branch / commit | **`ai-development`** = `a046a11` (the Excel export and the Questions-tab fixes; pushed, **both CI workflows green on it**) on top of the GitHub Copilot session's `46dafac` (CSV export, Classes/Questions tabs). The eleventh session's first, self-built TASK-013 is parked on a **local** branch `t13-buffy-monitor` (`46b5846`) for reference — never pushed, safe to delete. |
+| Current branch / commit | **`ai-development`** = the TASK-014 dashboard/mobile-menu commit in this handoff, on top of `9c02b9b` (TASK-008 migrations). Push and CI status are recorded in `08_HANDOFF.md`. |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
 
 ## What was inspected to write `.ai/`
 
 - All files of the repository copy (65 tracked files before `.ai/`), including code, tests, docs, workflow.
 - The **live Supabase project**: migrations list, Edge Function list and versions, tables and RLS state, policies count, functions count, storage buckets, row counts, extensions.
-- Test runs (2026-09-24, eleventh session, from this clone): backend `deno test` = **106 passed**, 0 failed; import parser unit tests = 21 passed; Playwright suites (mocked network) all green — **nine** of them: `teacher_e2e`, `question_bank_e2e`, `question_editor_e2e`, `media_e2e`, `question_import_e2e`, `exams_e2e`, `student_e2e`, `results_e2e` (59 checks), `monitor_e2e` (30 checks).
+- Test runs (2026-09-24, fourteenth session, from this clone): backend `deno test --allow-env backend/tests/` = **106 passed**, 0 failed; all frontend unit tests = **31 passed**, 0 failed; `deno check` on the changed JS modules = clean; `git diff --check` = clean. The new `dashboard_e2e.py` is committed for CI because this Windows agent has no Python/Playwright runtime; the previous nine mocked browser suites remain the CI baseline.
 - No TODO/FIXME comments exist in the code (scan returned nothing).
 
 ## Live system facts (verified 2026-09-21)
@@ -24,13 +24,11 @@
 | Item | Value |
 |---|---|
 | Tables | 22, all RLS on, 0 policies (public and storage schemas) |
-| Public SQL functions | 25 |
 | Migrations applied | `v2_01` .. `v2_12` (12) |
 | Edge Functions (as of 2026-09-24, eleventh session) | `auth-me` v1, `question-bank` v3, `media` v1, `exams` v3, `session` v1, **`results` v4** (grading/reports + the monitor + exam-wide add time); all ACTIVE, `verify_jwt=false` |
 | Public SQL functions | **60** (verified live on 2026-09-24; the eleventh session added `add_exam_time` and dropped the duplicate `list_live_sessions`) |
 | Storage | bucket `question-media`, private, 10 MB limit |
 | Data (2026-09-24) | 40 questions (0 archived), 5 passages, 13 topics, 0 media files, **0 exams, 0 sessions, 0 answers, 0 grades, 0 results, 0 session events, 0 retake permissions, 0 rate-limit rows**, 1 profile (admin), 4 audit rows — every verification row was deleted again |
-| Public SQL functions | **59** (was 47; TASK-012 added 12) |
 | Auth users | 1 admin (email known to the owner; not repeated here). No teacher account |
 
 ## Live system facts (re-verified 2026-09-22, fifth session, via the CLI + admin sign-in)
@@ -50,6 +48,12 @@
 - Doc drift found and corrected: the deployed `exams` function is at **version 3** (the `.ai/` files still said v1) and the live public SQL function count is **59**, both read straight from the project.
 - Row counts after cleanup: 0 exams, 0 exam_sessions, 0 session_answers, 0 answer_grades, 0 exam_results, 0 session_events, 0 retake_permissions, 0 rate_limits, 40 questions, 4 audit rows.
 
+## Live system facts (re-verified 2026-09-24, fourteenth session)
+
+- `supabase/migrations/20260928000000_dashboard_activity_fields.sql` was applied live via Supabase MCP. `list_exam_activity` now returns `passed` and `failed` in addition to every existing field; no table, policy, or Edge Function action was added.
+- Read-only verification: the function returned `[]` with the live project's 0 exams/sessions; `pg_proc.proacl` still grants execute only to `postgres` and `service_role` (PUBLIC/anon/authenticated refused); the security advisor showed only its expected INFO and the pre-existing ISSUE-005 WARN.
+- No Edge Function redeploy was needed: `backend/functions/results/handler.ts` passes the SQL function's JSON through unchanged.
+
 ## Live system facts (re-verified 2026-09-23, seventh session)
 
 - The `session` function is deployed and answers: a tokenless call is refused with HTTP 400 (`token is required`), a forged token with **HTTP 401** — the signed-token wall works in production (DEC-022).
@@ -66,12 +70,15 @@
 | `session` | handler + parser + token + 21 Deno tests | **v1 live**; student flow live-verified | No drift |
 | `question-bank` | has actions `import_check`, `import` | **v3 live**; `import_check` answered live | Import works against real backend; left: owner format review + real Excel file (ISSUE-013 caveat) |
 | Monitor UI (F-13) | `examMonitor.js` / `sessionTimeline.js` + routes, `monitor_e2e.py` (30 checks) | reads the `results` function's `overview`/`report` actions (v4 live) | No drift — live-verified in a real browser (TASK-022, 20/20) |
+| Dashboard (F-03) | `dashboard.js` reads the existing `exams` and `results` APIs; `dashboard_e2e.py` added | live SQL activity fields applied; Edge Function unchanged | No drift |
 | SQL migrations | first migration in git: `supabase/migrations/20260922000000_exams_functions.sql` (applied live) | `v2_01`..`v2_12` + the exams functions | ISSUE-001 partially closed; `supabase db pull` can bring the older ones in |
 | Frontend | `APP_BUILD` = "Phase 4, grading and results" | not deployed | The owner runs it locally with `frontend/dev-server.py` |
 
 ## Recently completed work (newest first)
 
-1. **TASK-012 core — grading, results, teacher actions on an attempt (2026-09-24)**: SQL functions in `supabase/migrations/20260924000000_result_functions.sql` (applied live; `docs/sql-results.md`); `_session_result_write` as the single writer of `exam_results` and `_session_grade` re-created to skip hand-graded questions (DEC-023); the `results` Edge Function deployed (11 staff-only actions); the Grading screen (mockup 13), the per-exam results screen (mockup 14), the attempt report with per-question grading and add time / reopen / retake; `supabase/tests/result_functions_test.sql` (rolled back), 18 Deno tests, `results_e2e.py` (59 checks); CI now runs eight suites; live-verified with the admin account (38/38) and cleaned up afterwards. **ISSUE-017 closed.**
+1. **TASK-014 dashboard and UX polish (2026-09-24)**: mockup-5 dashboard (big code, live preview, essays/page exits, recent pass-rate meters, 30-second refresh) built on existing payloads (DEC-026); phone menu compacted into a sticky one-row scroll; `list_exam_activity` extended with `passed`/`failed` and applied live; `dashboard_e2e.py` and the CI workflow updated.
+
+2. **TASK-012 core — grading, results, teacher actions on an attempt (2026-09-24)**: SQL functions in `supabase/migrations/20260924000000_result_functions.sql` (applied live; `docs/sql-results.md`); `_session_result_write` as the single writer of `exam_results` and `_session_grade` re-created to skip hand-graded questions (DEC-023); the `results` Edge Function deployed (11 staff-only actions); the Grading screen (mockup 13), the per-exam results screen (mockup 14), the attempt report with per-question grading and add time / reopen / retake; `supabase/tests/result_functions_test.sql` (rolled back), 18 Deno tests, `results_e2e.py` (59 checks); CI now runs eight suites; live-verified with the admin account (38/38) and cleaned up afterwards. **ISSUE-017 closed.**
 2. **TASK-010 student exam engine (2026-09-23)**: SQL functions in `supabase/migrations/20260923000000_session_functions.sql` (applied live; `docs/sql-sessions.md`); `session` Edge Function deployed (signed session token, per-address join limit, per-session autosave limit, media signing); the student page `frontend/index.html` (join → take the test → result) with offline-tolerant autosave, a server-backed timer, the answer sheet, page-leave warnings and the auto-submit limit; `supabase/tests/session_functions_test.sql` (rolled back), 21 Deno tests, `student_e2e.py` (52 checks); live-verified with the admin account (27/27) and cleaned up afterwards.
 2. **TASK-009 teacher-side exams (2026-09-22)**: `exams` Edge Function (list/get/save/remove/set_status/regenerate_code/check_code/duplicate) with 24 Deno tests; exams list screen (filters, open/close, duplicate, delete) and exam editor (manual/auto selection, schedule, live code uniqueness check, shuffle, 1/3/5 tab limits, result visibility, summary, leave guard, templates); routes + live Exams menu; mock-server handlers; `exams_e2e.py` (25 checks); SQL reference `docs/sql-exams.md` **not yet run live**.
 2. **TASK-006 steps 1–2, import browser work is done**: the import screen `#/questions/import` (file or paste → defaults → review table with statuses → all-or-nothing import), wired into the router and the question bank; zip/xlsx readers now tested against a real .xlsx fixture (ISSUE-013 closed); template files under `frontend/assets/templates/`; new Playwright suite `question_import_e2e.py` (43 checks). Verified only against the mock server — see the XLSX and live caveats below.
@@ -85,21 +92,22 @@
 
 ## Work in progress
 
-- **TASK-012 grading and results**, on branch `ai-development`: core complete and live-verified (see the summary table and `docs/sql-results.md`). Remaining in this task: only the **PDF class summary** — the Questions/Classes statistics tabs and the CSV/Excel exports are built and tested (2026-09-24). The **live monitor** is TASK-013; `expire_sessions()` exists but nothing schedules it (TASK-015).
-- **TASK-009 Exams**, on branch `ai-development`: teacher side built, applied live and verified (see `docs/sql-exams.md`).
-- **TASK-006 Import questions**, on branch `ai-development`: browser work complete (parsers, screen, tests, templates). Remaining: step 3 — deploy `question-bank` with the import actions (needs Supabase access, else BLOCKED) and step 4 — show the owner the proposed file formats before calling the feature done for teachers.
+- **TASK-014**, on branch `ai-development`: implementation complete; the only outstanding verification step is watching the first CI run of the new `dashboard_e2e.py` suite after the push.
+- **TASK-012**, on branch `ai-development**: only the **PDF class summary** remains, and it needs the owner's decision on the one-page content. CSV/Excel and both statistics tabs are built and tested.
+- **TASK-006**, on branch `ai-development`: deployed and working; remaining is the owner's review of the proposed import formats and one real Excel/Google-Sheets file.
+- **TASK-015** is the next ordinary code task: scheduled `expire_sessions()` / `purge_rate_limits()`, an audit-log viewer, and dashboard/email notifications.
 
 ## Pending work (see `05_TASK_QUEUE.md`)
 
-**TASK-013** (the live monitor — every input it needs is already recorded and returned by `get_session_report` / `list_exam_results`) is the next piece; smaller alternatives are the TASK-012 remainder (statistics tabs, exports). Then verify media upload live (TASK-007) and store the older migrations in git (TASK-008) as owner steps.
+**TASK-015** (scheduled expiry/purge jobs, audit-log viewer, notifications) is the next code task; **TASK-020** (duplicate-overview banner) is a smaller alternative. Owner-dependent items: the PDF class-summary content (TASK-012), import-format review (TASK-006), disable public sign-up (ISSUE-007), and one real media upload (TASK-007).
 
 ## Blocked work
 
-Nothing is blocked at the moment of writing: this session had a Supabase access token and used it for the `results` SQL and deployment. TASK-007 (media upload) still needs a browser run against real Supabase, and TASK-008 (`supabase db pull`) needs the owner's token — both are owner/agent-with-token steps, not code work.
+No code task is blocked. Release remains blocked on the two owner-only items: public sign-up must be disabled in Supabase Auth (ISSUE-007), and one real image/audio upload must be checked against live Storage (TASK-007). The migration-tracking discrepancy in ISSUE-001 also needs a real DB connection/password, not agent-alone work.
 
 ## What the owner has verified live
 
-- Signing in with the admin account works (`Welcome`, connection check).
+- Signing in with the admin account works (the owner last saw the old `Welcome`/connection-check placeholder; the new mockup-5 dashboard is automated-test evidence, not an owner walkthrough).
 - The question bank shows the 40 migrated questions; add/edit editor opens and works after clearing a stale browser cache (old JS modules were cached; fixed by `dev-server.py`).
 - Everything else about the editor beyond opening and basic add/edit is verified only by automated tests.
 - (The student flow and the grading loop were verified against the live backend by the agent, not by the owner in a browser: the deployed functions and their SQL were exercised over HTTP, while the *screens* were verified against the mock server only. One owner run of `frontend/index.html` and of the grading screens against the real project is still worth doing.)
@@ -110,18 +118,19 @@ None from this session. One pre-existing environment quirk was found and left al
 
 ## Current risks
 
-1. Migrations only in the live project (ISSUE-001).
-2. Media upload untested against real Storage (ISSUE-002).
-3. GitHub sync is manual; two copies of the code can diverge (ISSUE-004).
-4. v1 keeps serving real students with its known weaknesses (`docs/audit-v1.md`); owner decided not to patch it (DEC-015). (ISSUE-006 — frontend not in CI — was closed on 2026-09-22 by TASK-018; the new workflow's first real run still needs to be watched.)
+1. The live migration-tracking table is missing rows for three already-live migrations (ISSUE-001 follow-up; needs a real DB connection).
+2. Media upload untested against real Storage (ISSUE-002 / TASK-007).
+3. Public email sign-up is still enabled (ISSUE-007).
+4. v1 keeps serving real students with its known weaknesses (`docs/audit-v1.md`); owner decided not to patch it (DEC-015).
+5. The new `dashboard_e2e.py` suite has not yet had its first CI run on this Windows agent (no Python/Playwright runtime).
 
 ## Current priorities
 
-1. **TASK-013**: the live monitor (who is working, progress, time left, page leaves, one attempt's event timeline) — the data is already recorded and returned.
-2. **TASK-012 remainder**: the Questions/Classes statistics tabs and the exports (needs a small writer or an owner decision on the format).
-3. Owner reviews the proposed import file formats (see TASK-006 in `05_TASK_QUEUE.md`); the screen ships an example and templates that match them.
-4. Watch the first CI run of the eighth suite (`results_e2e`) after this push (TASK-018).
-5. TASK-007 and TASK-008 (verification and reproducibility) as soon as the owner can run them.
+1. Watch the first CI run of the tenth browser suite (`dashboard_e2e.py`) after this push; if it fails, fix the product/test at the root rather than hiding the error.
+2. **TASK-015**: scheduled jobs, audit-log viewer, and notifications.
+3. **TASK-020**: the question-bank duplicate-overview banner.
+4. Ask the owner what the PDF class summary should contain (the last TASK-012 piece) and whether the proposed import formats are accepted.
+5. Owner-only release steps: disable public sign-up and run one real media upload.
 
 ## How SQL business rules were tested (technique)
 

@@ -397,6 +397,19 @@ class Server:
     def results_exam(self, exam_id):
         return next((e for e in self.session_exams.values() if e["id"] == exam_id), None)
 
+    def open_exam_row(self, code):
+        """Mirrors a session exam into the exams store, open, so screens that read `exams.list`
+        (the dashboard) see the same exam the session/results functions serve."""
+        exam = self.session_exams[code]
+        self.exams[exam["id"]] = {"id": exam["id"], "title": exam["title"], "description": None,
+                                  "status": "open", "duration_minutes": exam["duration_minutes"],
+                                  "passing_grade": exam["passing_grade"], "availability_mode": "manual",
+                                  "starts_at": None, "ends_at": None, "late_start_policy": "full_duration",
+                                  "access_code": exam["code"], "selection_mode": "manual",
+                                  "is_template": False, "questions": exam["questions"],
+                                  "created_at": "2026-09-24T01:00:00Z"}
+        return exam
+
     def results_pending_essays(self, s):
         if not s.get("result"): return 0
         return sum(1 for x in s["result"]["review"]
@@ -509,6 +522,8 @@ class Server:
                               "essay_questions": sum(1 for q in exam["questions"] if q["type"] == "essay"),
                               "sessions": len(rows), "finished": len(finished),
                               "in_progress": sum(1 for x in rows if x["status"] in ("in_progress", "reopened")),
+                              "passed": len([x for x in finished if x["pass_status"] == "passed"]),
+                              "failed": len([x for x in finished if x["pass_status"] == "failed"]),
                               "pending_essays": sum(x["pending_essays"] for x in rows),
                               "average": round(sum(pcts) / len(pcts), 1) if pcts else None,
                               "last_submitted_at": max([x["submitted_at"] for x in finished], default=None)})

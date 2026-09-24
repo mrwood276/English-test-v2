@@ -12,7 +12,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 |---|---|---|---|---|
 | F-01 | Database schema (22 tables, 25 functions + 13 added since) | COMPLETE for Phases 1–2 (exam and session tables are now in use) | PROTECTED | TESTED (SQL) |
 | F-02 | Staff authentication and roles | COMPLETE | PROTECTED | LIVE-VERIFIED (owner signed in) |
-| F-03 | Teacher/admin app shell, router, dashboard | COMPLETE (dashboard is a placeholder) | STABLE | LIVE-VERIFIED (shell), dashboard minimal |
+| F-03 | Teacher/admin app shell, router, dashboard | COMPLETE (mockup 5 dashboard + compact phone menu) | STABLE | LIVE-VERIFIED (shell); dashboard TESTED (mocked browser) |
 | F-04 | Question bank: list, filters, preview, archive, delete | COMPLETE | STABLE | LIVE-VERIFIED (40 questions shown), rest TESTED |
 | F-05 | Question editor (4 types, labels, topics, duplicate warnings, preview, unsaved guard) | COMPLETE | STABLE | LIVE-VERIFIED (add/edit opened and worked per owner), rest TESTED |
 | F-06 | Reading texts (passages) | COMPLETE | STABLE | TESTED; at least one created live |
@@ -50,11 +50,12 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 
 ## F-03 App shell, router, dashboard
 
-- Status: COMPLETE (dashboard is only a welcome + connection check). Protection: STABLE.
-- Behavior: left menu (six items since the TASK-013 monitor progress: Dashboard, Question bank, Exams, Grading — with a waiting-essays badge — Results, and Monitor), hash routes, build label at the bottom of the menu (`APP_BUILD` in `config.js`, now "Phase 4, grading and results").
+- Status: COMPLETE (TASK-014, 2026-09-24). Protection: STABLE.
+- Behavior: left menu (six items since the TASK-013 monitor progress: Dashboard, Question bank, Exams, Grading — with a waiting-essays badge — Results, and Monitor), hash routes, build label at the bottom of the menu (`APP_BUILD` in `config.js`). On phones the shell is a compact sticky header: brand + signed-in person on the first row, all menu items in one horizontally scrollable row.
+- Dashboard (mockup 5): "Open now" shows the exam title, question/duration/closing facts, the access code at 52 px, Copy code / Change code / Close exam, the working count, class pills, a five-person live preview (existing `liveStatusPill` labels), and a link to the real monitor. "Needs your attention" links pending essays to grading and suspicious sessions to the monitor. "Recent exams" links the three latest finished exams to results and shows the average plus a passed-percentage meter (or "Waiting for grading"). It refreshes every 30 seconds and keeps Sign out.
 - Files: `frontend/teacher/index.html`, `assets/js/teacher/router.js`, `guard.js`, `screens/shell.js`, `screens/dashboard.js`, `assets/css/teacher.css`.
-- Notes: the mockup dashboard (running exam with big code, "needs your attention", recent exams) is **not implemented**; it depends on exams.
-- Limitations: on phones the menu takes much vertical space (mockups are desktop for teachers; low priority).
+- Data: the dashboard has **no second read path**. It uses `exams.list`, `results.activity`, and `results.overview`; `list_exam_activity` was extended additively with `passed`/`failed`. The class-merge row from mockup 5 is intentionally absent because no class-merge UI exists yet — BR-15 belongs to the results flow, not a second implementation on the dashboard.
+- Tests: `frontend/tests/dashboard_e2e.py` (open card, attention rows, recent meter, clipboard, confirm/cancel, phone menu) and `frontend/tests/teacher_e2e.py` (empty dashboard + shell).
 
 ## F-04 Question bank (list)
 

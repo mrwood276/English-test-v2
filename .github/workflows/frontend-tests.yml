@@ -51,3 +51,5 @@ jobs:
         run: python frontend/tests/results_e2e.py
       - name: Live monitor (teacher side)
         run: python frontend/tests/monitor_e2e.py
+      - name: Dashboard (teacher side)
+        run: python frontend/tests/dashboard_e2e.py

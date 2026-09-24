@@ -42,7 +42,7 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 - Severity: LOW. Status: OPEN. `profiles.full_name` is "Admin" (the owner did not give a name). There is no UI to change it.
 
 ## ISSUE-009 — Menu takes a lot of space on phones; dashboard is a placeholder
-- Severity: LOW. Status: OPEN. Related: TASK-014. Teachers use laptops per the mockups; phone layout works without horizontal scroll (tested) but is not polished.
+- Severity: LOW. Status: **FIXED (2026-09-24, TASK-014)**. The dashboard is now the mockup-5 screen, and the phone shell is a compact sticky header: brand + signed-in person on one row, all six menu items in one horizontally scrollable row. `dashboard_e2e.py` checks the one-row menu, internal scrolling, and that the page itself does not scroll sideways.
 
 ## ISSUE-010 — Question list lacks the duplicate-overview banner from the mockup
 - Severity: LOW. Status: OPEN. Related: TASK-020.

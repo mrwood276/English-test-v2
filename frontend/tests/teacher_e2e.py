@@ -43,9 +43,19 @@ class Net:
         route.fulfill(status=404, body="{}")
     def fn(self, route):
         req = route.request
-        self.calls.append((req.method, req.url.split("/functions/v1")[1], req.headers.get("authorization"), req.headers.get("apikey")))
+        path = req.url.split("/functions/v1")[1]
+        self.calls.append((req.method, path, req.headers.get("authorization"), req.headers.get("apikey")))
         if req.method == "OPTIONS":
             return route.fulfill(status=204, body="")
+        body = json.loads(req.post_data or "{}")
+        # The dashboard reads these two on every visit; answer them like the real server would
+        # for a fresh project: no open exams, nothing taken, nothing to grade.
+        if path == "/exams" and body.get("action") == "list":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"exams": []}))
+        if path == "/results" and body.get("action") == "activity":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"exams": []}))
+        if path == "/results" and body.get("action") == "pending":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"pending": 0}))
         if self.me == "network":
             return route.abort()
         if self.me == "401":
@@ -106,8 +116,12 @@ with sync_playwright() as pw:
     # 6. success
     net.login = "ok"; fill_and_submit(page, "admin@example.com", "correct")
     page.wait_for_selector(".shell")
-    check("shows the welcome screen with the name", "Welcome, Admin" in page.inner_text(".main h1"))
-    check("shows the role", "Admin" in page.inner_text(".me") and "Connected" in page.inner_text(".card"))
+    page.wait_for_selector(".dash-layout")
+    check("the dashboard opens with today's date under the title",
+          page.inner_text(".main h1") == "Dashboard" and page.inner_text(".head .sub") != "")
+    check("the empty dashboard explains itself", "No exam is open right now" in page.inner_text(".main"))
+    check("the dashboard offers a new exam", page.query_selector("a:has-text('New exam')") is not None)
+    check("shows the role in the menu", "Admin" in page.inner_text(".me"))
     check("the build label is shown", "Build:" in page.inner_text("[data-build]"))
     check("menu has the six sections", len(page.query_selector_all(".nav > *")) == 6)
     check("every menu item leads somewhere: dashboard, questions, exams, grading, results, monitor",
@@ -121,7 +135,7 @@ with sync_playwright() as pw:
 
     # 7. reload keeps the session
     page.reload(); page.wait_for_selector(".shell")
-    check("reload goes straight to the app", "Welcome, Admin" in page.inner_text(".main h1"))
+    check("reload goes straight to the app", page.inner_text(".main h1") == "Dashboard")
 
     # 8. sign out
     page.click("text=Sign out"); page.wait_for_selector(".login")
@@ -146,11 +160,11 @@ with sync_playwright() as pw:
     net.me = "network"; page.reload(); page.wait_for_selector("text=Can't connect")
     check("unreachable server shows a retry screen, not the sign in screen", page.is_visible("button:has-text(\"Try again\")"))
     net.me = "ok"; page.click("button:has-text(\"Try again\")"); page.wait_for_selector(".shell")
-    check("retry works and keeps the session", "Welcome, Admin" in page.inner_text(".main h1"))
+    check("retry works and keeps the session", page.inner_text(".main h1") == "Dashboard")
 
     # 12. names from the server are never treated as HTML
     net.me = "xss"; page.reload(); page.wait_for_selector(".shell")
-    check("a hostile name is shown as text", page.evaluate("window.__pwned") is None and "Evil" in page.inner_text(".main h1") and page.query_selector(".main h1 img") is None)
+    check("a hostile name is shown as text", page.evaluate("window.__pwned") is None and "Evil" in page.inner_text(".me") and page.query_selector(".me img") is None)
 
     # 13. narrow phone screen
     page.set_viewport_size({"width": 375, "height": 700})
