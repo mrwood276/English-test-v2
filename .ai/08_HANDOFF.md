@@ -15,7 +15,7 @@ A full review pass (2026-09-23) re-ran every automated test and a code-quality s
 | | |
 |---|---|
 | Stable Branch | `main` — **`origin/main` = `9c293fc`**. Not the normal workspace. |
-| Current Development Branch | **`ai-development`** — includes the TASK-013 live monitor (tenth session) and, on top of it, the exam-wide add time + payload drift fix + the TASK-022 live browser run (eleventh session). |
+| Current Development Branch | **`ai-development`** = `4d07b42` — the TASK-013 live monitor (tenth session) plus the exam-wide add time, the payload drift fix and the TASK-022 live browser run (eleventh session). Both CI workflows were green on `4d07b42`. |
 | Merged into `main`? | **No.** |
 
 ## Concurrent-agent collision (read this first — both reviewer sessions below ran at the same time)

@@ -3,7 +3,7 @@
 Newest first. Entries below the "Established" entry were reconstructed from git history and the live migration list only; nothing else is claimed.
 Add a new entry for every meaningful change (what, files, database changes, verification).
 
-## 2026-09-24 — Exam-wide add time, the monitor payload drift fixed, and TASK-022 done in a real browser — git `ai-development`
+## 2026-09-24 — Exam-wide add time, the monitor payload drift fixed, and TASK-022 done in a real browser — git `ai-development` (`4d07b42`; both CI workflows green on it)
 - Agent: Buffy (Freebuff desktop agent, eleventh session). **Collision, handled by the owner's decision:** this session had already built its own TASK-013 (a `list_live_sessions` read function, an exam-wide add time, a second monitor screen and suite) when the tenth session's monitor work appeared on `origin/ai-development`. The owner chose to **keep the pushed implementation** and add only what was missing on top of it; this session's duplicate was parked on a local branch (`t13-buffy-monitor`) and `ai-development` was reset to `origin`, so nothing was overwritten and nothing was force-pushed.
 - **SQL (new migration, applied live)**: `supabase/migrations/20260927000000_exam_wide_add_time.sql`
   - **`add_exam_time(p_exam_id, p_seconds, p_actor)`** — BR-11 at exam scope, completing the "optional mass add-time" the tenth session left open: one transaction for every attempt still running (adds to `extra_seconds` and `ends_at`, refreshes `last_heartbeat_at` so the teacher's own action cannot make the class read as offline, writes one `time_added` event per session with `meta.scope='exam'` and one audit row), refuses under 1 minute, over 2 hours, an unknown exam, or nobody working.
