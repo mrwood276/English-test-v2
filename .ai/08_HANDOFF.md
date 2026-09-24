@@ -87,6 +87,15 @@ This machine had no live Supabase connection, so the feature is **TESTED, not LI
 4. Otherwise continue with TASK-020. Do not invent a random feature if the queue is empty; audit documented debt instead.
 5. Before any live-DB or git-push action, confirm with the owner that no other AI session is active. Previous sessions collided twice; if a push is rejected, park the work on a local branch and ask the owner rather than forcing it.
 
+## SESSION TOOLING — skill discovery (post-task, 2026-09-29)
+
+Ran after the main task was pushed, per the owner's workflow. Result: **no new skill installed — nothing justified.**
+
+- **Already available in this Claude Code environment** (do not reinstall): the superpowers process skills (`brainstorming` before planning a new feature, `systematic-debugging` before chasing a bug), the context-mode MCP (context-window management — this session's long run relied on it), claude-mem (cross-session memory), the gsd-* skill set, and ui-ux-pro-max (UI/UX guideline data; marginal here since the app uses hand-written vanilla CSS).
+- **Searched, evaluated, rejected:** the only marketplace catalog present (ruflo — 506 agent-template skills) is overwhelmingly multi-agent swarm orchestration (queen/gossip/mesh coordinators, swarm testers). It conflicts with this project's explicit **one-AI-at-a-time** rule, so none was installed. No Supabase, Postgres/SQL, Playwright, Deno, or PDF skill exists in that catalog.
+- **The real P0 tool gap is not a skill:** live Supabase access needs the owner's credentials (Supabase MCP or a CLI access token) — see THE LIVE APPLY above. That is a user action, not an install.
+- **P2 candidate for later:** a dependency-free PDF-writing approach for the TASK-012 class summary — but only after the owner decides the one-page content; do not build ahead of that decision.
+
 ## DO NOT DO
 
 - Do not work on `main`, merge to `main`, force-push, reset hard, or delete either branch.
