@@ -35,6 +35,7 @@ class Server:
         self.saved = []; self.dup_calls = []; self.media = {}; self.media_calls = []; self.register_error = None; self.last_upload_size = None
         self.import_checks = []; self.imports = []
         self.exam_calls = []; self.exams = {}; self.exam_codes_used = {"TAKEN1"}
+        self.role = "admin"   # suites switch this to "teacher" to check the role-dependent screens
         # student side (session function)
         self.session_exams = {}; self.sessions = {}; self.taken = set(); self.session_calls = []
         self.session_events = []; self.session_seconds = None; self.session_media_urls = {}
@@ -99,7 +100,7 @@ class Server:
         if "/functions/v1/audit" in url:
             return self.handle_audit(route, req)
         if "/auth-me" in url:
-            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"user": {"id": "u1", "fullName": "Admin", "role": "admin"}}))
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"user": {"id": "u1", "fullName": "Admin" if self.role == "admin" else "Ms. Rina", "role": self.role}}))
         body = json.loads(req.post_data or "{}"); a = body.get("action"); self.calls.append(body)
         if self.status_all:
             return route.fulfill(status=self.status_all, content_type="application/json", body=json.dumps({"error": "Your session has expired. Please sign in again.", "code": "unauthorized"}))
@@ -699,6 +700,7 @@ class Server:
                 "late_start_policy": e["late_start_policy"], "access_code": e["access_code"],
                 "selection_mode": e["selection_mode"], "is_template": e["is_template"],
                 "question_count": len(qs), "total_points": sum(q.get("weight", 1) for q in qs),
+                "session_count": e.get("session_count", 0),
                 "created_at": e.get("created_at", "2026-09-21T00:00:00Z")}
 
     def handle_exams(self, route, req):
@@ -745,8 +747,12 @@ class Server:
                                "created_at": (prev or {}).get("created_at", "2026-09-21T00:00:00Z")}
             return ok({"id": eid})
         if a == "remove":
-            e = self.exams.pop(body.get("id"), None)
-            return ok({"result": "deleted"}) if e else err(400, "That exam no longer exists.")
+            e = self.exams.get(body.get("id"))
+            if not e: return err(400, "That exam no longer exists.")
+            # Same rule as remove_exam: attempts block a delete unless the caller asked for it explicitly.
+            if e.get("session_count", 0) > 0 and not body.get("hard"):
+                e["status"] = "closed"; return ok({"result": "closed"})
+            self.exams.pop(body["id"]); return ok({"result": "deleted"})
         if a == "set_status":
             e = self.exams.get(body.get("id"))
             if not e: return err(400, "That exam no longer exists.")

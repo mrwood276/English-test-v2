@@ -222,3 +222,36 @@ Deno.test("callRpc surfaces the validation hint", () => {
   const db = { rpc: () => Promise.resolve({ data: null, error: { message: "nope", hint: "validation" } }) };
   assert.rejects(() => callRpc(db, "x"), ApiError);
 });
+
+// ---------- ISSUE-023: an exam that already has attempts ----------
+Deno.test("an admin's permanent delete passes p_force", async () => {
+  const { db, calls } = fakeDb(() => ({ data: "deleted" }), "admin");
+  const res = await createHandler(() => db)(post({ action: "remove", id: EXAM, hard: true }));
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { result: "deleted" });
+  assert.equal(calls[0].name, "remove_exam");
+  assert.equal(calls[0].args.p_force, true);
+  assert.equal(calls[0].args.p_actor, TEACHER);
+});
+
+Deno.test("a teacher may not ask for the permanent delete", async () => {
+  const { db, calls } = fakeDb(() => ({ data: "deleted" }), "teacher");
+  const res = await createHandler(() => db)(post({ action: "remove", id: EXAM, hard: true }));
+  assert.equal(res.status, 403);
+  assert.equal(calls.length, 0, "the database is never asked to destroy anything");
+});
+
+Deno.test("remove without hard stays close-instead-of-delete", async () => {
+  const { db, calls } = fakeDb(() => ({ data: "closed" }), "teacher");
+  const res = await createHandler(() => db)(post({ action: "remove", id: EXAM }));
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { result: "closed" });
+  assert.equal(calls[0].args.p_force, false);
+});
+
+Deno.test("only a literal true counts as the permanent delete", async () => {
+  const { db, calls } = fakeDb(() => ({ data: "closed" }), "teacher");
+  const res = await createHandler(() => db)(post({ action: "remove", id: EXAM, hard: "yes" }));
+  assert.equal(res.status, 200, "a teacher is not refused, because this is an ordinary close");
+  assert.equal(calls[0].args.p_force, false);
+});

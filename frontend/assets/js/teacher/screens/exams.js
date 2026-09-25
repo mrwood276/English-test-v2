@@ -17,7 +17,10 @@ function fmtWhen(exam) {
 }
 
 /** Exams: list with filters, status, code, and the open/close/duplicate actions. */
-export function renderExams(container) {
+export function renderExams(container, ctx) {
+  // Deleting an exam that has attempts destroys their answers, grades and results, so only the admin
+  // may do it; a teacher can still close such an exam (BR-10 / DEC-012, ISSUE-023).
+  const isAdmin = Boolean(ctx && ctx.user && ctx.user.role === "admin");
   const state = { filters: { q: "", status: "", sort: "newest", template_only: false }, items: [], requestId: 0, loaded: false };
 
   const search = h("input", { class: "input", type: "search", id: "ex-search", placeholder: "Search exams", autocomplete: "off", "aria-label": "Search exams" });
@@ -55,6 +58,8 @@ export function renderExams(container) {
   );
 
   function examRow(exam) {
+    const attempts = Number(exam.session_count) || 0;
+    const attemptText = `${attempts} ${attempts === 1 ? "attempt" : "attempts"}`;
     const pill = h("span", { class: `pill ${STATUS_PILL[exam.status] ?? "plain"}` }, STATUS_LABEL[exam.status] ?? exam.status);
     const openClose = h(
       "button",
@@ -83,13 +88,29 @@ export function renderExams(container) {
       } catch (err) { if (!ignorable(err)) toast(errorText(err), "bad"); }
     });
 
-    const removeBtn = h("button", { class: "btn small danger", type: "button", "aria-label": `Delete ${exam.title}` }, "Delete");
-    removeBtn.addEventListener("click", async () => {
-      const ok = await confirmDialog({ title: "Delete this exam?", message: exam.question_count > 0 ? `“${exam.title}” will be removed. The questions themselves stay in the bank.` : `“${exam.title}” will be removed.`, confirmLabel: "Delete", danger: true });
+    // An exam with attempts cannot be deleted by a teacher - the screen says so instead of offering a
+    // Delete button that only closes the exam (which is what made the owner click five times).
+    const kept = attempts > 0 && !isAdmin
+      ? h("span", { class: "hint kept", "data-attempts": attempts, title: `Attempts and their results are never deleted. Close the exam instead.` }, `${attemptText} — kept for the results`)
+      : null;
+
+    const removeBtn = attempts > 0 && !isAdmin ? null : h("button", { class: "btn small danger", type: "button", "aria-label": `Delete ${exam.title}` }, "Delete");
+    if (removeBtn) removeBtn.addEventListener("click", async () => {
+      const permanent = attempts > 0; // only reachable as an admin: the attempt count decides the wording
+      const ok = await confirmDialog({
+        title: permanent ? "Delete this exam and its attempts?" : "Delete this exam?",
+        message: permanent
+          ? `“${exam.title}” has ${attemptText}. Deleting it also deletes their answers, grades and results. This cannot be undone.`
+          : (exam.question_count > 0 ? `“${exam.title}” will be removed. The questions themselves stay in the bank.` : `“${exam.title}” will be removed.`),
+        confirmLabel: permanent ? "Delete permanently" : "Delete",
+        danger: true,
+      });
       if (!ok) return;
       try {
-        const result = await exams.remove(exam.id);
-        toast(result === "closed" ? "This exam already has sessions, so it was closed instead of deleted." : "Exam deleted.");
+        const result = await exams.remove(exam.id, permanent);
+        toast(permanent
+          ? `“${exam.title}” and ${attemptText} were deleted.`
+          : (result === "closed" ? "This exam already has sessions, so it was closed instead of deleted." : "Exam deleted."));
         load();
       } catch (err) { if (!ignorable(err)) toast(errorText(err), "bad"); }
     });
@@ -99,12 +120,12 @@ export function renderExams(container) {
       h(
         "td", {},
         h("a", { class: "row-title", href: `#/exams/edit/${exam.id}` }, exam.title),
-        h("div", { class: "row-sub" }, `${exam.duration_minutes} min · passing ${Number(exam.passing_grade) || 0}`, exam.is_template ? " · template" : "", h("div", { class: "row-when" }, fmtWhen(exam))),
+        h("div", { class: "row-sub" }, `${exam.duration_minutes} min · passing ${Number(exam.passing_grade) || 0}`, exam.is_template ? " · template" : "", attempts > 0 ? ` · ${attemptText}` : "", h("div", { class: "row-when" }, fmtWhen(exam))),
       ),
       h("td", { class: "col-code" }, h("code", { class: "exam-code" }, exam.access_code)),
       h("td", { class: "col-status" }, pill),
       h("td", { class: "col-count" }, `${exam.question_count} · ${exam.total_points} pts`),
-      h("td", { class: "col-actions" }, h("div", { class: "row gap" }, openClose, duplicateBtn, removeBtn)),
+      h("td", { class: "col-actions" }, h("div", { class: "row gap" }, openClose, duplicateBtn, removeBtn, kept)),
     );
   }
 

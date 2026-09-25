@@ -32,9 +32,12 @@ export function createHandler(getDb: () => Db) {
   return handle(async (req) => {
     if (req.method !== "POST") throw methodNotAllowed();
     const db = getDb();
-    const me = await requireStaff(req, db);
     const b = asObject(await readJson(req, 200_000));
     const action = asEnum(b.action, "action", ACTIONS);
+    // Deleting an exam that already has attempts (`hard: true`) also deletes those attempts and their
+    // results, so it is an admin job (ISSUE-023). Without it a teacher may only close such an exam.
+    const permanent = action === "remove" && b.hard === true;
+    const me = await requireStaff(req, db, permanent ? ["admin"] : ["teacher", "admin"]);
 
     switch (action) {
       case "list":
@@ -53,7 +56,13 @@ export function createHandler(getDb: () => Db) {
       }
 
       case "remove":
-        return { result: await callRpc<string>(db, "remove_exam", { p_id: asUuid(b.id, "id"), p_actor: me.userId }) };
+        return {
+          result: await callRpc<string>(db, "remove_exam", {
+            p_id: asUuid(b.id, "id"),
+            p_actor: me.userId,
+            p_force: permanent,
+          }),
+        };
 
       case "set_status": {
         const status = asEnum(b.status, "Status", EXAM_STATUSES);

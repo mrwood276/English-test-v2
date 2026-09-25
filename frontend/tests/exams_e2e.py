@@ -92,6 +92,8 @@ with sync_playwright() as pw:
     page.click(".dialog button:has-text('Delete'), [role=dialog] button:has-text('Delete')")
     page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 2")
     check("delete removed the exam", "e3" not in srv.exams)
+    check("an exam without attempts is deleted without asking for a permanent delete",
+          [c for c in srv.exam_calls if c.get("action") == "remove" and c.get("id") == "e3"][0].get("hard") is False)
 
     # --- filters
     page.select_option("#ex-status", "draft"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 0")
@@ -100,6 +102,41 @@ with sync_playwright() as pw:
     page.check("#ex-templates"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 1")
     check("template filter", srv.exam_calls[-1].get("template_only") is True and "Template" in page.inner_text(".qtable"))
     page.uncheck("#ex-templates"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 2")
+
+    # --- ISSUE-023: an exam that already has attempts is kept, and says so
+    srv.exams["e4"] = dict(srv.exams[EXAM1], id="e4", title="Mid Term, Weekly 2", status="closed",
+                           access_code="KEPT11", is_template=False, session_count=2)
+
+    # a teacher: the row reports the attempts and offers no Delete at all
+    srv.role = "teacher"; page.reload(); page.wait_for_selector(".qtable")
+    page.fill("#ex-search", "Mid Term"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 1")
+    row = page.query_selector("tr[data-id='e4']")
+    check("an exam with attempts shows how many it has", "2 attempts" in row.inner_text(), row.inner_text())
+    check("a teacher is not offered Delete for an exam with attempts",
+          row.query_selector("button:has-text('Delete')") is None, row.inner_text())
+    check("a teacher is told the attempts are kept", "kept for the results" in row.inner_text(), row.inner_text())
+    before = len([c for c in srv.exam_calls if c.get("action") == "remove"])
+    check("a teacher cannot delete it through the API either", not any(c.get("hard") for c in srv.exam_calls) and before == 1)
+
+    # the admin: the same row offers a permanent delete that names what is lost
+    srv.role = "admin"; page.reload(); page.wait_for_selector(".qtable")
+    page.fill("#ex-search", "Mid Term"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 1")
+    page.click("tr[data-id='e4'] button:has-text('Delete')")
+    page.wait_for_selector(".dialog")
+    message = page.inner_text(".dialog")
+    check("the admin dialog names the attempts and the loss",
+          "2 attempts" in message and "cannot be undone" in message.lower(), message)
+    page.click(".dialog button:has-text('Cancel')")
+    page.wait_for_function("document.querySelector('.dialog') === null")
+    check("cancelling keeps the exam", "e4" in srv.exams and srv.exams["e4"]["status"] == "closed")
+    page.click("tr[data-id='e4'] button:has-text('Delete')")
+    page.wait_for_selector(".dialog")
+    page.click(".dialog button:has-text('Delete permanently')")
+    page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 0")
+    check("the permanent delete is asked for explicitly",
+          any(c.get("action") == "remove" and c.get("id") == "e4" and c.get("hard") is True for c in srv.exam_calls))
+    check("the exam is gone", "e4" not in srv.exams)
+    page.fill("#ex-search", ""); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 2")
 
     # --- editor: new exam
     page.click("a:has-text('New exam')")
