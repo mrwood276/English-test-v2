@@ -6,7 +6,8 @@ other feature (DEC-004). The tables it uses already existed from the Phase-1 mig
 `retake_permissions`, `rate_limits`); this work added only functions.
 
 The functions live in **`supabase/migrations/20260923000000_session_functions.sql`** — applied live
-on 2026-09-23 via the Supabase CLI (`npx supabase db query --linked --file …`), which is the
+on 2026-09-23 (the dashboard SQL editor or the Management API query endpoint; there is no
+`supabase db query` subcommand in CLI 2.117.0 — corrected 2026-09-25), which is the
 canonical SQL source from now on. Keep changes there.
 
 ## Contract

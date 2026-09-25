@@ -5,10 +5,11 @@
 -- The viewer is admin-only at the Edge (design.md 1.2: teachers cannot manage the system's audit
 -- log); the function itself stays service-role-only like everything else (DEC-002, ISSUE-020).
 --
--- Applied live: NOT YET — this file landed in git first. Run it with a live connection:
---   npx supabase db query --linked --file supabase/migrations/20260929000000_audit_functions.sql
--- then deploy the new `audit` Edge Function (see 08_HANDOFF.md). Until then the screen shows
--- nothing real because the function does not exist live yet.
+-- APPLIED LIVE (2026-09-25). The live migration-tracking row is `20260925001719` / `v2_16_audit_functions`,
+-- and the `audit` Edge Function is deployed (v1, ACTIVE, 2026-09-25 02:39 UTC) — it was applied through a
+-- live connection in an earlier session than the one that wrote this file, so do NOT re-apply blindly.
+-- To run SQL here: CLI 2.117.0 has no `supabase db query` subcommand — use the Management API query
+-- endpoint (POST /v1/projects/<ref>/database/query with {"query": "..."}) or the dashboard SQL editor.
 
 create or replace function public.list_audit_logs(
   p_limit int default 50,

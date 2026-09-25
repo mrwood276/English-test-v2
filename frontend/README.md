@@ -47,7 +47,9 @@ assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionE
                                 examResults, sessionReport
 assets/js/teacher/components/   questionView, richTextarea, chipsInput, passageDialog, mediaPicker,
                                 resultBits (status pills, score, formatting), reviewItem (one answer in a report)
-assets/js/teacher/guard.js      unsaved-changes guard used by the editor and the import screen
+assets/js/teacher/guard.js      unsaved-changes guard used by the editors and the import screen
+                                (setLeaveGuard(ask, hasUnsavedWork); the browser warning and the
+                                router's ask only fire while something is really unsaved)
 assets/js/student/app.js        student boot: reads the saved attempt, resumes it, mounts a screen
 assets/js/student/api.js        calls the session function (join, get, save, heartbeat, event, submit, result, media)
 assets/js/student/store.js      the attempt kept in localStorage (answers, flags, timer, offline queue)

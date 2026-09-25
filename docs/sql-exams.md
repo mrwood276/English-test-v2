@@ -5,7 +5,9 @@ migrations; the exams work added only business-rule functions, per DEC-004 (rule
 transaction per action, audit inside the transaction).
 
 The functions live in `supabase/migrations/20260922000000_exams_functions.sql` — **applied live on
-2026-09-22** (via the Supabase CLI, `supabase db query --linked --file`), which is the canonical
+2026-09-22** (the way a file like this gets applied: the dashboard SQL editor or the Management API
+query endpoint — note CLI 2.117.0 has **no** `supabase db query` subcommand, corrected 2026-09-25),
+which is the canonical
 SQL source from now on. Keep changes there.
 
 Live-discovered facts about the schema that the SQL must respect (found when first applying it):

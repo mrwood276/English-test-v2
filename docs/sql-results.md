@@ -5,7 +5,8 @@ may take on one attempt (more time, reopen, allow a retake) — keeps its rules 
 everything else (DEC-004). No table was added or changed: TASK-012 is functions only.
 
 The functions live in **`supabase/migrations/20260924000000_result_functions.sql`** — applied live on
-2026-09-24 via the Supabase CLI (`npx supabase db query --linked --file …`), which is the canonical
+2026-09-24 (the dashboard SQL editor or the Management API query endpoint — CLI 2.117.0 has no
+`supabase db query` subcommand; corrected 2026-09-25), which is the canonical
 SQL source. Keep changes there.
 
 ## Contract
@@ -45,7 +46,10 @@ SQL source. Keep changes there.
 `supabase/tests/result_functions_test.sql`:
 
 ```
-npx supabase db query --linked --file supabase/tests/result_functions_test.sql
+# send the whole file as one request (one session keeps the file's own helpers alive):
+#   POST https://api.supabase.com/v1/projects/lbhnadqmokloyfarrzfv/database/query  {"query": "<file>"}
+#   or paste it into the dashboard SQL editor - there is no `supabase db query` in CLI 2.117.0
+python -c "import json,urllib.request,os,pathlib;print(urllib.request.urlopen(urllib.request.Request('https://api.supabase.com/v1/projects/lbhnadqmokloyfarrzfv/database/query', data=json.dumps({'query': pathlib.Path('supabase/tests/result_functions_test.sql').read_text()}).encode(), headers={'Authorization':'Bearer '+os.environ['SUPABASE_ACCESS_TOKEN'],'Content-Type':'application/json'})).read().decode())"
 ```
 
 Ends with `RESULT ENGINE TESTS PASSED (all rows rolled back)`. It covers, among others: the essay

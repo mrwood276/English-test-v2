@@ -4,12 +4,12 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-29 (Claude — TASK-015 audit-log viewer slice) |
-| Last AI agent | Claude Code (sixteenth session: pulled `ai-development`, built the admin audit-log viewer — SQL + Edge Function + screen + tests — all local checks green; live apply/deploy deferred to an agent with a live connection). |
-| Development phase | Phase 5 **FULLY LIVE-VERIFIED**; Phase 6 dashboard/UX polish complete and CI-verified; Phase 7 first slice (audit viewer) built in git. |
-| Current focus | **TASK-015 audit-log viewer DONE in git (TESTED); live apply + deploy pending (needs a live connection).** Remaining TASK-015: backups, notifications (owner must choose a provider, DEC-017), scheduled purge jobs (need pg_cron live). TASK-012 is down to the owner-dependent **PDF class summary**. Next code work: TASK-020 (duplicate banner) or the live apply of the audit slice. |
+| Last updated | 2026-09-25 (Buffy — TASK-015 audit viewer live-verified; leave-guard defect and the CI flake fixed) |
+| Last AI agent | Buffy (seventeenth session: found the audit slice **already applied/deployed live** by the previous session's follow-up, verified it live, corrected the wrong "pending" docs, found and fixed the live Auth misconfiguration that blocked all staff sign-in, and fixed the leave-guard defect behind the two CI failures). |
+| Development phase | Phase 5 **FULLY LIVE-VERIFIED**; Phase 6 dashboard/UX polish complete and CI-verified; Phase 7 first slice (audit viewer) **FULLY LIVE-VERIFIED**. |
+| Current focus | **TASK-015 audit-log viewer is LIVE-VERIFIED (2026-09-25)** — no work left on it beyond the rest of TASK-015 (backups, notifications (DEC-017 owner decision), scheduled purge jobs (pg_cron live)). TASK-012 is down to the owner-dependent **PDF class summary**. Next code work: TASK-020 (duplicate banner). |
 | Branch model | `main` = stable. `ai-development` = shared AI development. |
-| Current branch / commit | **`ai-development`**; this session adds the TASK-015 audit-viewer commit on top of `2f5de2c` (docs-only regression check). All local suites green before the commit. |
+| Current branch / commit | **`ai-development`** at `7a5b09e` (leave-guard fix) on top of `51119a0`. All local suites green (backend 114, unit 31, eleven browser suites). |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
 
 ## What was inspected to write `.ai/`
@@ -25,11 +25,11 @@
 |---|---|
 | Tables | 22, all RLS on, 0 policies (public and storage schemas) |
 | Migrations applied | `v2_01` .. `v2_12` (12) |
-| Edge Functions (as of 2026-09-24, eleventh session) | `auth-me` v1, `question-bank` v3, `media` v1, `exams` v3, `session` v1, **`results` v4** (grading/reports + the monitor + exam-wide add time); all ACTIVE, `verify_jwt=false` |
-| Public SQL functions | **60** (verified live on 2026-09-24; the eleventh session added `add_exam_time` and dropped the duplicate `list_live_sessions`) |
+| Edge Functions (as of 2026-09-25, seventeenth session) | `auth-me` v1, `question-bank` v3, `media` v1, `exams` v3, `session` v1, **`results` v4** (grading/reports + the monitor + exam-wide add time), **`audit` v1** (admin-only audit-log viewer); all ACTIVE, `verify_jwt=false` |
+| Public SQL functions | **61** (verified live on 2026-09-25; the audit viewer's `list_audit_logs` was the one added since the previous count of 60) |
 | Storage | bucket `question-media`, private, 10 MB limit |
 | Data (2026-09-24) | 40 questions (0 archived), 5 passages, 13 topics, 0 media files, **0 exams, 0 sessions, 0 answers, 0 grades, 0 results, 0 session events, 0 retake permissions, 0 rate-limit rows**, 1 profile (admin), 4 audit rows — every verification row was deleted again |
-| Auth users | 1 admin (email known to the owner; not repeated here). No teacher account |
+| Auth users | 1 admin (email known to the owner; not repeated here) plus the `testguru211l@gmail.com` staff test account (2 `profiles` rows). **Auth config verified live 2026-09-25**: email provider ON, `disable_signup: true` (see ISSUE-007 — the provider had been switched off entirely, which blocked every staff sign-in; fixed the same day) |
 
 ## Live system facts (re-verified 2026-09-22, fifth session, via the CLI + admin sign-in)
 
@@ -37,7 +37,7 @@
 - Tokenless calls to `question-bank` **and** `exams` → HTTP 401, body exactly `"Please sign in."` — the in-code auth wall works in production for both functions.
 - Anon `storage/v1/bucket` list → `"Bucket not found"` — the private `question-media` bucket leaks nothing (unchanged).
 - CORS preflight from `http://localhost:8000` → `Access-Control-Allow-Origin: *` — the `ALLOWED_ORIGIN` secret is not set (expected until hosting exists; TASK-017).
-- `auth/v1/settings` → **email sign-ups are still ENABLED** (checked in the third session; the owner has not flipped it yet — ISSUE-007).
+- `auth/v1/settings` → **email sign-ups were ENABLED** (checked in the third session; ISSUE-007). Superseded 2026-09-25: sign-ups are refused with `signup_disabled` and the provider stays on so staff can sign in.
 - Admin sign-in via the API works (HTTP 200, `expires_in` 3600); `profiles` has exactly one row (admin, `is_active`).
 - Live schema facts discovered while applying the exam SQL: `exams.status`/`availability_mode`/`late_start_policy`/`selection_mode`/`result_visibility`/`essay_pending_display` are Postgres **enums**; `exam_questions.position` has `CHECK (position > 0)` + deferred `UNIQUE (exam_id, position)`; `exams.access_code` has `CHECK (^[A-Z0-9]{4,12}$)`; `auto_filter` is NOT NULL default `'{}'`. Full list in `docs/sql-exams.md`.
 
@@ -71,13 +71,24 @@
 | `question-bank` | has actions `import_check`, `import` | **v3 live**; `import_check` answered live | Import works against real backend; left: owner format review + real Excel file (ISSUE-013 caveat) |
 | Monitor UI (F-13) | `examMonitor.js` / `sessionTimeline.js` + routes, `monitor_e2e.py` (30 checks) | reads the `results` function's `overview`/`report` actions (v4 live) | No drift — live-verified in a real browser (TASK-022, 20/20) |
 | Dashboard (F-03) | `dashboard.js` reads the existing `exams` and `results` APIs; `dashboard_e2e.py` added | live SQL activity fields applied; Edge Function unchanged | No drift |
-| **Audit viewer (F-14)** | migration `20260929000000_audit_functions.sql` + `audit` Edge Function + `#/audit` screen, all tested | **NOT applied live / NOT deployed** (this machine has no live connection) | The screen exists but shows nothing real until the next agent applies + deploys — see `08_HANDOFF.md` |
+| **Audit viewer (F-14)** | migration `20260929000000_audit_functions.sql` + `audit` Edge Function + `#/audit` screen, all tested | **APPLIED + DEPLOYED** (live; verified end to end 2026-09-25) | No drift — the screen reads the four real audit rows |
 | SQL migrations | first migration in git: `supabase/migrations/20260922000000_exams_functions.sql` (applied live) | `v2_01`..`v2_12` + the exams functions | ISSUE-001 partially closed; `supabase db pull` can bring the older ones in |
 | Frontend | `APP_BUILD` = "Phase 4, grading and results" | not deployed | The owner runs it locally with `frontend/dev-server.py` |
 
+## Live system facts (verified live 2026-09-25, seventeenth session — the audit viewer)
+
+- **The audit slice was already live when this session started**, although the sixteenth session's docs said the opposite: the SQL is recorded in `supabase_migrations.schema_migrations` as `20260925001719` / `v2_16_audit_functions`, and the `audit` Edge Function was deployed (v1, ACTIVE) at 2026-09-25 02:39 UTC.
+- Verified live: `list_audit_logs` exists, is `security definer` + `stable`, and its ACL is `postgres` + `service_role` only (PUBLIC/anon/authenticated revoked). Live public SQL functions: **61**.
+- `supabase/tests/audit_functions_test.sql` run against the live project → `AUDIT VIEWER TESTS PASSED (all rows rolled back)`. Row counts afterwards unchanged: **4 audit rows, 0 `audit_test` rows leaked, 40 questions, 0 exams/sessions**.
+- Live smoke with the admin account on the deployed function: `list` → `{total: 4, rows: 4}` with actor names resolved from `profiles`; `limit 1 / offset 2` → 1 row, `question.create` by `Admin`; `days=2 + entity_type=question` → 0 (the real rows are from 2026-09-21); `days=0` → HTTP 400 "Days must be between 1 and 3650."; tokenless → HTTP 401 "Please sign in.".
+- **Live Auth misconfiguration found and fixed the same day (ISSUE-007)**: the owner's "disable sign-ups" had switched the **Email provider off entirely** (`external_email_enabled: false`), so every staff sign-in answered `422 email_provider_disabled` — nobody could log into the teacher app. Fixed via the Management API (`external_email_enabled: true`, `disable_signup: true` kept); re-verified: sign-in 200, a new sign-up refused with `signup_disabled`, `auth/v1/settings` → `external.email: true`, `disable_signup: true`.
+- **How to run SQL live from this clone**: CLI 2.117.0 has **no `supabase db query` subcommand** — use the Management API query endpoint (`POST /v1/projects/<ref>/database/query` with `{"query": "…"}`, one request = one session so a file's `pg_temp.*` works) or the dashboard SQL editor.
+
 ## Recently completed work (newest first)
 
-1. **TASK-015 slice — admin audit-log viewer (2026-09-29, in git, TESTED)**: SQL `list_audit_logs` (migration `20260929000000_audit_functions.sql`, service-role-only, validation with friendly hints; contract `docs/sql-audit.md`), rolled-back live test `supabase/tests/audit_functions_test.sql` (run it when the migration is applied), Edge Function `backend/functions/audit/` (action `list`, the only staff endpoint restricted to `["admin"]` — design.md 1.2), `audit.test.ts` (8), admin-only menu item "Audit log" + screen `#/audit` (When/Who/Action/Entity/Details, action + entity + time-window filters, pager, "System" for actor-less rows), `api/audit.js`, mock-server audit handler + `audit_e2e.py` (25 checks), CI step added, menu-count assertions updated 6→7 (teacher/monitor suites). **Live apply + deploy pending — see `08_HANDOFF.md`.**
+1. **Leave-guard defect fixed (2026-09-25, git `7a5b09e`)** — the reason the Frontend job failed twice (`f4eb5e7`, `2f5de2c`, both at `exams_e2e.py` line 141: "FAIL existing exam title loaded" then a 30 s timeout on `.chosen-item`). `guard.js` warned the browser on `if (guard)`, and every editor registers a guard on sight, so an *untouched* editor asked "Leave site?" on reload/close, and the router held the URL on the current screen while it asked (it rewrites the hash back with `history.replaceState`). A reload landing in that window loads the **previous** screen: the test's clean draft editor came back, and that draft was saved "by filter" with no `.chosen-item` to wait for. Fix: `setLeaveGuard(fn, hasUnsavedWork?)` + `hasUnsavedChanges()`, the beforeunload warning and the router's ask/URL hold-back gated on real unsaved work, the three guarded screens passing their existing synchronous dirt predicate. `exams_e2e.py` also loads the target screen *before* reloading and now checks an untouched editor reloads with no leave warning (28 checks). Verified by restoring the old semantics: the suite then dies at that reload (`Page.reload` timeout after 21 checks).
+2. **TASK-015 slice — the audit-log viewer LIVE-VERIFIED (2026-09-25)** — the migration and the `audit` Edge Function had been applied/deployed live by the previous session's follow-up, with no docs update. This session verified it live (rolled-back SQL test + admin smoke, above), corrected every "not yet applied / deploy pending" note, and confirmed the bundled `audit_e2e.py` + `audit.test.ts` still pass. **Nothing remains on the viewer slice.**
+3. **TASK-015 slice — admin audit-log viewer (2026-09-29, in git, TESTED)**: SQL `list_audit_logs` (migration `20260929000000_audit_functions.sql`, service-role-only, validation with friendly hints; contract `docs/sql-audit.md`), rolled-back live test `supabase/tests/audit_functions_test.sql` (run live on 2026-09-25 — passed), Edge Function `backend/functions/audit/` (action `list`, the only staff endpoint restricted to `["admin"]` — design.md 1.2), `audit.test.ts` (8), admin-only menu item "Audit log" + screen `#/audit` (When/Who/Action/Entity/Details, action + entity + time-window filters, pager, "System" for actor-less rows), `api/audit.js`, mock-server audit handler + `audit_e2e.py` (25 checks), CI step added, menu-count assertions updated 6→7 (teacher/monitor suites). **The "live apply pending" note here was stale the moment it was written** — that session's own follow-up applied and deployed it; see items 1–2 above.
 
 2. **TASK-014 dashboard and UX polish (2026-09-24, CI green)**: mockup-5 dashboard (big code, live preview, essays/page exits, recent pass-rate meters, 30-second refresh) built on existing payloads (DEC-026); phone menu compacted into a sticky one-row scroll; `list_exam_activity` extended with `passed`/`failed` and applied live; `dashboard_e2e.py` and the CI workflow verified green in Actions.
 
@@ -97,15 +108,15 @@
 
 - **TASK-012**, on branch `ai-development**: only the **PDF class summary** remains, and it needs the owner's decision on the one-page content. CSV/Excel and both statistics tabs are built and tested.
 - **TASK-006**, on branch `ai-development`: deployed and working; remaining is the owner's review of the proposed import formats and one real Excel/Google-Sheets file.
-- **TASK-015**: the **audit-log viewer slice is DONE in git (TESTED)**; what remains in the task — backups, notifications, scheduled purge jobs — plus **applying the viewer live** (migration + SQL test + deploy), needs a live connection or owner decisions.
+- **TASK-015**: the **audit-log viewer slice is LIVE-VERIFIED (2026-09-25)** — SQL applied, function deployed, live test + admin smoke passed. What remains in the task: backups, notifications (owner must choose a provider, DEC-017), scheduled purge jobs (need pg_cron live), user management.
 
 ## Pending work (see `05_TASK_QUEUE.md`)
 
-**TASK-015** (scheduled expiry/purge jobs, audit-log viewer, notifications) is the next code task; **TASK-020** (duplicate-overview banner) is a smaller alternative. Owner-dependent items: the PDF class-summary content (TASK-012), import-format review (TASK-006), disable public sign-up (ISSUE-007), and one real media upload (TASK-007).
+**TASK-015 remainder** (scheduled expiry/purge jobs — needs pg_cron live; backups; notifications — needs the owner's provider decision) is the next code task; **TASK-020** (duplicate-overview banner) is a smaller alternative. Owner-dependent items: the PDF class-summary content (TASK-012), import-format review (TASK-006), and one real media upload (TASK-007).
 
 ## Blocked work
 
-No code task is blocked. Release remains blocked on the two owner-only items: public sign-up must be disabled in Supabase Auth (ISSUE-007), and one real image/audio upload must be checked against live Storage (TASK-007). The migration-tracking discrepancy in ISSUE-001 also needs a real DB connection/password, not agent-alone work.
+No code task is blocked. Release remains blocked on the one owner-only item: an actual image/audio upload against live Storage (TASK-007). ISSUE-007 is now genuinely fixed and **verified live** (2026-09-25): sign-ups are refused with `signup_disabled` while staff sign-in works. The migration-tracking discrepancy in ISSUE-001 also needs a real DB connection/password, not agent-alone work.
 
 ## What the owner has verified live
 
@@ -122,16 +133,15 @@ None from this session. The earlier `media_e2e.py` fixture-size quirk in ISSUE-0
 
 1. The live migration-tracking table is missing rows for three already-live migrations (ISSUE-001 follow-up; needs a real DB connection).
 2. Media upload untested against real Storage (ISSUE-002 / TASK-007).
-3. Public email sign-up is still enabled (ISSUE-007).
+3. Staff sign-in depends on the email provider staying enabled (`disable_signup` is what keeps the public out, ISSUE-007) — it was switched off by mistake on 2026-09-24/25 and blocked every login. Check `auth/v1/settings` after any dashboard change.
 4. v1 keeps serving real students with its known weaknesses (`docs/audit-v1.md`); owner decided not to patch it (DEC-015).
 
 ## Current priorities
 
-1. **Apply the audit slice live** (migration + `supabase/tests/audit_functions_test.sql` + deploy `audit`) — any agent with a live Supabase connection; steps in `08_HANDOFF.md`.
-2. **TASK-015 remainder**: scheduled jobs (needs pg_cron live), backups, notifications (needs the owner's email-provider decision, DEC-017).
-3. **TASK-020**: the question-bank duplicate-overview banner.
+1. **TASK-015 remainder**: scheduled jobs (needs pg_cron live), backups, notifications (needs the owner's email-provider decision, DEC-017).
+2. **TASK-020**: the question-bank duplicate-overview banner.
 3. Ask the owner what the PDF class summary should contain (the last TASK-012 piece) and whether the proposed import formats are accepted.
-4. Owner-only release steps: disable public sign-up and run one real media upload.
+4. Owner-only release step: one real media upload (TASK-007).
 
 ## How SQL business rules were tested (technique)
 

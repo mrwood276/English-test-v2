@@ -25,7 +25,7 @@ Browser (static files, ES modules)                   Supabase project lbhnadqmok
        │                                              │              │ service role (bypasses RLS)   │
        │  PUT one-time signed upload URL ───────────► │              ▼                               │
        │   (image/audio bytes go straight to Storage) │ Postgres: 22 tables (RLS on, no policies),   │
-       │                                              │ 60 public functions (business rules, audit)  │
+       │                                              │ 61 public functions (business rules, audit)  │
        ▼                                              │ Storage: private bucket question-media       │
   localStorage: the student's attempt + token          └─────────────────────────────────────────────┘
 ```
@@ -45,9 +45,9 @@ Key property: **the browser never reads or writes a table directly.** Everything
 | `frontend/tests/` | Playwright tests with a mocked server: `teacher_e2e.py`, `question_bank_e2e.py`, `question_editor_e2e.py`, `media_e2e.py`, `question_import_e2e.py`, `exams_e2e.py`, `student_e2e.py`, `results_e2e.py`, `monitor_e2e.py`, `audit_e2e.py` (admin audit viewer), plus `mock_server.py`, `make_fixtures.py`, `fixtures_dir.py`, three one-off live scripts that need the owner's account (`live_results_check.py` for the grading loop, `live_monitor_check.py` for the monitor payload + exam-wide add time, `live_browser_check.py` for the monitor screens in a real browser — the two monitor ones share `cleanup_live_monitor.sql`), and the Deno unit tests in `tests/unit/` (import parsers, incl. zip/xlsx) |
 | `frontend/dev-server.py` | Local static server that disables caching (needed because ES modules are cached aggressively) |
 | `backend/functions/_shared/` | Shared library: `errors.ts`, `http.ts`, `validate.ts`, `auth.ts`, `rpc.ts`, `db.ts`, `text.ts`, `audit.ts`, `codes.ts`, `ratelimit.ts` |
-| `backend/functions/<name>/` | One Edge Function each: `auth-me`, `question-bank` (`handler.ts` routing, `parse.ts` input parsing), `media`, `exams`, `session` (student-facing; `parse.ts` + `token.ts` signed session token), `results` (teacher-facing grading/reports, staff only), `audit` (admin-only log viewer; in git, deploy pending) |
+| `backend/functions/<name>/` | One Edge Function each: `auth-me`, `question-bank` (`handler.ts` routing, `parse.ts` input parsing), `media`, `exams`, `session` (student-facing; `parse.ts` + `token.ts` signed session token), `results` (teacher-facing grading/reports, staff only), `audit` (admin-only log viewer; **deployed live 2026-09-25**) |
 | `backend/tests/` | Deno tests: `shared.test.ts`, `question_bank.test.ts`, `media.test.ts`, `exams.test.ts`, `session.test.ts`, `results.test.ts`, `audit.test.ts` |
-| `supabase/` | `README.md` + `migrations/` (the exams, session, result, monitor and lockdown SQL, applied live; `20260929000000_audit_functions.sql` in git, not yet applied) + `tests/` (rolled-back SQL assertions: `session_functions_test.sql`, `result_functions_test.sql`, `monitor_functions_test.sql`, `audit_functions_test.sql`). Older `v2_01`..`v2_12` are still only in the live project (ISSUE-001) |
+| `supabase/` | `README.md` + `migrations/` (the exams, session, result, monitor and lockdown SQL, applied live; `20260929000000_audit_functions.sql` applied live 2026-09-25, tracked as `v2_16_audit_functions`) + `tests/` (rolled-back SQL assertions: `session_functions_test.sql`, `result_functions_test.sql`, `monitor_functions_test.sql`, `audit_functions_test.sql`). Older `v2_01`..`v2_12` are still only in the live project (ISSUE-001) |
 | `docs/` | `design.md`, `audit-v1.md`, `mockups/`, `sql-exams.md`, `sql-sessions.md`, `sql-results.md`, `sql-monitor.md`, `sql-audit.md`, `verification-checklist.md` |
 | `.ai/` | This memory/handoff system |
 
@@ -82,7 +82,7 @@ Every Edge Function: `Deno.serve(handle(handler))`.
 | `exams` | `save`, `list`, `get`, `remove`, `set_status`, `check_code`, `regenerate_code`, `duplicate` | teacher, admin |
 | `session` | `join` (anonymous, rate limited per address), then `get`, `save`, `heartbeat`, `event`, `submit`, `result`, `media` — all with the signed session token | students (no Supabase account) |
 | `results` | `activity`, `pending`, `overview`, `report`, `grading_questions`, `queue`, `grade`, `add_time`, `reopen`, `grant_retake`, `revoke_retake` (all live since v1, 2026-09-24) | teacher, admin |
-| `audit` | `list` (in git since 2026-09-29, **deploy pending** — the Edge Function is not deployed and `list_audit_logs` is not applied live yet) | **admin only** |
+| `audit` | `list` (live since 2026-09-25: function deployed v1, `list_audit_logs` applied; tokenless call → 401) | **admin only** |
 
 ## Database architecture (live project, verified)
 
@@ -104,7 +104,7 @@ Key constraints (all verified by SQL tests): one correct option per question; un
 |---|---|
 | Text/rules | `normalize_text`, `question_content_hash`, `set_updated_at` (trigger) |
 | Rate limit | `rate_limit_hit`, `purge_rate_limits` |
-| Audit | `write_audit` (the write side, since v2_08), `list_audit_logs` (the admin viewer's read side — in migration `20260929000000_audit_functions.sql`, **not yet applied live**; contract: `docs/sql-audit.md`) |
+| Audit | `write_audit` (the write side, since v2_08), `list_audit_logs` (the admin viewer's read side — migration `20260929000000_audit_functions.sql`, **applied live 2026-09-25**, executable only by `postgres`/`service_role`; contract: `docs/sql-audit.md`) |
 | Questions | `save_question`, `remove_question`, `set_question_archived`, `get_question`, `list_questions`, `find_similar_questions`, `upsert_topic`, `list_topics`, `list_class_labels` |
 | Reading texts | `save_passage`, `get_passage`, `list_passages`, `remove_passage` |
 | Media | `register_media`, `link_media`, `purge_orphan_media`, `get_media_paths` |
@@ -114,7 +114,7 @@ Key constraints (all verified by SQL tests): one correct option per question; un
 | Grading/results | `save_answer_grade`, `list_grading_questions`, `get_grading_queue`, `count_pending_grading`, `list_exam_activity`, `list_exam_results`, `get_session_report`, `add_session_time`, `reopen_session`, `grant_retake`, `revoke_retake`; helper `_session_result_write` (the **only** writer of `exam_results`; `_session_grade` was re-created to skip hand-graded questions) |
 | Live monitor | `list_exam_results` is the board's **only** read (read-only `stable`, in-progress rows included, with the exam's own tab limits on every row) and `add_exam_time` is its only write (BR-11 for every running attempt at once, audited). DEC-024 records both, and the duplicate `list_live_sessions` was dropped rather than kept beside it |
 
-Migrations in git: `20260922000000_exams_functions.sql` (exams, 2026-09-22), `20260923000000_session_functions.sql` (student engine, 2026-09-23), `20260924000000_result_functions.sql` (grading + results, 2026-09-24), `20260925000000_monitor_overview_fields.sql` (the monitor's progress/heartbeat fields, 2026-09-24), `20260926000000_security_lockdown_function_execute.sql` (ISSUE-020 lockdown), `20260927000000_exam_wide_add_time.sql` (exam-wide add time + the monitor payload drift fix, 2026-09-24), `20260929000000_audit_functions.sql` (the admin audit-log viewer, **in git, NOT yet applied live**). All except the last are applied live; each has an annotated contract in `docs/`.
+Migrations in git: `20260922000000_exams_functions.sql` (exams, 2026-09-22), `20260923000000_session_functions.sql` (student engine, 2026-09-23), `20260924000000_result_functions.sql` (grading + results, 2026-09-24), `20260925000000_monitor_overview_fields.sql` (the monitor's progress/heartbeat fields, 2026-09-24), `20260926000000_security_lockdown_function_execute.sql` (ISSUE-020 lockdown), `20260927000000_exam_wide_add_time.sql` (exam-wide add time + the monitor payload drift fix, 2026-09-24), `20260929000000_audit_functions.sql` (the admin audit-log viewer, **applied live 2026-09-25**). All of them are applied live now; each has an annotated contract in `docs/`.
 
 Live migrations (names only; SQL not in git): `v2_01_foundation`, `v2_02_question_bank`, `v2_03_exams`, `v2_04_sessions_results`, `v2_05_lockdown`, `v2_06_question_content_hash`, `v2_07_text_rules_and_rate_limit`, `v2_08_question_bank_functions`, `v2_09_media_storage`, `v2_10_register_media_path_rule`, `v2_11_media_paths`, `v2_12_import_questions`.
 

@@ -5,10 +5,13 @@ Every staff action has written an `audit_logs` row inside its database function 
 could read the rows back. TASK-015 adds the one function the admin's viewer needs. No table was added
 or changed.
 
-The function lives in **`supabase/migrations/20260929000000_audit_functions.sql`** — in git, **not yet
-applied live**. Apply it with the Supabase CLI (`npx supabase db query --linked --file …`), then
-deploy the `audit` Edge Function (see `.ai/08_HANDOFF.md`). Until then the screen has nothing real to
-show.
+The function lives in **`supabase/migrations/20260929000000_audit_functions.sql`** and is **applied live
+(2026-09-25)** — recorded in `supabase_migrations.schema_migrations` as `20260925001719` /
+`v2_16_audit_functions`, alongside the deployed `audit` Edge Function (v1, ACTIVE). Do not re-apply it
+blindly. To run SQL against the project: CLI 2.117.0 has **no `supabase db query` subcommand** (the
+command in the sixteenth session's handoff does not exist) — use the Management API query endpoint
+(`POST https://api.supabase.com/v1/projects/<ref>/database/query` with `{"query": "…"}`; one request
+is one session, which is what lets a file's `pg_temp.*` helper work) or the dashboard SQL editor.
 
 ## Contract
 
@@ -38,14 +41,27 @@ answer keys — the writer's contract in `backend/functions/_shared/audit.ts`).
 technique as the result engine test:
 
 ```
-npx supabase db query --linked --file supabase/tests/audit_functions_test.sql
+# one request = one session, so the file's pg_temp helper works: (CLI 2.117.0 has no `supabase db query`)
+python - <<'PY'
+import json, os, pathlib, urllib.error, urllib.request
+sql = pathlib.Path("supabase/tests/audit_functions_test.sql").read_text()
+req = urllib.request.Request(
+    "https://api.supabase.com/v1/projects/lbhnadqmokloyfarrzfv/database/query",
+    data=json.dumps({"query": sql}).encode(),
+    headers={"Authorization": "Bearer " + os.environ["SUPABASE_ACCESS_TOKEN"], "Content-Type": "application/json"})
+try:
+    print(urllib.request.urlopen(req).read().decode())
+except urllib.error.HTTPError as e:
+    print(e.read().decode())   # success: P0001: AUDIT VIEWER TESTS PASSED (all rows rolled back)
+PY
 ```
 
 Ends with `AUDIT VIEWER TESTS PASSED (all rows rolled back)`. It covers: the exact count under the
 `audit_test` entity marker (live rows can never disturb it); newest-first order; the action, entity and
 days filters; paging with limit/offset; the actor-name join (and the actor-less row); the `changes`
-payload; and the friendly validation refusals. **Run it after applying the migration live** — this
-machine has no live connection, so the file is TESTED-by-construction but not yet run.
+payload; and the friendly validation refusals. **Run live on 2026-09-25: it answered `AUDIT VIEWER TESTS
+PASSED (all rows rolled back)`, with row counts unchanged afterwards (4 audit rows, no `audit_test` rows
+left, 40 questions).**
 
 **Deno, mocked database** — `backend/tests/audit.test.ts` (8 tests: the admin-only wall, defaults,
 filter pass-through, friendly refusals, the auth wall, error handling).

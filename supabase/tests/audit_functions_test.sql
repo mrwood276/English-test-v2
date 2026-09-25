@@ -1,5 +1,8 @@
 -- SQL test for the admin audit-log viewer (TASK-015).
--- Run against the v2 project:  npx supabase db query --linked --file supabase/tests/audit_functions_test.sql
+-- Run against the v2 project as ONE request so the file's pg_temp helper stays on the same session:
+--   POST https://api.supabase.com/v1/projects/lbhnadqmokloyfarrzfv/database/query  {"query": "<this file>"}
+--   (there is NO `supabase db query` subcommand in CLI 2.117.0), or paste it into the dashboard SQL editor.
+-- Passed live on 2026-09-25.
 --
 -- Everything happens inside one transaction that is deliberately rolled back at the end (the same
 -- technique as result_functions_test.sql): the block always ends with `raise exception`, so no test
