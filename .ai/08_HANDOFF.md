@@ -23,7 +23,7 @@ Do not merge `ai-development` into `main` without the owner's explicit go-ahead 
 | Stable branch | `main`. Do not develop or merge here without the owner's explicit decision. |
 | Development branch | **`ai-development`**. Started this session at `2fcce90` (clean tree, in sync with `origin/ai-development`). Head after this session: **`5252359`** (`cdad496` the exam-delete feature, `5252359` its docs), on top of the TASK-007 commits `d99ca92` + `d479ed1` + `c816dc2`. All pushed. |
 | Starting point | `2fcce90` — `git status --short --branch` showed a clean tree and no commits behind/ahead. Nothing was fetched-and-missing this time; the previous session's green CI and docs were confirmed before work started. |
-| Push / CI status | **Both workflows green on the final head `5252359`** (and earlier on `d479ed1`). Locally: backend **118**, unit **31**, all **eleven** browser suites green after the exam-delete change; the two live checks 32/32 and 17/17. |
+| Push / CI status | **Both workflows green on the final head `b799af1`** (and on `5252359` before it). One red run on the way — the Frontend **Question editor** step failed on the docs-only `b799af1` after all its checks had passed, and **passed on re-run**: that is the known flake, now written up as **ISSUE-025** with its real mechanism and a suggested fix. Locally: backend **118**, unit **31**, all **eleven** browser suites green after the exam-delete change; the two live checks 32/32 and 17/17. |
 | Live database | **English_Test_v2** (`lbhnadqmokloyfarrzfv`). Do not touch the v1 project `Exam_Data_Base`. |
 
 ## LAST AGENT
