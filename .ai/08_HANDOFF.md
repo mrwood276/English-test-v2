@@ -25,7 +25,7 @@ Do not merge `ai-development` into `main` without the owner's explicit go-ahead 
 | Stable branch | `main`. Do not develop or merge here without the owner's explicit decision. |
 | Development branch | **`ai-development`**. The nineteenth session started at `b520f80` (clean tree, in sync with `origin/ai-development`). Head after it: **`cc2b0d5`** (the duplicate-banner feature) + its docs commit, on top of the TASK-007 and exam-delete work (`cdad496`, `5252359`, `b520f80`). All pushed. |
 | Starting point | `b520f80` — `git status --short --branch` showed a clean tree, in sync with `origin/ai-development`; nothing had to be fetched-and-merged. (The eighteenth session started from `2fcce90`.) |
-| Push / CI status | Both workflows were green on `b520f80` (the eighteenth session's head) before this work started; this session's own runs are recorded at the bottom of this file. One red run on the way — the Frontend **Question editor** step failed on the docs-only `b799af1` after all its checks had passed, and **passed on re-run**: that is the known flake, now written up as **ISSUE-025** with its real mechanism and a suggested fix. Locally: backend **118**, unit **31**, all **eleven** browser suites green after the exam-delete change; the two live checks 32/32 and 17/17. |
+| Push / CI status | **Both workflows green on the pushed head `d00a77d`** (Backend tests + Frontend tests, 2026-09-25); the feature commit `cc2b0d5` was pushed together with its docs, so `d00a77d` carries its run. Locally this session: backend **120**, unit **31**, all **eleven** browser suites green, and the live duplicate check **15/15**. (For the eighteenth session, both workflows were green on `b520f80`.) One red run on the way back then — the Frontend **Question editor** step failed on the docs-only `b799af1` after all its checks had passed, and **passed on re-run**: that is the known flake, now written up as **ISSUE-025** with its real mechanism and a suggested fix. Locally: backend **118**, unit **31**, all **eleven** browser suites green after the exam-delete change; the two live checks 32/32 and 17/17. |
 | Live database | **English_Test_v2** (`lbhnadqmokloyfarrzfv`). Do not touch the v1 project `Exam_Data_Base`. |
 
 ## LAST AGENT
@@ -137,6 +137,7 @@ Two things it taught the session that are worth knowing before writing another s
 - Browser (mocked, dev server on 8123, one suite after another like CI): all **eleven** green — teacher 36, **question bank 67** (was 57: ten new checks for the banner), question editor 75, media 29, question import 43, exams 37, student 61, results 79, monitor 30, dashboard 34, audit 25. Zero `FAIL` lines.
 - Falsification of the new checks: with the banner temporarily switched off, `question_bank_e2e.py` dies on `waiting for locator(".banner:not([hidden])")` (TimeoutError) — so they test the feature, not a happy path.
 - Live: `live_duplicates_check.py` **15/15** (read-only), the verbatim comparison script (**VERBATIM** for both migration files), and a re-download of the deployed `question-bank` diffed against the repository handler (identical).
+- Everything above was run **before** the docs were written; both Actions runs are green on the pushed head `d00a77d`.
 
 ## TESTING PERFORMED (2026-09-25, eighteenth session — both halves)
 
