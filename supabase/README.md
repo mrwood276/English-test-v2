@@ -24,7 +24,9 @@ heartbeat, events, submit + grading, result — applied live on 2026-09-23; anno
 attempt report, add time / reopen, retake permissions — applied live on 2026-09-24; annotated source in
 `docs/sql-results.md`), `20260925000000_monitor_overview_fields.sql` (live monitor progress fields, applied
 2026-09-23), `20260926000000_security_lockdown_function_execute.sql` (ISSUE-020: closes a gap where
-`anon`/`authenticated` could call 35 staff-only functions directly) and `20260927000000_exam_wide_add_time.sql`
+`anon`/`authenticated` could call 35 staff-only functions directly), `20260930000000_exam_delete_with_attempts.sql`
+(the exam delete rule, DEC-027: `list_exams.session_count` + the admin-only forced delete, applied live
+2026-09-25) and `20260927000000_exam_wide_add_time.sql`
 (exam-wide add time, drops the duplicate `list_live_sessions` that ISSUE-020 found live and never committed —
 applied live on 2026-09-24; annotated source in `docs/sql-monitor.md`). `v2_01_foundation` through
 `v2_12_import_questions` (schema, question bank, exams/sessions/results tables, lockdown, text rules, media

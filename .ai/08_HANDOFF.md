@@ -8,6 +8,8 @@ Keep this file current after every meaningful change. It must never describe an 
 
 **TASK-007 is COMPLETE and LIVE-VERIFIED (2026-09-25, eighteenth session)** — the last blocker. A real photo and a real MP3 were uploaded through the app **with the staff test account** to the live private bucket, saved on a question, reopened and played back; a forced oversized file was refused and deleted from Storage again; every row and object the run created was removed and verified gone. `frontend/tests/live_media_check.py` reports **32/32** (`ALL LIVE MEDIA CHECKS PASSED`). The `@supabase/storage-js` protocol reproduction was correct, so **no product code changed** — this was verification, not a fix. ISSUE-002 is closed.
 
+**ISSUE-023 is fixed the same day (DEC-027, live at `exams` v4)**: an exam that already has attempts now says so in the list, a teacher cannot delete one (no Delete button, and the SQL would close it), and the **admin** can permanently delete it behind a dialog that names the attempt count and the answers, grades and results that go with it. `frontend/tests/live_exam_delete_check.py` **17/17**.
+
 **Live hazard found and fixed on 2026-09-25 (ISSUE-007)** — worth remembering: the owner's "disable public sign-up" step had switched the **Email provider off entirely** (`external_email_enabled: false`), so every staff sign-in answered `HTTP 422 email_provider_disabled` and the teacher app was unusable. It is fixed and verified (provider on, `disable_signup: true` kept: a real sign-up attempt is refused with `signup_disabled`, admin sign-in returns 200). **After any dashboard change, re-read `GET https://lbhnadqmokloyfarrzfv.supabase.co/auth/v1/settings` (publishable key as `apikey`) and check both halves: sign-ups refused AND a staff sign-in still works.** Turning a provider off is not the same as disabling sign-ups.
 
 The staff test account `testguru211l@gmail.com` (`profiles`: `role = 'teacher'`, `is_active = true`; 2 profiles live) is what the media check signs in as; its password was supplied by the owner through chat and must not be committed. **Sandbox limitation reminder**: a claude.ai chat session's network cannot reach `*.supabase.co`/`*.supabase.com` at all (confirmed via `x-deny-reason: host_not_allowed`) — Storage upload, Edge Function calls and the Auth password-grant login all need HTTP access to that host. **This Windows/Codebuff clone can reach it** (that is how every live check in this file was run); a claude.ai chat session cannot.
@@ -19,21 +21,34 @@ Do not merge `ai-development` into `main` without the owner's explicit go-ahead 
 | | |
 |---|---|
 | Stable branch | `main`. Do not develop or merge here without the owner's explicit decision. |
-| Development branch | **`ai-development`**. Started this session at `2fcce90` (clean tree, in sync with `origin/ai-development`); head after this session is **`d479ed1`** (`d99ca92` the live media check, `d479ed1` the docs), pushed to `origin/ai-development`. |
+| Development branch | **`ai-development`**. Started this session at `2fcce90` (clean tree, in sync with `origin/ai-development`); the TASK-007 work is `d99ca92` + `d479ed1` + `c816dc2` (pushed, CI-green), and the ISSUE-023 work sits on top of `c816dc2` (see `git log` for its commit). |
 | Starting point | `2fcce90` — `git status --short --branch` showed a clean tree and no commits behind/ahead. Nothing was fetched-and-missing this time; the previous session's green CI and docs were confirmed before work started. |
 | Push / CI status | **Both workflows green on `d479ed1`** (Backend and Frontend, runs created 2026-09-25 12:20 UTC). Locally after the change: `media_e2e.py` 29/29 and `teacher_e2e.py` 36/36 re-run green; backend 114 / unit 31 unchanged (this session touched no product code). |
 | Live database | **English_Test_v2** (`lbhnadqmokloyfarrzfv`). Do not touch the v1 project `Exam_Data_Base`. |
 
 ## LAST AGENT
 
-Buffy — eighteenth session, 2026-09-25 (Windows clone with real network + Supabase Management API access). It closed the last release blocker by running the **first real media upload** against the live project with the staff test account, through the app's own editor, and turned that run into the committed live check `frontend/tests/live_media_check.py` (**32/32**). It changed **no product code** (the upload protocol was already right), verified the database, the bucket and playback, proved the refusal-and-cleanup path, and deleted everything it created. It also recorded **ISSUE-023** (the owner's five Delete attempts on an exam that had attempts; the app closes it on purpose — needs an owner decision) and left the owner's own live test exam/session untouched.
+Buffy — eighteenth session, 2026-09-25 (Windows clone with real network + Supabase Management API access). It closed the last release blocker by running the **first real media upload** against the live project with the staff test account, through the app's own editor, and turned that run into the committed live check `frontend/tests/live_media_check.py` (**32/32**). It changed **no product code** there (the upload protocol was already right) and deleted everything it created. Then, from the live audit log, it found **ISSUE-023** (the owner's five Delete attempts on an exam that had attempts), **asked the owner** what should happen instead of guessing, and implemented the answer end to end — migration applied live, `exams` redeployed as v4, a role-aware exams screen, backend tests 114→118, the browser suite 28→37 checks, and the new live check `frontend/tests/live_exam_delete_check.py` (**17/17**). The owner's own live exam/session were left untouched.
 
 ## CREDENTIAL / COLLISION WARNING
 
 - Earlier sessions used an owner-supplied Supabase access token and the admin password for live checks. They were not committed, but both have travelled through chat and should still be revoked/rotated by the owner.
 - Two earlier AI sessions built overlapping features concurrently. Always fetch/read `origin/ai-development` before starting, and confirm with the owner that no other agent is active before live-DB writes or pushes.
+- **A third instance of the same problem is live right now (ISSUE-024, found 2026-09-25)**: TASK-020's backend — the SQL function `find_duplicate_groups` (live migrations `v2_17_duplicate_overview` + `…_fix_search_path`, 06:06 UTC) **and** a `duplicate_groups` action on the deployed `question-bank` — exists in the live project with **no file and no commit in this repository** (both remote branches were unchanged when this was found). It is not this clone's work. **Do not implement TASK-020 from scratch before asking the owner whose it is.**
 
 ## LAST COMPLETED TASK
+
+**ISSUE-023 — the exam delete rule now tells the truth, and only the admin can really delete an exam that has attempts (DEC-027, applied and deployed live 2026-09-25).**
+
+The owner had hit Delete five times on the same exam (five `exam.close` audit rows with `reason: "delete requested while sessions exist"`) because the confirmation dialog promised the exam "will be removed" while `remove_exam` only ever closed it. The rule itself is right (BR-10 / DEC-012: attempts and their results are never lost), so the fix makes the behaviour **explicit** instead of changing it for every role:
+
+- **SQL** `supabase/migrations/20260930000000_exam_delete_with_attempts.sql` (**applied live**): `list_exams` additively returns **`session_count`**; `remove_exam(p_id, p_actor, p_force default false)` closes an exam with attempts when `p_force` is false (auditing `exam.close` with `attempts`), and with `p_force = true` deletes `exam_questions`, then **`exam_sessions`** (answers, grades, results and events cascade from them — `exam_sessions.exam_id` is `on delete restrict`, so they must go first), then the exam, auditing `exam.delete` with `attempts` and `permanent: true`. The old **two-argument `remove_exam` was dropped** on purpose: a force-less overload left lying around is exactly what a future caller would hit by accident.
+- **Edge** `backend/functions/exams/handler.ts`: the body is parsed before the auth check (like `media`), and `hard: true` on `remove` switches the required role to `["admin"]` — a teacher's request is **403 and never reaches the database**. **Redeployed live as `exams` v4** (was v3).
+- **Screen** `frontend/assets/js/teacher/screens/exams.js` (+ `api/exams.js`): the route already passes `ctx`, so the list now knows the role. A row shows "N attempts" in its summary; for an exam with attempts a **teacher** sees "N attempts — kept for the results" **instead of** a Delete button, while the **admin** keeps Delete and its dialog becomes "Delete this exam and its attempts?" with the count and the losses named (`Delete permanently`). No attempts: unchanged.
+- **Verified live** (`frontend/tests/live_exam_delete_check.py`, new, **17/17**): teacher `hard: true` → 403 with the exam untouched; teacher plain delete → `'closed'`, attempt intact; admin forced delete → `'deleted'`, `not_found` after, **0 rows** in `exams`/`exam_sessions`/`session_answers`/`session_events`/`exam_results`; audit `exam.close` + `exam.delete` (`permanent: true`); tokenless 401. It removes its own `rate_limits` row and sweeps up if an earlier step fails.
+- **Tests**: backend **118** (four new), `exams_e2e.py` **37** (nine new; it flips the mock to the teacher role to prove the other side), unit 31, all eleven browser suites green. The mock's `remove` now honours the same rule, so it can no longer be more generous than the backend (the ISSUE-021 lesson).
+
+### Earlier in the same session
 
 **TASK-007 — the first real image and audio upload against live Storage is LIVE-VERIFIED (2026-09-25). The last release blocker is closed.**
 
@@ -60,6 +75,12 @@ Every staff action has written an `audit_logs` row since v2_08 (BR-13); nothing 
 - **Screen** `#/audit` — admin-only menu item "Audit log" (`ADMIN_NAV` in `shell.js`), table When/Who/Action/Entity/Details, debounced action/entity filters + day-window chip-select + Clear, pager (25/page), "System" for actor-less rows, empty states. New `api/audit.js` + `screens/auditLog.js`; `router.js`/`shell.js` edited; no CSS changes.
 - The write side (`write_audit`, `backend/functions/_shared/audit.ts`) is untouched — the viewer is read-only.
 
+## LIVE VERIFICATION PERFORMED (2026-09-25, eighteenth session) — the exam delete rule
+
+**Do not repeat this unless the delete rule changes.** `SUPABASE_TEST_EMAIL`/`SUPABASE_TEST_PASSWORD` (teacher) + `SUPABASE_ADMIN_EMAIL`/`SUPABASE_ADMIN_PASSWORD` (admin) + `SUPABASE_ACCESS_TOKEN` → `python frontend/tests/live_exam_delete_check.py`. It creates one throwaway exam (code `DELCHK`), opens it, joins one student, then walks teacher-refusal → teacher-close → admin-permanent-delete, checks every table afterwards and cleans up after itself. 17/17.
+
+It taught one thing worth reusing: `rate_limits` rows are bucketed by the **minute**, so a cleanup that deletes "rows since `<now>`" misses the row the run itself created — look back a few minutes instead.
+
 ## LIVE VERIFICATION PERFORMED (2026-09-25, eighteenth session) — the real media upload
 
 **Do not repeat this unless something in the media path changes.** Run it against the live project with `python frontend/dev-server.py 8123`, then `SUPABASE_TEST_EMAIL=… SUPABASE_TEST_PASSWORD=… [SUPABASE_ACCESS_TOKEN=…] python frontend/tests/live_media_check.py` (ffmpeg builds the real MP3; `--keep` leaves the artifacts for inspection). It needs the Management token only for the database/bucket assertions and its self-cleanup — without it the app part still runs and prints the ids to clean up.
@@ -80,6 +101,12 @@ Two things it taught the session that are worth knowing before writing another s
 
 **How to run SQL against the live project from here** (the previous handoff's command does not exist — CLI 2.117.0 has no `supabase db query`): `POST https://api.supabase.com/v1/projects/lbhnadqmokloyfarrzfv/database/query` with `{"query": "…"}` and `Authorization: Bearer $SUPABASE_ACCESS_TOKEN` (one request = one session), or the dashboard SQL editor. `npx supabase functions deploy <name> --no-verify-jwt --use-api` works normally. `supabase db push`/`db pull` still need the database password, which no agent has.
 
+## TESTING PERFORMED (2026-09-25, eighteenth session — both halves)
+
+- **TASK-007 (media)**: no product code changed, so only the live check was new — `live_media_check.py` **32/32**; `media_e2e.py` **29/29** and `teacher_e2e.py` **36/36** re-run locally green.
+- **ISSUE-023 (exam delete rule)**: backend `deno test --allow-env backend/` **118 passed / 0 failed** (was 114; four new tests in `exams.test.ts`), frontend unit `deno test --allow-env --allow-read --no-check frontend/tests/unit/` **31 passed**, and **all eleven browser suites** run one after another like CI with **zero failures**: teacher 36, question bank 57, question editor 75, media 29, question import 43, **exams 37** (was 28: nine new checks), student 61, results 79, monitor 30, dashboard 34, audit 25. Live: `live_exam_delete_check.py` **17/17**, run twice (the first run exposed the minute-bucketed `rate_limits` sweep, fixed, re-run clean).
+- Everything above was run **before** the docs were written, on the pushed `ai-development`; watch the Actions runs for this session's two commits.
+
 ## TESTING PERFORMED (2026-09-25: the whole project re-run from scratch, all green)
 
 - Backend: `deno test --allow-env backend/` → **114 passed, 0 failed**.
@@ -89,6 +116,12 @@ Two things it taught the session that are worth knowing before writing another s
 - Diagnostics that settled ISSUE-022 (standalone probes, not committed): a busy-renderer hash/reload probe, and a `beforeunload` probe showing that with a `page.on("dialog")` listener a fired warning makes `page.reload()` hang for its whole timeout, while without a listener Playwright auto-dismisses it and navigation proceeds.
 - Live: the rolled-back SQL test and the admin smoke listed above, plus the Auth configuration verification.
 - `question_editor_e2e.py`'s older toast-animation flake (a click racing a toast, `<html> intercepts pointer events`) is unrelated and still stands — it passed every run here.
+
+## DATABASE CHANGES (2026-09-25, eighteenth session, ISSUE-023)
+
+- **One migration applied live**: `supabase/migrations/20260930000000_exam_delete_with_attempts.sql` (replaces `list_exams` and `remove_exam`, drops the old two-argument `remove_exam`). Re-running it is safe (both objects are re-created; the drops are `if exists`). Nothing else changed: no table, column, policy, RLS state or grant (both functions keep the same ACL: `postgres` + `service_role` only).
+- **One Edge Function redeployed**: `exams` **v3 → v4** (`python backend/sync_functions.py`, then `npx supabase functions deploy exams --no-verify-jwt --use-api`). The others are untouched: `auth-me` v1, `question-bank` **v7**, `media` v1, `session` v1, `results` v4, `audit` v1 — all ACTIVE, `verify_jwt=false`. (The v7 for `question-bank` is a live fact worth keeping: the older notes say v3.)
+- Live rows after the work: 40 questions, 0 media files, 0 objects in `question-media`, 2 profiles, **1 exam + 1 session (the owner's own test — do not touch)** and 6 `rate_limits` rows from the owner's 07:1x run. `audit_logs` ≈ 32 rows (nine from the media check, four from the delete-rule check, the rest real owner/admin activity).
 
 ## DATABASE CHANGES (2026-09-25, eighteenth session, TASK-007)
 
@@ -101,6 +134,12 @@ Two things it taught the session that are worth knowing before writing another s
 - **No SQL was applied by that session** — the audit migration was already live. Row counts unchanged before and after every check: 40 questions, 4 audit rows, 0 exams, 0 sessions, 2 profiles.
 - **The one live change was configuration:** `external_email_enabled: true` (with `disable_signup: true` kept), fixed through the Management API after the owner approved it in this conversation. No data, no schema, no policies.
 - Live state for the next agent: Edge Functions `auth-me` v1, `question-bank` v3, `media` v1, `exams` v3, `session` v1, `results` v4, **`audit` v1** — all ACTIVE, `verify_jwt=false`; **61** public SQL functions; `supabase_migrations` newest row `20260925001719 v2_16_audit_functions`.
+
+## FILES CHANGED (2026-09-25, eighteenth session — ISSUE-023)
+
+- **New:** `supabase/migrations/20260930000000_exam_delete_with_attempts.sql`, `frontend/tests/live_exam_delete_check.py`.
+- **Changed:** `backend/functions/exams/handler.ts` (body before auth; `hard: true` ⇒ admin-only, `p_force`), `frontend/assets/js/teacher/api/exams.js` (`remove(id, hard)`), `frontend/assets/js/teacher/screens/exams.js` (role-aware row, attempt text, permanent-delete dialog), `backend/tests/exams.test.ts` (4 new tests), `frontend/tests/exams_e2e.py` (9 new checks), `frontend/tests/mock_server.py` (`session_count`, the close-vs-delete rule, a switchable `role`).
+- **Docs:** `docs/sql-exams.md` (the delete rule + its live record), `.ai/{02_ARCHITECTURE,03_FEATURES,04_CURRENT_STATE,05_TASK_QUEUE,06_DECISIONS (DEC-027),07_CHANGELOG,08_HANDOFF,09_KNOWN_ISSUES}.md`, `frontend/README.md`, `supabase/README.md`.
 
 ## FILES CHANGED (2026-09-25, eighteenth session — TASK-007)
 
@@ -118,8 +157,8 @@ Two things it taught the session that are worth knowing before writing another s
 
 1. **Nothing is pending on TASK-007 or the audit viewer** — do not re-run or re-apply either one (see the two LIVE VERIFICATION PERFORMED sections above).
 2. **No release blocker is open.** The merge of `ai-development` into `main` is the owner's decision (DEC-020) and needs the DEC-021 import reconciliation; the previous session's CI runs were green at `2fcce90`.
-3. Ordinary next code task: **TASK-020** (duplicate-overview banner) or the TASK-015 remainder — scheduled purge jobs need pg_cron on the live project; notifications need the owner's email-provider decision (DEC-017); backups likewise need live access.
-4. Owner decisions wanted: what belongs on the PDF class summary (the last TASK-012 piece), whether the proposed import formats are accepted, and **ISSUE-023** (exam delete with attempts).
+3. Ordinary next code task: the TASK-015 remainder — scheduled purge jobs need pg_cron on the live project; notifications need the owner's email-provider decision (DEC-017); backups likewise need live access.
+4. Owner decisions wanted: what belongs on the PDF class summary (the last TASK-012 piece) and whether the proposed import formats are accepted. (The exam-delete question was answered by the owner and is implemented — DEC-027.)
 5. Low-priority follow-up: reconcile the already-live but untracked migration rows (ISSUE-001), using a real DB connection/password.
 
 ## SUGGESTED WORK FOR NEXT AI
@@ -127,7 +166,7 @@ Two things it taught the session that are worth knowing before writing another s
 1. Start on `ai-development`; run `git status --short --branch` and `git pull --ff-only` **before** changing anything.
 2. Read `04_CURRENT_STATE.md`, `05_TASK_QUEUE.md`, `09_KNOWN_ISSUES.md`, and this file. Let source code, database facts, tests, and git history win over stale `.ai/` notes.
 3. If you have a live Supabase connection, read LIVE VERIFICATION PERFORMED above first — the audit slice is already live and verified; do not re-apply or redeploy it.
-4. Continue with TASK-020, or ask the owner about ISSUE-023 first. Do not invent a random feature if the queue is empty; audit documented debt instead.
+4. **Ask the owner about ISSUE-024 before touching TASK-020** (its backend is already live from another session), then continue with the TASK-015 remainder or that task. Do not invent a random feature if the queue is empty; audit documented debt instead.
 5. Before any live-DB or git-push action, confirm with the owner that no other AI session is active. Previous sessions collided twice; if a push is rejected, park the work on a local branch and ask the owner rather than forcing it.
 
 ## SESSION TOOLING — skill discovery (post-task, 2026-09-29)
@@ -151,7 +190,10 @@ Ran after the main task was pushed, per the owner's workflow. Result: **no new s
 - Do not re-apply `20260929000000_audit_functions.sql` or redeploy `audit` (both live since 2026-09-25, tracked as `v2_16_audit_functions`) and do not add a `supabase db query` instruction anywhere — that subcommand does not exist.
 - Do not disable the Email provider in Supabase Auth; `disable_signup` is what keeps the public out, and switching the provider off breaks every staff sign-in (ISSUE-007).
 - Do not delete the owner's live test exam `3ad8eb38` ("test", code `4KHU2A`) or its submitted session, and do not "clean up" the 9 `audit_logs` rows the media check produced — they are real records, not test fixtures (ISSUE-023).
-- Do not change `remove_exam`'s close-instead-of-delete rule without the owner's ISSUE-023 decision (BR-10 / DEC-012 protect attempt history).
+- Do not change `remove_exam`'s close-instead-of-delete rule, or give a teacher the permanent delete, without a new owner decision (BR-10 / DEC-012 protect attempt history; DEC-027 records the current split).
+- Do not re-apply `20260930000000_exam_delete_with_attempts.sql` or redeploy `exams` — it is live as v4 (2026-09-25), and re-applying the migration is harmless but pointless.
+- Do not add a force-less `remove_exam` overload back: the two-argument version was dropped on purpose so nothing can delete an exam with attempts by accident.
+- Do not commit, rewrite, or re-implement the live-only TASK-020 SQL/Edge code of another session (ISSUE-024) without the owner's word: it is someone else's in-flight work, and two implementations of the duplicate scan is exactly the DEC-021 mistake repeating.
 - Do not add media handling to the CI suites — `live_media_check.py` is a live check and stays out of CI, like the other `live_*` scripts.
 - In browser tests: do not `goto(hash)` and `reload()` back to back, and never register a leave guard on sight — a firing `beforeunload` warning plus a `page.on("dialog")` listener makes `page.reload()` hang until its timeout (ISSUE-022).
 - Do not touch the v1 project (`Exam_Data_Base`).

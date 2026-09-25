@@ -4,12 +4,12 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-25 (Buffy — **TASK-007 done: the real image and audio upload against live Storage verified end to end**; no open release blocker) |
-| Last AI agent | Buffy (eighteenth session: ran the first real media upload against the live bucket with the staff test account and turned it into a committed live check, `frontend/tests/live_media_check.py`, **32/32**; confirmed the `@supabase/storage-js` protocol reproduction was correct, so no product code changed; found the owner's own live test exam + session and ISSUE-023 in the audit log). |
+| Last updated | 2026-09-25 (Buffy — **TASK-007 done** (the real media upload, live-verified) and **ISSUE-023 fixed** (DEC-027: a teacher closes an exam with attempts, only the admin deletes it for real); no open release blocker) |
+| Last AI agent | Buffy (eighteenth session: ran the first real media upload against the live bucket with the staff test account and turned it into a committed live check, `frontend/tests/live_media_check.py`, **32/32**; confirmed the `@supabase/storage-js` protocol reproduction was correct, so no product code changed; found the owner's own live test exam + session and ISSUE-023 in the audit log, asked the owner how an exam with attempts should behave and implemented the answer — migration + `exams` v4 + screen + tests, live-verified 17/17). |
 | Development phase | Phase 5 **FULLY LIVE-VERIFIED**; Phase 6 dashboard/UX polish complete and CI-verified; Phase 7 first slice (audit viewer) **FULLY LIVE-VERIFIED**; **F-07 media is now LIVE-VERIFIED too**. |
-| Current focus | Nothing is blocked. Remaining work is optional/owner-driven: **TASK-020** (duplicate banner), the **TASK-015 remainder** (scheduled purge jobs need pg_cron; backups; notifications need DEC-017), the **PDF class summary** (owner decision), and the owner's call on **ISSUE-023**. |
+| Current focus | Nothing is blocked. Remaining work is optional/owner-driven: **TASK-020** (duplicate banner), the **TASK-015 remainder** (scheduled purge jobs need pg_cron; backups; notifications need DEC-017), the **PDF class summary** (owner decision), and the merge of `ai-development` into `main` (owner decision). |
 | Branch model | `main` = stable. `ai-development` = shared AI development. |
-| Current branch / commit | **`ai-development`** at `d479ed1` (`d99ca92` the live media check, `d479ed1` the docs), on top of `2fcce90`, pushed and CI-green. Local: media 29 and teacher 36 re-run green; the live check is 32/32. |
+| Current branch / commit | **`ai-development`**, pushed and CI-green at `d479ed1` before this change; the head after it is the ISSUE-023 work (see `git log`). Local: backend **118**, unit **31**, all eleven browser suites green (`exams` now 37 checks); live checks 32/32 (media) and 17/17 (exam delete rule). |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
 
 ## What was inspected to write `.ai/`
@@ -25,11 +25,18 @@
 |---|---|
 | Tables | 22, all RLS on, 0 policies (public and storage schemas) |
 | Migrations applied | `v2_01` .. `v2_12` (12) |
-| Edge Functions (as of 2026-09-25, seventeenth session) | `auth-me` v1, `question-bank` v3, `media` v1, `exams` v3, `session` v1, **`results` v4** (grading/reports + the monitor + exam-wide add time), **`audit` v1** (admin-only audit-log viewer); all ACTIVE, `verify_jwt=false` |
-| Public SQL functions | **61** (verified live on 2026-09-25; the audit viewer's `list_audit_logs` was the one added since the previous count of 60) |
+| Edge Functions (re-read live 2026-09-25, eighteenth session) | `auth-me` v1, **`question-bank` v7** (the import actions have been redeployed several times since the v3 note), `media` v1, **`exams` v4** (DEC-027: the admin-only permanent delete), `session` v1, **`results` v4** (grading/reports + the monitor + exam-wide add time), **`audit` v1** (admin-only audit-log viewer); all ACTIVE, `verify_jwt=false` |
+| Public SQL functions | **62** (re-counted live 2026-09-25 in the evening; the extra one is `find_duplicate_groups` — **live-only, not in git**, see ISSUE-024) |
 | Storage | bucket `question-media`, private, 10 MB limit |
 | Data (2026-09-25, eighteenth session) | 40 questions (0 archived), 5 passages, 13 topics, **0 media files, 0 `question_media` rows, 0 objects in the `question-media` bucket** (real upload verified and deleted again), **1 exam + 1 submitted session that belong to the OWNER's own test at 07:14 UTC ("test", code `4KHU2A`, closed) — real data, do not delete**, 0 rate-limit rows, 2 profiles, **24 audit rows** (9 of them from the 2026-09-25 media check, deliberately kept) |
 | Auth users | 1 admin (email known to the owner; not repeated here) plus the `testguru211l@gmail.com` staff test account (2 `profiles` rows). **Auth config verified live 2026-09-25**: email provider ON, `disable_signup: true` (see ISSUE-007 — the provider had been switched off entirely, which blocked every staff sign-in; fixed the same day) |
+
+## Live system facts (re-verified 2026-09-25, eighteenth session — TASK-007 and ISSUE-023)
+
+- **TASK-007 (media)**: the first real upload to the private `question-media` bucket was run through the app with the staff test account — a 7.6 MB PNG shrunk to an 813 KB WebP plus a real 3-second MP3, saved on a question, reopened and played back, with a forced 4.5 MB JPEG refused and deleted from Storage again. `frontend/tests/live_media_check.py` **32/32**; `media_files`, `question_media` and the bucket were left at 0 rows/objects. No product code changed (the `@supabase/storage-js` reproduction was correct).
+- **ISSUE-023 (exam delete rule)**: migration `20260930000000_exam_delete_with_attempts.sql` applied live — `list_exams` returns `session_count`, `remove_exam(uuid, uuid, boolean)` replaces the old two-argument function (verified: only one `remove_exam` signature exists, ACL `postgres` + `service_role` only, `security definer`), and the `exams` Edge Function was **redeployed as v4**. `frontend/tests/live_exam_delete_check.py` **17/17**: teacher `hard: true` → 403 with the exam untouched, teacher's plain delete → `'closed'` with the attempt intact, admin's forced delete → `'deleted'` and the exam gone from `exams`/`exam_sessions`/`session_answers`/`session_events`/`exam_results`, audit rows `exam.close` + `exam.delete` (`permanent: true`), tokenless 401.
+- Live rows after both checks: 40 questions, 0 media files, 0 objects in the bucket, 2 profiles, **1 exam + 1 session that belong to the owner's own test** ("test", `4KHU2A`, closed, one submitted attempt by `jonathan`) — real data, do not touch — and 6 `rate_limits` rows from the owner's 07:1x run (the checks remove their own). `audit_logs` grew to ~28 rows: nine from the media check, four from the delete-rule check.
+- **Live-only work by another session (ISSUE-024)**: `find_duplicate_groups(real, integer)` (TASK-020's duplicate scan) and the matching `duplicate_groups` action on the **deployed `question-bank`** are live but have **no file and no commit in this repository** (tracked live as `v2_17_duplicate_overview` + `v2_17_duplicate_overview_fix_search_path`, 06:06 UTC). Public SQL functions are therefore **62**, not 61. Do not re-implement TASK-020 before asking whose work it is.
 
 ## Live system facts (re-verified 2026-09-22, fifth session, via the CLI + admin sign-in)
 
@@ -65,7 +72,7 @@
 
 | Area | Repository | Live | Consequence |
 |---|---|---|---|
-| `exams` | full handler + parser + 24 Deno tests; screens list + editor | **v3 live**; SQL applied; flow live-verified | Exam screens work against the real backend |
+| `exams` | full handler + parser + 28 Deno tests; screens list + editor | **v4 live** (DEC-027 adds the admin-only permanent delete); SQL applied; flow live-verified | Exam screens work against the real backend |
 | `results` | handler + parser + 20 Deno tests; grading/results screens + the monitor and the exports | **v4 live** (grading, reports, the monitor `overview` and exam-wide add time); grading loop live-verified (38/38) | No drift |
 | `session` | handler + parser + token + 21 Deno tests | **v1 live**; student flow live-verified | No drift |
 | `question-bank` | has actions `import_check`, `import` | **v3 live**; `import_check` answered live | Import works against real backend; left: owner format review + real Excel file (ISSUE-013 caveat) |
@@ -78,7 +85,7 @@
 ## Live system facts (verified live 2026-09-25, seventeenth session — the audit viewer)
 
 - **The audit slice was already live when this session started**, although the sixteenth session's docs said the opposite: the SQL is recorded in `supabase_migrations.schema_migrations` as `20260925001719` / `v2_16_audit_functions`, and the `audit` Edge Function was deployed (v1, ACTIVE) at 2026-09-25 02:39 UTC.
-- Verified live: `list_audit_logs` exists, is `security definer` + `stable`, and its ACL is `postgres` + `service_role` only (PUBLIC/anon/authenticated revoked). Live public SQL functions: **61**.
+- Verified live: `list_audit_logs` exists, is `security definer` + `stable`, and its ACL is `postgres` + `service_role` only (PUBLIC/anon/authenticated revoked). Live public SQL functions: **61** — that was the count at that moment; it is **62** now, because another session's TASK-020 work arrived live (ISSUE-024).
 - `supabase/tests/audit_functions_test.sql` run against the live project → `AUDIT VIEWER TESTS PASSED (all rows rolled back)`. Row counts afterwards unchanged: **4 audit rows, 0 `audit_test` rows leaked, 40 questions, 0 exams/sessions**.
 - Live smoke with the admin account on the deployed function: `list` → `{total: 4, rows: 4}` with actor names resolved from `profiles`; `limit 1 / offset 2` → 1 row, `question.create` by `Admin`; `days=2 + entity_type=question` → 0 (the real rows are from 2026-09-21); `days=0` → HTTP 400 "Days must be between 1 and 3650."; tokenless → HTTP 401 "Please sign in.".
 - **Live Auth misconfiguration found and fixed the same day (ISSUE-007)**: the owner's "disable sign-ups" had switched the **Email provider off entirely** (`external_email_enabled: false`), so every staff sign-in answered `422 email_provider_disabled` — nobody could log into the teacher app. Fixed via the Management API (`external_email_enabled: true`, `disable_signup: true` kept); re-verified: sign-in 200, a new sign-up refused with `signup_disabled`, `auth/v1/settings` → `external.email: true`, `disable_signup: true`.
@@ -109,7 +116,7 @@
 - **TASK-012**, on branch `ai-development**: only the **PDF class summary** remains, and it needs the owner's decision on the one-page content. CSV/Excel and both statistics tabs are built and tested.
 - **TASK-006**, on branch `ai-development`: deployed and working; remaining is the owner's review of the proposed import formats and one real Excel/Google-Sheets file.
 - **TASK-015**: the **audit-log viewer slice is LIVE-VERIFIED (2026-09-25)** — SQL applied, function deployed, live test + admin smoke passed. What remains in the task: backups, notifications (owner must choose a provider, DEC-017), scheduled purge jobs (need pg_cron live), user management.
-- **TASK-009's exam delete rule**: **ISSUE-023** (OPEN, owner decision) — the owner hit Delete five times on an exam that had an attempt and the app closed it each time, by design. Either keep the behavior and make the message/button clearer, or add an admin-only hard delete.
+- **TASK-009's exam delete rule**: **ISSUE-023 is FIXED (2026-09-25, DEC-027)** — the list reports the attempt count, a teacher gets no Delete button on an exam with attempts, and the admin can permanently delete it behind a dialog that names what is lost. Live-verified 17/17 (`frontend/tests/live_exam_delete_check.py`).
 
 ## Pending work (see `05_TASK_QUEUE.md`)
 
@@ -134,15 +141,18 @@ None from this session. The earlier `media_e2e.py` fixture-size quirk in ISSUE-0
 
 1. The live migration-tracking table is missing rows for three already-live migrations (ISSUE-001 follow-up; needs a real DB connection).
 2. ~~Media upload untested against real Storage~~ — **closed 2026-09-25** (ISSUE-002, TASK-007).
+3. **Another session's TASK-020 backend is live and untracked (ISSUE-024)** — the duplicate scan exists in the database and on the deployed `question-bank` with no commit, so the database still cannot be rebuilt from git and a second implementation would collide (the DEC-021 mistake again). Needs one owner answer: whose work is it?
+4. The exams screen and every browser suite run as the mock's **admin** role by default, so role-dependent screens need an explicit second pass — `exams_e2e.py` now flips `Server.role` to `teacher` for exactly that (the mock used to hard-code `admin`). Any future role-dependent screen must do the same.
 3. Staff sign-in depends on the email provider staying enabled (`disable_signup` is what keeps the public out, ISSUE-007) — it was switched off by mistake on 2026-09-24/25 and blocked every login. Check `auth/v1/settings` after any dashboard change.
 4. v1 keeps serving real students with its known weaknesses (`docs/audit-v1.md`); owner decided not to patch it (DEC-015).
 
 ## Current priorities
 
 1. **TASK-015 remainder**: scheduled jobs (needs pg_cron live), backups, notifications (needs the owner's email-provider decision, DEC-017).
-2. **TASK-020**: the question-bank duplicate-overview banner.
+2. **TASK-020**: the question-bank duplicate-overview banner — **ask about ISSUE-024 first**, its backend is already live from another session.
 3. Ask the owner what the PDF class summary should contain (the last TASK-012 piece), whether the proposed import formats are accepted, and what to do about **ISSUE-023** (exam delete with attempts).
 4. Owner-only step: decide when to merge `ai-development` into `main` (DEC-020/DEC-021) — no technical blocker remains.
+5. The live project holds the owner's own test (exam `4KHU2A`, closed, one attempt) and 30+ audit rows from real checks. Leave both alone.
 
 ## How SQL business rules were tested (technique)
 

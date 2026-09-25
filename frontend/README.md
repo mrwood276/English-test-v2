@@ -65,7 +65,9 @@ tests/                          browser tests with a mocked server (mock_server.
                                 (the same check driven through the real screens in Chromium).
                                 live_media_check.py uploads a real photo and a real MP3 to Storage through
                                 the editor (needs ffmpeg to build the MP3) and deletes its own rows and
-                                objects again; add SUPABASE_ACCESS_TOKEN to also check the database side
+                                objects again; live_exam_delete_check.py walks the exam delete rule
+                                (teacher closes, admin really deletes) with both accounts; add
+                                SUPABASE_ACCESS_TOKEN to also check the database side of the last two
 ```
 
 ## Notes
