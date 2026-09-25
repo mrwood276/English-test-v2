@@ -13,7 +13,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 | F-01 | Database schema (22 tables, 25 functions + 13 added since) | COMPLETE for Phases 1–2 (exam and session tables are now in use) | PROTECTED | TESTED (SQL) |
 | F-02 | Staff authentication and roles | COMPLETE | PROTECTED | LIVE-VERIFIED (owner signed in) |
 | F-03 | Teacher/admin app shell, router, dashboard | COMPLETE (mockup 5 dashboard + compact phone menu) | STABLE | LIVE-VERIFIED (shell); dashboard TESTED (CI + mocked browser) |
-| F-04 | Question bank: list, filters, preview, archive, delete | COMPLETE | STABLE | LIVE-VERIFIED (40 questions shown), rest TESTED |
+| F-04 | Question bank: list, filters, preview, archive, delete, duplicate banner | COMPLETE | STABLE | LIVE-VERIFIED (40 questions shown; the duplicate banner live 2026-09-25, 15/15), rest TESTED |
 | F-05 | Question editor (4 types, labels, topics, duplicate warnings, preview, unsaved guard) | COMPLETE | STABLE | LIVE-VERIFIED (add/edit opened and worked per owner), rest TESTED |
 | F-06 | Reading texts (passages) | COMPLETE | STABLE | TESTED; at least one created live |
 | F-07 | Images and audio for questions and reading texts | PARTIAL (built; real Storage upload never run) | ACTIVE | TESTED (mocked); **UNVERIFIED live** |
@@ -60,10 +60,10 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 ## F-04 Question bank (list)
 
 - Status: COMPLETE. Protection: STABLE.
-- Behavior: 25 per page; search; filters (class label, topic, difficulty, type, used/unused, archived); sort; preview panel (student view, correct answers, accepted answers, essay guide, explanation, files); archive/restore; delete (permanent if never used, otherwise archived; confirmation dialog explains which).
+- Behavior: 25 per page; search; filters (class label, topic, difficulty, type, used/unused, archived); sort; preview panel (student view, correct answers, accepted answers, essay guide, explanation, files); archive/restore; delete (permanent if never used, otherwise archived; confirmation dialog explains which); **the duplicate banner** (mockup 6): one whole-bank scan per visit reports how many questions look duplicated, **Review** opens the groups (exact text and "N% alike" pairs, each question linked to its editor), and a scan that fails only hides the notice.
 - Files: `frontend/assets/js/teacher/screens/questionBank.js`, `components/questionView.js`, `api/questionBank.js`; `backend/functions/question-bank/handler.ts` (`list`, `get`, `remove`, `archive`, `restore`, `topics`, `class_labels`); SQL `list_questions`, `get_question`, `remove_question`, `set_question_archived`, `list_topics`, `list_class_labels`.
-- Tests: `frontend/tests/question_bank_e2e.py`, `backend/tests/question_bank.test.ts`, SQL tests (rolled back).
-- Limitations: the mockup's "N questions look like duplicates" banner over the list is not implemented (duplicate checks happen in the editor).
+- Tests: `frontend/tests/question_bank_e2e.py` (**67 checks**, 10 of them the banner), `backend/tests/question_bank.test.ts`, SQL tests (rolled back), and the live `frontend/tests/live_duplicates_check.py` (**15/15**).
+- Limitations: the banner scans the **non-archived** bank with the SQL defaults (similarity 0.55, at most 50 pairs) and offers no "fix this" action — you open a question from the review and decide there; archived questions are deliberately not scanned (they are out of the way already).
 
 ## F-05 Question editor
 

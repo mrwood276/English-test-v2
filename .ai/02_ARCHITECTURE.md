@@ -77,7 +77,7 @@ Every Edge Function: `Deno.serve(handle(handler))`.
 | Function | Actions | Roles |
 |---|---|---|
 | `auth-me` | `GET` returns `{user:{id, fullName, role}}` | teacher, admin |
-| `question-bank` | `list`, `get`, `save`, `remove`, `archive`, `restore`, `check_duplicates`, `topics`, `class_labels`, `passages`, `passage_get`, `passage_save`, `passage_remove`, `import_check`, `import` (all live since v3, 2026-09-22) | teacher, admin |
+| `question-bank` | `list`, `get`, `save`, `remove`, `archive`, `restore`, `check_duplicates`, `duplicate_groups` (the list banner's whole-bank scan), `topics`, `class_labels`, `passages`, `passage_get`, `passage_save`, `passage_remove`, `import_check`, `import` (all live; `duplicate_groups` was live before it was in git — ISSUE-024, resolved 2026-09-25) | teacher, admin |
 | `media` | `create_upload`, `register`, `signed_urls`, `purge_unused` (admin only) | teacher, admin |
 | `exams` | `save`, `list`, `get`, `remove` (`hard: true` = permanent delete with the attempts, admin only), `set_status`, `check_code`, `regenerate_code`, `duplicate` | teacher, admin (delete-with-attempts: admin only) |
 | `session` | `join` (anonymous, rate limited per address), then `get`, `save`, `heartbeat`, `event`, `submit`, `result`, `media` — all with the signed session token | students (no Supabase account) |
@@ -109,7 +109,7 @@ Key constraints (all verified by SQL tests): one correct option per question; un
 | Reading texts | `save_passage`, `get_passage`, `list_passages`, `remove_passage` |
 | Media | `register_media`, `link_media`, `purge_orphan_media`, `get_media_paths` |
 | Import | `find_similar_batch`, `import_questions` (applied to the live database; migration `v2_12`) |
-| Duplicates (TASK-020) | `find_duplicate_groups(p_threshold, p_limit)` — **live-only, no file in git** (ISSUE-024); the deployed `question-bank` also answers a `duplicate_groups` action that the repository does not have |
+| Duplicates (TASK-020) | `find_duplicate_groups(p_threshold real default 0.55, p_limit int default 50)` — the whole-bank scan behind the list banner: exact `content_hash` groups plus trigram pairs, read-only, `security invoker` + `stable`. In git as `20260925060607_v2_17_duplicate_overview.sql` + `20260925060638_v2_17_duplicate_overview_fix_search_path.sql`, **committed verbatim from the live migration history** (DEC-028; the drift that was ISSUE-024 is closed). Contract: `docs/sql-duplicates.md` |
 | Exams | `_exam_is_open`, `save_exam`, `list_exams`, `get_exam`, `remove_exam`, `set_exam_status`, `exam_code_available`, `regenerate_exam_code`, `duplicate_exam` |
 | Student sessions | `exam_join`, `get_exam_session`, `save_session_answers`, `session_heartbeat`, `log_session_event`, `submit_exam_session`, `get_session_result`, `get_session_media_ids`, `expire_sessions`; helpers `_session_grade`, `_session_public_result`, `_session_question_block`, `_session_key_entry` |
 | Grading/results | `save_answer_grade`, `list_grading_questions`, `get_grading_queue`, `count_pending_grading`, `list_exam_activity`, `list_exam_results`, `get_session_report`, `add_session_time`, `reopen_session`, `grant_retake`, `revoke_retake`; helper `_session_result_write` (the **only** writer of `exam_results`; `_session_grade` was re-created to skip hand-graded questions) |

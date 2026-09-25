@@ -46,6 +46,8 @@ assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionE
                                 sessionTimeline (one attempt while it runs), grading, gradingQuestion,
                                 examResults, sessionReport
 assets/js/teacher/components/   questionView, richTextarea, chipsInput, passageDialog, mediaPicker,
+                                duplicateGroupsDialog (the question list's Review dialog: one section per
+                                group of questions that look alike, each linked to its editor),
                                 resultBits (status pills, score, formatting), reviewItem (one answer in a report)
 assets/js/teacher/guard.js      unsaved-changes guard used by the editors and the import screen
                                 (setLeaveGuard(ask, hasUnsavedWork); the browser warning and the
@@ -67,11 +69,16 @@ tests/                          browser tests with a mocked server (mock_server.
                                 the editor (needs ffmpeg to build the MP3) and deletes its own rows and
                                 objects again; live_exam_delete_check.py walks the exam delete rule
                                 (teacher closes, admin really deletes) with both accounts; add
-                                SUPABASE_ACCESS_TOKEN to also check the database side of the last two
+                                SUPABASE_ACCESS_TOKEN to also check the database side of the last two.
+                                live_duplicates_check.py is the newest and the easiest to run: with the
+                                token alone it signs in as the staff test account (a one-time login
+                                link, so no password), then compares the deployed duplicate scan, the
+                                SQL function and the banner in #/questions. It writes nothing
 ```
 
 ## Notes
 
+- The question bank shows a banner when the whole-bank duplicate scan finds questions that look like copies (mockup 6): the count comes from the server, the scan runs once per visit, and **Review** lists the groups with a link to each question's editor. Contract: `docs/sql-duplicates.md`.
 - The publishable key in `assets/js/core/config.js` is meant to be public. All tables are locked; data only comes through Edge Functions that check who is calling.
 - The sign-in session lives in `sessionStorage`: closing the tab signs the person out.
 - The student page has **no account**: it joins with a code and keeps its attempt (session token, answers, flags, timer) in `localStorage`, so a reload — even with no connection — resumes the same attempt. The answer key never reaches the browser; the server grades the test.
