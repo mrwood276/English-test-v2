@@ -10,6 +10,7 @@ export type Db = StaffDb & RpcDb;
 
 const ACTIONS = [
   "list", "get", "save", "remove", "archive", "restore", "check_duplicates",
+  "duplicate_groups",
   "topics", "class_labels",
   "passages", "passage_get", "passage_save", "passage_remove",
   "import_check", "import",
@@ -65,6 +66,9 @@ export function createHandler(getDb: () => Db) {
         });
         return { matches };
       }
+
+      case "duplicate_groups":
+        return await callRpc(db, "find_duplicate_groups");
 
       case "topics":
         return { topics: await callRpc(db, "list_topics") };

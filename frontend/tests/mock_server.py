@@ -33,6 +33,19 @@ class Server:
     def __init__(self):
         self.qs = make_questions(); self.calls = []; self.fail_list = 0; self.status_all = None
         self.saved = []; self.dup_calls = []; self.media = {}; self.media_calls = []; self.register_error = None; self.last_upload_size = None
+        # the whole-bank duplicate scan behind the list banner (TASK-020): one exact group and one pair that reads alike
+        self.dup_scans = []; self.fail_duplicates = False
+        qid = lambda n: f"00000000-0000-4000-8000-{n:012d}"
+        qbody = lambda n: f"Question number {n} about {'Narrative Text' if n <= 15 else 'Simple Past'}"
+        self.dup_groups = {
+            "question_count": 4,
+            "exact_groups": [{"kind": "exact", "questions": [
+                {"id": qid(7), "body": qbody(7), "used_in_exams": 3},
+                {"id": qid(11), "body": qbody(11), "used_in_exams": 3}]}],
+            "similar_pairs": [{"kind": "similar", "similarity": 0.87, "questions": [
+                {"id": qid(2), "body": qbody(2), "used_in_exams": 2},
+                {"id": qid(22), "body": qbody(22), "used_in_exams": 0}]}],
+        }
         self.import_checks = []; self.imports = []
         self.exam_calls = []; self.exams = {}; self.exam_codes_used = {"TAKEN1"}
         self.role = "admin"   # suites switch this to "teacher" to check the role-dependent screens
@@ -143,6 +156,11 @@ class Server:
             if "EXACT" in text: return ok({"matches": [{"id": "00000000-0000-4000-8000-00000000000a", "body": "What did Dina do first?", "similarity": 1.0, "exact": True, "is_archived": False, "used_in_exams": 1}]})
             if "wallet" in text.lower(): return ok({"matches": [{"id": "00000000-0000-4000-8000-000000000009", "body": "What did Dina do first when she found the wallet?", "similarity": 0.91, "exact": False, "is_archived": False, "used_in_exams": 2}]})
             return ok({"matches": []})
+        if a == "duplicate_groups":
+            self.dup_scans.append(body)
+            if self.fail_duplicates:
+                return route.fulfill(status=500, content_type="application/json", body=json.dumps({"error": "Something went wrong. Please try again.", "code": "internal_error"}))
+            return ok(self.dup_groups)
         if a == "import_check":
             self.import_checks.append(body)
             results = []

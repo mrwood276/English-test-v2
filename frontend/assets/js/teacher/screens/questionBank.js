@@ -5,6 +5,7 @@ import { debounce, toast, confirmDialog } from "../../shared/ui.js";
 import { questionBank } from "../api/questionBank.js";
 import { attachMediaUrls } from "../api/media.js";
 import { questionView, TYPE_LABEL, DIFFICULTY_LABEL, usedText } from "../components/questionView.js";
+import { duplicateGroupsDialog } from "../components/duplicateGroupsDialog.js";
 import { SessionExpiredError } from "../../core/auth.js";
 
 const PAGE_SIZE = 25;
@@ -43,6 +44,9 @@ export function renderQuestionBank(container) {
   const pager = h("div", { class: "pager" });
   const preview = h("aside", { class: "card preview", "aria-label": "Question preview", hidden: true });
 
+  // ---------- the duplicate notice (mockup 6) ----------
+  const banner = h("div", { class: "banner", role: "status", hidden: true });
+
   const addButton = h("a", { class: "btn", href: "#/questions/new" }, icon("plus"), "Add question");
   const importButton = h("a", { class: "btn ghost", href: "#/questions/import" }, "Import");
 
@@ -56,6 +60,7 @@ export function renderQuestionBank(container) {
       classSelect, topicSelect, difficultySelect, typeSelect, usedSelect, sortSelect,
       h("label", { class: "check", for: "qb-archived" }, archivedBox, "Show archived"),
     ),
+    banner,
     h("div", { class: "qb-layout" }, h("div", { class: "card list-card" }, table, status, pager), preview),
   );
 
@@ -137,6 +142,36 @@ export function renderQuestionBank(container) {
     pager.replaceChildren(h("span", { class: "hint" }, `Showing ${from} to ${to} of ${state.total}`), h("span", { class: "pager-buttons" }, prev, next));
   }
 
+  // ---------- the duplicate scan (one whole-bank lookup, not one per filter change) ----------
+  async function loadDuplicates() {
+    try {
+      const groups = await questionBank.duplicateGroups();
+      const count = groups.question_count || 0;
+      if (count === 0) return hideBanner();
+      const review = h("button", { class: "banner-action", type: "button" }, "Review");
+      review.addEventListener("click", () => duplicateGroupsDialog(groups));
+      banner.replaceChildren(
+        h(
+          "span",
+          { class: "row" },
+          icon("alert"),
+          count === 1 ? "1 question looks like a duplicate of another." : `${count} questions look like duplicates of each other.`,
+        ),
+        review,
+      );
+      banner.hidden = false;
+    } catch (err) {
+      // The list matters more than the notice, so a scan that fails only hides the banner. The editor
+      // still warns while a question is written, and check_duplicates still works.
+      if (!ignorable(err)) console.warn("the duplicate scan failed", err);
+      hideBanner();
+    }
+  }
+  function hideBanner() {
+    banner.hidden = true;
+    banner.replaceChildren();
+  }
+
   // ---------- filters ----------
   function setFilter(key, value) {
     state.filters[key] = value;
@@ -204,11 +239,11 @@ export function renderQuestionBank(container) {
 
   // ---------- actions ----------
   async function archiveQuestion(q) {
-    try { await questionBank.archive(q.id); toast("Question archived. Show archived questions to restore it."); closePreview(); load(); }
+    try { await questionBank.archive(q.id); toast("Question archived. Show archived questions to restore it."); closePreview(); load(); loadDuplicates(); }
     catch (err) { if (!ignorable(err)) toast(errorText(err), "error"); }
   }
   async function restoreQuestion(q) {
-    try { await questionBank.restore(q.id); toast("Question restored."); closePreview(); load(); }
+    try { await questionBank.restore(q.id); toast("Question restored."); closePreview(); load(); loadDuplicates(); }
     catch (err) { if (!ignorable(err)) toast(errorText(err), "error"); }
   }
   async function deleteQuestion(q) {
@@ -227,11 +262,13 @@ export function renderQuestionBank(container) {
       toast(result === "deleted" ? "Question deleted." : "Question archived because exams use it.");
       closePreview();
       load();
+      loadDuplicates();
     } catch (err) { if (!ignorable(err)) toast(errorText(err), "error"); }
   }
 
   // ---------- start ----------
   load();
+  loadDuplicates();
   questionBank.topics().then((topics) => {
     for (const t of topics) topicSelect.append(h("option", { value: t.name }, `${t.name} (${t.question_count})`));
   }).catch(() => { /* the filters still work without the suggestions */ });

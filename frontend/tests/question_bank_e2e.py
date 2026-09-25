@@ -43,6 +43,24 @@ with sync_playwright() as pw:
     check("next is disabled on the last page", page.is_disabled("button[aria-label='Next page']"))
     page.click("button[aria-label='Previous page']"); wait_rows(page, 25)
 
+    # --- the duplicate notice (TASK-020, mockup 6)
+    page.wait_for_selector(".banner:not([hidden])")
+    scans_before = len(srv.dup_scans)
+    check("the notice counts the questions the scan found",
+          page.inner_text(".banner .row").strip() == "4 questions look like duplicates of each other.", page.inner_text(".banner .row"))
+    check("the scan is asked for as one whole-bank call", srv.dup_scans[-1] == {"action": "duplicate_groups"}, str(srv.dup_scans))
+    page.click(".banner button"); page.wait_for_selector("dialog.dup-dialog[open]")
+    review = page.inner_text("dialog.dup-dialog")
+    check("Review lists the exact group and the pair that reads alike",
+          "Same text (2 questions)" in review and "87% alike" in review, review[:200])
+    check("the review says how often each question is used", "3 exams" in review and "not used yet" in review, review[:200])
+    check("the review shows the question text, not markup", "Question number 7 about Narrative Text" in review)
+    check("every question in the review links to its editor",
+          [a.get_attribute("href") for a in page.query_selector_all("dialog.dup-dialog .dup-group a")] ==
+          ["#/questions/edit/" + f"00000000-0000-4000-8000-{n:012d}" for n in (7, 11, 2, 22)])
+    page.keyboard.press("Escape"); page.wait_for_function("document.querySelector('dialog') === null")
+    check("escape closes the review", page.query_selector(".banner:not([hidden])") is not None)
+
     # --- row content, hostile text, media, classes
     hostile = page.query_selector("tr[data-id='00000000-0000-4000-8000-000000000001']")
     check("rows show plain text of rich questions", hostile is not None and "Bold" in hostile.inner_text() and "<" not in hostile.inner_text())
@@ -76,6 +94,7 @@ with sync_playwright() as pw:
     page.select_option("#qb-used", "unused"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 7")
     check("unused filter", srv.calls[-1].get("used") == "unused")
     page.select_option("#qb-used", ""); wait_rows(page, 25)
+    check("the scan is not repeated on every filter change", len(srv.dup_scans) == scans_before, f"{len(srv.dup_scans)} scans")
     page.select_option("#qb-sort", "oldest"); page.wait_for_function("document.querySelector('.qtable tbody tr .qlink').textContent.includes('number 30')")
     check("sort is sent", srv.calls[-1].get("sort") == "oldest")
     page.select_option("#qb-sort", "newest"); wait_rows(page, 25)
@@ -110,9 +129,12 @@ with sync_playwright() as pw:
 
     # --- actions: archive, restore
     page.click("tr[data-id='00000000-0000-4000-8000-000000000008'] .qlink"); page.wait_for_selector(".preview-actions")
+    srv.dup_groups = {"question_count": 0, "exact_groups": [], "similar_pairs": []}   # the bank is tidy from here on
     page.click(".preview button:has-text('Archive')"); page.wait_for_selector(".toast:has-text('archived')")
     wait_rows(page, 25)
     check("archiving removes it from the list and closes the preview", page.inner_text(".head .sub") == "29 questions" and page.is_hidden(".preview"))
+    page.wait_for_function("document.querySelector('.banner').hidden === true")
+    check("the notice follows the bank: it goes away after a change with nothing left to review", True)
     page.check("#qb-archived"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 1")
     check("archived questions can be shown", "(archived)" in page.inner_text(".head .sub"))
     page.click(".qtable tbody tr .qlink"); page.wait_for_selector(".preview .pill.warn")
@@ -145,6 +167,15 @@ with sync_playwright() as pw:
     page.click(".list-status button:has-text('Try again')"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length > 0")
     check("retry loads the list", page.query_selector(".list-status.error") is None)
     page.select_option("#qb-difficulty", ""); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 25")
+
+    # --- a scan that fails must not take the list down with it
+    srv.fail_duplicates = True
+    page.click("a[data-route='#/dashboard']"); page.wait_for_selector("h1:has-text('Dashboard')")
+    page.click("a[data-route='#/questions']"); page.wait_for_selector(".qtable"); wait_rows(page, 25)
+    page.wait_for_function("document.querySelector('.banner').hidden === true")
+    check("a scan that fails only hides the notice", not page.query_selector(".list-status.error") and len(rows(page)) == 25
+          and page.query_selector(".banner[hidden]") is not None)
+    srv.fail_duplicates = False
 
     # --- navigation
     page.click("a[data-route='#/dashboard']"); page.wait_for_selector("h1:has-text('Dashboard')")

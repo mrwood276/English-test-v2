@@ -189,6 +189,24 @@ Deno.test("get, remove, archive, duplicates, topics, labels, and passages", asyn
   assert.equal(calls.at(-1)!.name, "remove_passage");
 });
 
+Deno.test("duplicate_groups asks the database for the overview scan, with no arguments", async () => {
+  // The scan runs with the SQL defaults (threshold 0.55, at most 50 pairs); the screen sends no filters.
+  const payload = { question_count: 3, exact_groups: [{ kind: "exact", questions: [{ id: QID, body: "Same text", used_in_exams: 0 }] }], similar_pairs: [] };
+  const { db, calls } = fakeDb((name) => (name === "find_duplicate_groups" ? { data: payload } : {}));
+  const res = await createHandler(() => db)(post({ action: "duplicate_groups" }));
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), payload);
+  assert.deepEqual(calls, [{ name: "find_duplicate_groups", args: {} }]);
+});
+
+Deno.test("duplicate_groups is available to a teacher as well as to an admin", async () => {
+  for (const role of ["teacher", "admin"] as const) {
+    const { db, calls } = fakeDb(() => ({ data: { question_count: 0, exact_groups: [], similar_pairs: [] } }), role);
+    assert.equal((await createHandler(() => db)(post({ action: "duplicate_groups" }))).status, 200, role);
+    assert.equal(calls[0].name, "find_duplicate_groups");
+  }
+});
+
 Deno.test("unknown actions and malformed bodies are refused", async () => {
   const { db, calls } = fakeDb();
   const h = createHandler(() => db);

@@ -13,6 +13,8 @@ export const questionBank = {
   restore: (id) => call({ action: "restore", id }),
   save: (question) => call({ action: "save", ...question }).then((r) => r.id),
   checkDuplicates: ({ body, options, excludeId }) => call({ action: "check_duplicates", body, options, exclude_id: excludeId }).then((r) => r.matches),
+  /** The whole-bank duplicate scan for the list banner: { question_count, exact_groups, similar_pairs }. */
+  duplicateGroups: () => call({ action: "duplicate_groups" }),
   passages: (q) => call({ action: "passages", q }).then((r) => r.passages),
   passage: (id) => call({ action: "passage_get", id }).then((r) => r.passage),
   savePassage: ({ id, title, body, media }) => call({ action: "passage_save", id, title, body, media }).then((r) => r.id),

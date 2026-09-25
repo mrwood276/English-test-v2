@@ -15,6 +15,19 @@
 .check input { width: 18px; height: 18px; }
 
 /* ---------- List ---------- */
+/* the duplicate notice over the list (mockup 6) */
+.banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--mark-tint); border: 1.5px solid var(--mark); border-radius: var(--radius-m); padding: 9px 14px; margin-bottom: 12px; font-size: 13.5px; color: #4f3f00; }
+.banner .row { display: flex; align-items: center; gap: 8px; }
+.banner .row .i { flex: none; }
+.banner-action { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: inherit; text-decoration: underline; cursor: pointer; }
+.banner-action:hover { text-decoration: none; }
+.dup-dialog { max-height: 80vh; overflow: auto; }
+.dup-group { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
+.dup-group h3 { font-size: 14px; margin-bottom: 7px; }
+.dup-group ul { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+.dup-group li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px; }
+.dup-group li .hint { white-space: nowrap; }
+
 .qb-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
 .qb-layout .card { max-width: none; padding: 0; }
 .list-card { overflow: hidden; }
