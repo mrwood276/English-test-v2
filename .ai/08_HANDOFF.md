@@ -21,9 +21,9 @@ Do not merge `ai-development` into `main` without the owner's explicit go-ahead 
 | | |
 |---|---|
 | Stable branch | `main`. Do not develop or merge here without the owner's explicit decision. |
-| Development branch | **`ai-development`**. Started this session at `2fcce90` (clean tree, in sync with `origin/ai-development`); the TASK-007 work is `d99ca92` + `d479ed1` + `c816dc2` (pushed, CI-green), and the ISSUE-023 work sits on top of `c816dc2` (see `git log` for its commit). |
+| Development branch | **`ai-development`**. Started this session at `2fcce90` (clean tree, in sync with `origin/ai-development`). Head after this session: **`5252359`** (`cdad496` the exam-delete feature, `5252359` its docs), on top of the TASK-007 commits `d99ca92` + `d479ed1` + `c816dc2`. All pushed. |
 | Starting point | `2fcce90` — `git status --short --branch` showed a clean tree and no commits behind/ahead. Nothing was fetched-and-missing this time; the previous session's green CI and docs were confirmed before work started. |
-| Push / CI status | **Both workflows green on `d479ed1`** (Backend and Frontend, runs created 2026-09-25 12:20 UTC). Locally after the change: `media_e2e.py` 29/29 and `teacher_e2e.py` 36/36 re-run green; backend 114 / unit 31 unchanged (this session touched no product code). |
+| Push / CI status | **Both workflows green on the final head `5252359`** (and earlier on `d479ed1`). Locally: backend **118**, unit **31**, all **eleven** browser suites green after the exam-delete change; the two live checks 32/32 and 17/17. |
 | Live database | **English_Test_v2** (`lbhnadqmokloyfarrzfv`). Do not touch the v1 project `Exam_Data_Base`. |
 
 ## LAST AGENT

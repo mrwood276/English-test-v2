@@ -9,7 +9,7 @@
 | Development phase | Phase 5 **FULLY LIVE-VERIFIED**; Phase 6 dashboard/UX polish complete and CI-verified; Phase 7 first slice (audit viewer) **FULLY LIVE-VERIFIED**; **F-07 media is now LIVE-VERIFIED too**. |
 | Current focus | Nothing is blocked. Remaining work is optional/owner-driven: **TASK-020** (duplicate banner), the **TASK-015 remainder** (scheduled purge jobs need pg_cron; backups; notifications need DEC-017), the **PDF class summary** (owner decision), and the merge of `ai-development` into `main` (owner decision). |
 | Branch model | `main` = stable. `ai-development` = shared AI development. |
-| Current branch / commit | **`ai-development`**, pushed and CI-green at `d479ed1` before this change; the head after it is the ISSUE-023 work (see `git log`). Local: backend **118**, unit **31**, all eleven browser suites green (`exams` now 37 checks); live checks 32/32 (media) and 17/17 (exam delete rule). |
+| Current branch / commit | **`ai-development`** at **`5252359`** (`cdad496` the exam-delete feature, `5252359` its docs), pushed and CI-green; the TASK-007 work is below it (`d99ca92`/`d479ed1`/`c816dc2`). Local: backend **118**, unit **31**, all eleven browser suites green (`exams` now 37 checks); live checks 32/32 (media) and 17/17 (exam delete rule). |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
 
 ## What was inspected to write `.ai/`
