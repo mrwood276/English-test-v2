@@ -4,12 +4,12 @@
 
 | Item | Value |
 |---|---|
-| Last updated | 2026-09-25 (Buffy — TASK-015 audit viewer live-verified; leave-guard defect and the CI flake fixed) |
-| Last AI agent | Buffy (seventeenth session: found the audit slice **already applied/deployed live** by the previous session's follow-up, verified it live, corrected the wrong "pending" docs, found and fixed the live Auth misconfiguration that blocked all staff sign-in, and fixed the leave-guard defect behind the two CI failures). |
-| Development phase | Phase 5 **FULLY LIVE-VERIFIED**; Phase 6 dashboard/UX polish complete and CI-verified; Phase 7 first slice (audit viewer) **FULLY LIVE-VERIFIED**. |
-| Current focus | **TASK-015 audit-log viewer is LIVE-VERIFIED (2026-09-25)** — no work left on it beyond the rest of TASK-015 (backups, notifications (DEC-017 owner decision), scheduled purge jobs (pg_cron live)). TASK-012 is down to the owner-dependent **PDF class summary**. Next code work: TASK-020 (duplicate banner). |
+| Last updated | 2026-09-25 (Buffy — **TASK-007 done: the real image and audio upload against live Storage verified end to end**; no open release blocker) |
+| Last AI agent | Buffy (eighteenth session: ran the first real media upload against the live bucket with the staff test account and turned it into a committed live check, `frontend/tests/live_media_check.py`, **32/32**; confirmed the `@supabase/storage-js` protocol reproduction was correct, so no product code changed; found the owner's own live test exam + session and ISSUE-023 in the audit log). |
+| Development phase | Phase 5 **FULLY LIVE-VERIFIED**; Phase 6 dashboard/UX polish complete and CI-verified; Phase 7 first slice (audit viewer) **FULLY LIVE-VERIFIED**; **F-07 media is now LIVE-VERIFIED too**. |
+| Current focus | Nothing is blocked. Remaining work is optional/owner-driven: **TASK-020** (duplicate banner), the **TASK-015 remainder** (scheduled purge jobs need pg_cron; backups; notifications need DEC-017), the **PDF class summary** (owner decision), and the owner's call on **ISSUE-023**. |
 | Branch model | `main` = stable. `ai-development` = shared AI development. |
-| Current branch / commit | **`ai-development`** at `7a5b09e` (leave-guard fix) on top of `51119a0`. All local suites green (backend 114, unit 31, eleven browser suites). |
+| Current branch / commit | **`ai-development`** on top of `2fcce90` (this session's TASK-007 commit). All local suites green (backend 114, unit 31, eleven browser suites) plus the live check 32/32. |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
 
 ## What was inspected to write `.ai/`
@@ -28,7 +28,7 @@
 | Edge Functions (as of 2026-09-25, seventeenth session) | `auth-me` v1, `question-bank` v3, `media` v1, `exams` v3, `session` v1, **`results` v4** (grading/reports + the monitor + exam-wide add time), **`audit` v1** (admin-only audit-log viewer); all ACTIVE, `verify_jwt=false` |
 | Public SQL functions | **61** (verified live on 2026-09-25; the audit viewer's `list_audit_logs` was the one added since the previous count of 60) |
 | Storage | bucket `question-media`, private, 10 MB limit |
-| Data (2026-09-24) | 40 questions (0 archived), 5 passages, 13 topics, 0 media files, **0 exams, 0 sessions, 0 answers, 0 grades, 0 results, 0 session events, 0 retake permissions, 0 rate-limit rows**, 1 profile (admin), 4 audit rows — every verification row was deleted again |
+| Data (2026-09-25, eighteenth session) | 40 questions (0 archived), 5 passages, 13 topics, **0 media files, 0 `question_media` rows, 0 objects in the `question-media` bucket** (real upload verified and deleted again), **1 exam + 1 submitted session that belong to the OWNER's own test at 07:14 UTC ("test", code `4KHU2A`, closed) — real data, do not delete**, 0 rate-limit rows, 2 profiles, **24 audit rows** (9 of them from the 2026-09-25 media check, deliberately kept) |
 | Auth users | 1 admin (email known to the owner; not repeated here) plus the `testguru211l@gmail.com` staff test account (2 `profiles` rows). **Auth config verified live 2026-09-25**: email provider ON, `disable_signup: true` (see ISSUE-007 — the provider had been switched off entirely, which blocked every staff sign-in; fixed the same day) |
 
 ## Live system facts (re-verified 2026-09-22, fifth session, via the CLI + admin sign-in)
@@ -98,7 +98,7 @@
 2. **TASK-006 steps 1–2, import browser work is done**: the import screen `#/questions/import` (file or paste → defaults → review table with statuses → all-or-nothing import), wired into the router and the question bank; zip/xlsx readers now tested against a real .xlsx fixture (ISSUE-013 closed); template files under `frontend/assets/templates/`; new Playwright suite `question_import_e2e.py` (43 checks). Verified only against the mock server — see the XLSX and live caveats below.
 2. Import parsers for CSV, XLSX, and pasted text with 21 Deno unit tests.
 3. Import backend: SQL `find_similar_batch`, `import_questions` (live, tested); Edge code + tests (repo only, not deployed).
-4. Images and audio: bucket, SQL, `media` function (deployed), file picker, previews, tests. Not yet verified with real Storage.
+4. Images and audio: bucket, SQL, `media` function (deployed), file picker, previews, tests — **live-verified 2026-09-25** (real upload, playback, refusal cleanup; `live_media_check.py` 32/32).
 5. Question editor, reading texts, question bank screens (live-verified basics by the owner).
 6. Sign in, app shell, shared backend library, `auth-me`.
 7. Database schema, dev Supabase project, migration of the 40 v1 questions (fingerprint-verified against v1).
@@ -109,14 +109,15 @@
 - **TASK-012**, on branch `ai-development**: only the **PDF class summary** remains, and it needs the owner's decision on the one-page content. CSV/Excel and both statistics tabs are built and tested.
 - **TASK-006**, on branch `ai-development`: deployed and working; remaining is the owner's review of the proposed import formats and one real Excel/Google-Sheets file.
 - **TASK-015**: the **audit-log viewer slice is LIVE-VERIFIED (2026-09-25)** — SQL applied, function deployed, live test + admin smoke passed. What remains in the task: backups, notifications (owner must choose a provider, DEC-017), scheduled purge jobs (need pg_cron live), user management.
+- **TASK-009's exam delete rule**: **ISSUE-023** (OPEN, owner decision) — the owner hit Delete five times on an exam that had an attempt and the app closed it each time, by design. Either keep the behavior and make the message/button clearer, or add an admin-only hard delete.
 
 ## Pending work (see `05_TASK_QUEUE.md`)
 
-**TASK-015 remainder** (scheduled expiry/purge jobs — needs pg_cron live; backups; notifications — needs the owner's provider decision) is the next code task; **TASK-020** (duplicate-overview banner) is a smaller alternative. Owner-dependent items: the PDF class-summary content (TASK-012), import-format review (TASK-006), and one real media upload (TASK-007).
+**TASK-015 remainder** (scheduled expiry/purge jobs — needs pg_cron live; backups; notifications — needs the owner's provider decision) is the next code task; **TASK-020** (duplicate-overview banner) is a smaller alternative. Owner-dependent items: the PDF class-summary content (TASK-012), import-format review (TASK-006), the exam-delete behavior (**ISSUE-023**), and the merge of `ai-development` into `main`.
 
 ## Blocked work
 
-No code task is blocked. Release remains blocked on the one owner-only item: an actual image/audio upload against live Storage (TASK-007). ISSUE-007 is now genuinely fixed and **verified live** (2026-09-25): sign-ups are refused with `signup_disabled` while staff sign-in works. The migration-tracking discrepancy in ISSUE-001 also needs a real DB connection/password, not agent-alone work.
+**Nothing.** No code task is blocked and **no release blocker is open**: the last one, TASK-007 (one real image/audio upload against live Storage), was completed and live-verified on 2026-09-25 (`frontend/tests/live_media_check.py` 32/32). ISSUE-007 is fixed and **verified live** (sign-ups refused with `signup_disabled`, staff sign-in works). The only items needing a human are the migration-tracking discrepancy in ISSUE-001 (needs a real DB connection/password) and the `ai-development` → `main` merge itself (DEC-020/DEC-021).
 
 ## What the owner has verified live
 
@@ -132,7 +133,7 @@ None from this session. The earlier `media_e2e.py` fixture-size quirk in ISSUE-0
 ## Current risks
 
 1. The live migration-tracking table is missing rows for three already-live migrations (ISSUE-001 follow-up; needs a real DB connection).
-2. Media upload untested against real Storage (ISSUE-002 / TASK-007).
+2. ~~Media upload untested against real Storage~~ — **closed 2026-09-25** (ISSUE-002, TASK-007).
 3. Staff sign-in depends on the email provider staying enabled (`disable_signup` is what keeps the public out, ISSUE-007) — it was switched off by mistake on 2026-09-24/25 and blocked every login. Check `auth/v1/settings` after any dashboard change.
 4. v1 keeps serving real students with its known weaknesses (`docs/audit-v1.md`); owner decided not to patch it (DEC-015).
 
@@ -140,8 +141,8 @@ None from this session. The earlier `media_e2e.py` fixture-size quirk in ISSUE-0
 
 1. **TASK-015 remainder**: scheduled jobs (needs pg_cron live), backups, notifications (needs the owner's email-provider decision, DEC-017).
 2. **TASK-020**: the question-bank duplicate-overview banner.
-3. Ask the owner what the PDF class summary should contain (the last TASK-012 piece) and whether the proposed import formats are accepted.
-4. Owner-only release step: one real media upload (TASK-007).
+3. Ask the owner what the PDF class summary should contain (the last TASK-012 piece), whether the proposed import formats are accepted, and what to do about **ISSUE-023** (exam delete with attempts).
+4. Owner-only step: decide when to merge `ai-development` into `main` (DEC-020/DEC-021) — no technical blocker remains.
 
 ## How SQL business rules were tested (technique)
 

@@ -65,7 +65,7 @@ Only decisions that can be verified from the repository, `docs/design.md`, the l
 ## DEC-011 — Media design
 - Date: 2026-09-21 (D-04, D-12).
 - Decision: images and audio for questions and reading texts; private bucket; browser gets one-time signed upload URLs; server reads size/type from Storage and registers the file; viewing via 1-hour signed URLs; images shrunk in the browser to about 1 MB / 1600 px, WebP preferred; audio MP3/M4A up to 10 MB (owner chose the looser limit knowing egress cost); max 4 files per question or reading text; audio has no play limit.
-- Affected: migrations `v2_09`..`v2_11`, `backend/functions/media/handler.ts`, `frontend/assets/js/teacher/components/mediaPicker.js`, `frontend/assets/js/shared/imageCompress.js`. Active: yes. Live verification pending (TASK-007).
+- Affected: migrations `v2_09`..`v2_11`, `backend/functions/media/handler.ts`, `frontend/assets/js/teacher/components/mediaPicker.js`, `frontend/assets/js/shared/imageCompress.js`. Active: yes. **Live-verified 2026-09-25 (TASK-007, `frontend/tests/live_media_check.py` 32/32)** — the design held exactly as written: private bucket, one-time signed upload URL, server-read size/type, 1-hour viewing links, browser shrink to ~813 KB WebP. No change to this decision was needed.
 
 ## DEC-012 — Questions used by exams are archived, never hard-deleted; each exam session keeps its own snapshot
 - Date: 2026-09-20 (BR-10; `remove_question`).

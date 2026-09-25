@@ -84,13 +84,13 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 
 ## F-07 Images and audio (media)
 
-- Status: **PARTIAL** — fully built, but **the real upload to Supabase Storage has never been run** (0 rows in `media_files`). Protection: ACTIVE.
+- Status: **COMPLETE and LIVE-VERIFIED (2026-09-25)** — a real photo and a real MP3 were uploaded to the private bucket through the app with the staff test account, saved on a question, reopened and played back; `frontend/tests/live_media_check.py` **32/32**. Protection: ACTIVE.
 - Behavior: up to 4 files per question or reading text; images JPG/PNG/WebP shrunk in the browser to about 1 MB and 1600 px (WebP, JPEG fallback); audio MP3/M4A up to 10 MB with duration read in the browser; drag and drop; upload queue with progress; previews show real `<img>` and `<audio controls>`; audio has no play limit (D-04).
 - Files: `frontend/assets/js/teacher/components/mediaPicker.js`, `api/media.js`, `shared/imageCompress.js`, `components/questionView.js` (`mediaBlock`), `screens/questionEditor.js`, `components/passageDialog.js`; `backend/functions/media/handler.ts`; SQL `register_media`, `link_media`, `purge_orphan_media`, `get_media_paths`; tables `media_files`, `question_media`; bucket `question-media`.
-- The upload request imitates `uploadToSignedUrl` of `@supabase/storage-js` 2.116 (PUT to the signed URL, multipart form with `cacheControl` and a file field with an **empty name**, headers `apikey` and `x-upsert: false`). Reproduced from the library source, never executed against real Storage. If it fails live, compare with that library first.
-- Tests: `frontend/tests/media_e2e.py` (mocked Storage), `backend/tests/media.test.ts`, SQL tests.
+- The upload request imitates `uploadToSignedUrl` of `@supabase/storage-js` 2.116 (PUT to the signed URL, multipart form with `cacheControl` and a file field with an **empty name**, headers `apikey` and `x-upsert: false`). Reproduced from the library source and, since 2026-09-25, **executed against the real bucket and confirmed correct** (absolute signed URL, no `Authorization` header needed, CORS fine, 813 KB WebP + 48 KB MP3 stored and served back).
+- Tests: `frontend/tests/media_e2e.py` (mocked Storage, 29 checks), `backend/tests/media.test.ts`, SQL tests, and the live run `frontend/tests/live_media_check.py` (32 checks against the real project).
 - Limitations: `purge_unused` (delete unused files) is manual (admin-only action, no schedule, no UI); the editor cannot reorder files; passage files are edited only in the passage dialog.
-- Next: TASK-007 (verify live).
+- Live proof (2026-09-25, ISSUE-002): the app shrank a 7.6 MB PNG to an 813 KB WebP and uploaded it plus a real 3-second MP3; `media_files` rows carried the size/type Storage reported and the MP3's real duration; both were attached to a question and played back after reopening; a 4.5 MB JPEG forced into Storage was refused and deleted again. Nothing was left behind.
 
 ## F-08 Import questions (Excel/CSV and pasted text)
 

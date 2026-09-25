@@ -1,34 +1,32 @@
 # Verification checklist for the owner (Supabase side)
 
-The agents have no Supabase dashboard/CLI access, so these steps need you. Each item says why it matters and how to confirm it. Tick them off in `.ai/05_TASK_QUEUE.md` / `09_KNOWN_ISSUES.md` as you go (or ask an agent to do it).
+Nobody needs to work through this list any more — **every item on it is done**. It is kept as the record of what was asked of the owner and how it was confirmed. Live checks are now run by an agent with real network access (the Supabase Management API token plus the project host reachable from the Windows clone); a claude.ai chat session still cannot reach `*.supabase.co`, which is why the earlier version of this file asked the owner to do everything by hand.
 
-What was already verified remotely on 2026-09-22 with the publishable key only (no login, read-only):
+Verified remotely with the publishable key only (no login, read-only, 2026-09-22; re-checked since):
 
 - Anon request to `rest/v1/questions` is refused (HTTP 401, `permission denied`) — the zero-policy lockdown really holds.
 - `question-bank` without a token answers 401 "Please sign in." — the in-code auth wall works on the deployed function.
 - The private `question-media` bucket leaks nothing to anon (listing says "Bucket not found").
-- CORS preflight from `http://localhost:8000` is answered with `Access-Control-Allow-Origin: *` (the `ALLOWED_ORIGIN` secret is not set yet — expected).
-- **Signup by email is still ENABLED** (`auth/v1/settings` shows email sign-ups on). See step 1 below — this is the one urgent item.
+- CORS preflight from `http://localhost:8000` is answered with `Access-Control-Allow-Origin: *` (the `ALLOWED_ORIGIN` secret is not set yet — expected until the app has an address; TASK-017).
 
-## 1. Disable public sign-up (ISSUE-007) — urgent, 2 minutes
+## 1. Disable public sign-up (ISSUE-007) — DONE, and it needed a repair
 
-Dashboard → Authentication → Sign In / Providers → **Email**: turn off "Allow new users to sign up". Anyone can currently create an auth user; data stays safe (no `profiles` row → every API call gets 403), but the door should be closed. Confirm afterwards with `curl https://lbhnadqmokloyfarrzfv.supabase.co/auth/v1/settings -H "apikey: <publishable>"` — email should read `false`.
+Sign-ups are refused (`disable_signup: true`): a real sign-up attempt answers `signup_disabled` and creates nothing. **Careful with the provider switch**: on 2026-09-24 the "disable sign-ups" step actually turned the **Email provider off** (`external_email_enabled: false`), and every staff sign-in answered `HTTP 422 email_provider_disabled` — the teacher app was unusable until an agent switched the provider back on (owner-approved, 2026-09-25). After any dashboard change, re-read `GET https://lbhnadqmokloyfarrzfv.supabase.co/auth/v1/settings` (publishable key as `apikey`) and check **both** halves: sign-ups still refused **and** a staff sign-in still works.
 
-## 2. Deploy `question-bank` v3 (TASK-006 step 3, ISSUE-003) — unlocks the finished import screen
+## 2. Deploy `question-bank` v3 (TASK-006 step 3, ISSUE-003) — DONE 2026-09-22
 
-Either CLI (`supabase functions deploy question-bank --no-verify-jwt`, from a machine logged in to the `lbhnadqmokloyfarrzfv` project) or Dashboard → Edge Functions → question-bank → deploy new version (paste the repo files: `index.ts`, `handler.ts`, `parse.ts`, plus `../_shared/*` with the import path rewritten `../_shared/` → `./_shared/`). It is additive: the deployed v2 keeps working; v3 only adds `import_check`/`import`.
+Deployed live as v3 (`--no-verify-jwt`). `import_check` was verified against the real 40-question bank and `list` regression-checked. What is still worth a human: the owner opening one real Excel- or Google-Sheets-saved file through the import screen (the repository's fixture is generated, not Excel-made — ISSUE-013's remaining caveat) and a look at the proposed formats in `05_TASK_QUEUE.md`.
 
-After deploying, verify in the running app (local `python frontend/dev-server.py`): sign in → Question bank → **Import** → "Show an example" → Review questions → Import. Expect a green toast "Imported N questions" and the rows appearing in the bank. Also try a broken row on purpose: nothing may be saved and the message must name the row.
+## 3. Verify one real media upload (TASK-007, ISSUE-002) — DONE 2026-09-25
 
-## 3. Verify one real media upload (TASK-007, ISSUE-002)
+Run by an agent through the app itself with the staff test account `testguru211l@gmail.com`: a 7.6 MB photo (shrunk by the app to an 813 KB WebP) and a real 3-second MP3 were uploaded to the private bucket, saved on a question, reopened and played back; a 4.5 MB JPEG forced into Storage was refused and deleted again; everything the run created was removed. `frontend/tests/live_media_check.py` reports **32/32**. See `.ai/08_HANDOFF.md` for the full evidence and how to repeat it.
 
-Open `#/questions/new`, upload a photo and an MP3, save, reopen the question — the image and player must load. `media_files` should gain rows and the files appear in bucket `question-media`. If the upload PUT fails, check the browser Network tab for the request to `.../storage/v1/object/upload/sign/question-media/...` and tell the agent the status/error.
+## 4. Export the migrations into git (TASK-008, ISSUE-001) — DONE 2026-09-24
 
-## 4. Export the migrations into git (TASK-008, ISSUE-001)
+All 12 live migrations (`v2_01`..`v2_12`) are committed verbatim under `supabase/migrations/`, so the database can be rebuilt from the repository. **One small follow-up left** (needs the database password, which nobody has): three migrations that are live and working have no row in `supabase_migrations.schema_migrations`, and two live migrations are tracked under a different version than their git filename — a future `supabase db push` would just re-run them harmlessly (`create or replace`). Details in `09_KNOWN_ISSUES.md` (ISSUE-001).
 
-`supabase db pull` (or copy the SQL of `v2_01`..`v2_12` from Dashboard → Database → Migrations) into `supabase/migrations/`, one file per migration with the same names/order. After that the database can be rebuilt from the repository and future migrations can be stored in git (as `00_AI_RULES.md` section 8 requires).
-
-## 5. Optional but recommended while you are in the dashboard
+## 5. Still worth doing in the dashboard (optional, when convenient)
 
 - Enable leaked-password protection (Authentication → Policies) if the plan allows it (ISSUE-005).
-- Later, when v2 has a real address: set the `ALLOWED_ORIGIN` function secret and the Auth Site URL / redirect URLs (TASK-017). Until then `*` is intentional.
+- Rotate the credentials that have travelled through chats: the admin password, the staff test account's password (`testguru211l@gmail.com`) and the Supabase Management API token.
+- When v2 has a real address: set the `ALLOWED_ORIGIN` function secret and the Auth Site URL / redirect URLs (TASK-017). Until then `*` is intentional.

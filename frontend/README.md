@@ -62,7 +62,10 @@ tests/                          browser tests with a mocked server (mock_server.
                                 environment): live_results_check.py (the grading loop),
                                 live_monitor_check.py (the monitor payload + exam-wide add time;
                                 cleanup_live_monitor.sql removes what it created) and live_browser_check.py
-                                (the same check driven through the real screens in Chromium)
+                                (the same check driven through the real screens in Chromium).
+                                live_media_check.py uploads a real photo and a real MP3 to Storage through
+                                the editor (needs ffmpeg to build the MP3) and deletes its own rows and
+                                objects again; add SUPABASE_ACCESS_TOKEN to also check the database side
 ```
 
 ## Notes

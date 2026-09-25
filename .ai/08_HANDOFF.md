@@ -4,29 +4,29 @@ Keep this file current after every meaningful change. It must never describe an 
 
 ## RELEASE STATUS
 
-**`BLOCKED` — not ready for `main`.**
+**`READY` — no release blocker is open.** The merge into `main` is the owner's decision (DEC-020) and needs the DEC-021 import reconciliation; nothing technical is missing.
 
-The TASK-015 audit-log viewer is **LIVE-VERIFIED (2026-09-25)**: the migration is applied (tracked as `20260925001719` / `v2_16_audit_functions`), the `audit` Edge Function is deployed (v1, ACTIVE), the rolled-back live SQL test passed, and the admin smoke returned the four real rows. The TASK-014 dashboard/mobile-menu work is complete and CI-verified at `2ea6ac0`. **One release blocker remains: TASK-007** — verify one real image/audio upload against live Storage.
+**TASK-007 is COMPLETE and LIVE-VERIFIED (2026-09-25, eighteenth session)** — the last blocker. A real photo and a real MP3 were uploaded through the app **with the staff test account** to the live private bucket, saved on a question, reopened and played back; a forced oversized file was refused and deleted from Storage again; every row and object the run created was removed and verified gone. `frontend/tests/live_media_check.py` reports **32/32** (`ALL LIVE MEDIA CHECKS PASSED`). The `@supabase/storage-js` protocol reproduction was correct, so **no product code changed** — this was verification, not a fix. ISSUE-002 is closed.
 
 **Live hazard found and fixed on 2026-09-25 (ISSUE-007)** — worth remembering: the owner's "disable public sign-up" step had switched the **Email provider off entirely** (`external_email_enabled: false`), so every staff sign-in answered `HTTP 422 email_provider_disabled` and the teacher app was unusable. It is fixed and verified (provider on, `disable_signup: true` kept: a real sign-up attempt is refused with `signup_disabled`, admin sign-in returns 200). **After any dashboard change, re-read `GET https://lbhnadqmokloyfarrzfv.supabase.co/auth/v1/settings` (publishable key as `apikey`) and check both halves: sign-ups refused AND a staff sign-in still works.** Turning a provider off is not the same as disabling sign-ups.
 
-A staff test account is ready for TASK-007: `testguru211l@gmail.com` (its `profiles` row is `role = 'teacher'`, `is_active = true`; 2 profiles live). **Sandbox limitation**: a claude.ai chat session's network cannot reach `*.supabase.co`/`*.supabase.com` at all (confirmed via `x-deny-reason: host_not_allowed` on every attempt, even with a valid Management API token) — Storage upload, Edge Function calls and the Auth password-grant login all need HTTP access to that host. **This Windows/Codebuff clone can reach it** (that is how every live check in this file was run); a claude.ai chat session cannot.
+The staff test account `testguru211l@gmail.com` (`profiles`: `role = 'teacher'`, `is_active = true`; 2 profiles live) is what the media check signs in as; its password was supplied by the owner through chat and must not be committed. **Sandbox limitation reminder**: a claude.ai chat session's network cannot reach `*.supabase.co`/`*.supabase.com` at all (confirmed via `x-deny-reason: host_not_allowed`) — Storage upload, Edge Function calls and the Auth password-grant login all need HTTP access to that host. **This Windows/Codebuff clone can reach it** (that is how every live check in this file was run); a claude.ai chat session cannot.
 
-Do not merge `ai-development` into `main` unless the owner explicitly overrides this.
+Do not merge `ai-development` into `main` without the owner's explicit go-ahead (DEC-020); when it happens, resolve the DEC-021 import files in favour of `ai-development`.
 
 ## BRANCH CONTEXT
 
 | | |
 |---|---|
 | Stable branch | `main`. Do not develop or merge here without the owner's explicit decision. |
-| Development branch | **`ai-development`**. Its head after this session is `7a5b09e` (the leave-guard fix) plus this session's docs commit, on top of `51119a0`. |
-| Starting point | This session started at `c4d6f3b` (clean tree) and found the remote three commits ahead (`f4eb5e7` audit viewer, `443cf45`, `51119a0`); it fast-forwarded to `51119a0` before touching anything. |
-| Push / CI status | Backend green at `2ea6ac0`; **Frontend tests were RED twice** — at `f4eb5e7` and `2f5de2c`, both at the same `exams_e2e.py` check (ISSUE-022, fixed by `7a5b09e`). Both workflows were green again at `51119a0`. Watch the runs for `7a5b09e` and this docs commit. |
+| Development branch | **`ai-development`**. Started this session at `2fcce90` (clean tree, in sync with `origin/ai-development`); head after this session is this session's commit on top of `2fcce90`. |
+| Starting point | `2fcce90` — `git status --short --branch` showed a clean tree and no commits behind/ahead. Nothing was fetched-and-missing this time; the previous session's green CI and docs were confirmed before work started. |
+| Push / CI status | Both workflows were green at `2fcce90` (the session before this one). This session adds one new file (`frontend/tests/live_media_check.py`, not part of CI) and documentation, so the workflows should stay green — watch the runs for this session's commit anyway. |
 | Live database | **English_Test_v2** (`lbhnadqmokloyfarrzfv`). Do not touch the v1 project `Exam_Data_Base`. |
 
 ## LAST AGENT
 
-Buffy — seventeenth session, 2026-09-25 (Windows clone with real network + Supabase Management API access). It pulled the three new commits, discovered the audit slice was **already applied and deployed live** while the docs still said "pending", verified the live system instead of re-applying it (rolled-back SQL test + admin smoke), corrected every stale "not yet live" note, found and fixed the live Auth misconfiguration that had blocked **all** staff sign-in (ISSUE-007), and traced and fixed the leave-guard defect behind the two red Frontend runs (ISSUE-022).
+Buffy — eighteenth session, 2026-09-25 (Windows clone with real network + Supabase Management API access). It closed the last release blocker by running the **first real media upload** against the live project with the staff test account, through the app's own editor, and turned that run into the committed live check `frontend/tests/live_media_check.py` (**32/32**). It changed **no product code** (the upload protocol was already right), verified the database, the bucket and playback, proved the refusal-and-cleanup path, and deleted everything it created. It also recorded **ISSUE-023** (the owner's five Delete attempts on an exam that had attempts; the app closes it on purpose — needs an owner decision) and left the owner's own live test exam/session untouched.
 
 ## CREDENTIAL / COLLISION WARNING
 
@@ -35,7 +35,23 @@ Buffy — seventeenth session, 2026-09-25 (Windows clone with real network + Sup
 
 ## LAST COMPLETED TASK
 
-**TASK-015 slice 1 — the admin audit-log viewer is LIVE-VERIFIED (2026-09-25), plus the leave-guard defect behind the two red Frontend runs.**
+**TASK-007 — the first real image and audio upload against live Storage is LIVE-VERIFIED (2026-09-25). The last release blocker is closed.**
+
+F-07 had only ever run against a mocked Storage and `media_files` had 0 rows; the upload protocol had been copied from `@supabase/storage-js` 2.116 source and never executed. `frontend/tests/live_media_check.py` is the new, repeatable proof — **32/32, `ALL LIVE MEDIA CHECKS PASSED`**:
+
+- signs the **staff test account** in through the real Auth endpoint, checks `auth-me` reports `role: teacher`, and confirms a teacher is refused the admin-only `purge_unused` (403) while a tokenless call is refused (401);
+- checks the link `create_upload` hands out is absolute — `https://<project>/storage/v1/object/upload/sign/question-media/<kind>/<year>/<uuid>.<ext>?token=…` — and that an over-limit announced size is refused before anything is uploaded ("File size must be between 1 and 1500000.");
+- drives the real editor in Chromium (`#/questions/new`) and picks a **7,593,366-byte PNG** plus a **real 3-second MP3** (ffmpeg); the app's own `prepareImage` shrank the photo to an **813,506-byte WebP**; each file was PUT once to Storage (HTTP 200, `apikey: sb_publishable_…`, `x-upsert: false`, `multipart/form-data`) — the browser CORS path works;
+- checks the rows carry what **Storage** reported, not what the browser claimed: `image/webp` / 813,506 bytes and `audio/mpeg` / 48,944 bytes with `duration_seconds = 3`, both attached to the question in order;
+- saves, **reopens** `#/questions/edit/<id>`, and confirms playback from the signed viewing links: `img.naturalWidth > 0`, `audio.readyState 4`, `duration 3`, position advancing, and the link serving the exact 48,944 MP3 bytes;
+- pushes a **4,504,504-byte JPEG** into Storage on purpose to prove the refusal path: `register_media` answers 400 "Images must be JPG, PNG, or WebP and about 1 MB or smaller." and the handler's `bucket.remove([path])` really deletes it (`storage.objects` 0, `media_files` 0);
+- deletes its own question, its `question_media`/`media_files` rows and its Storage objects, then verifies the bucket is back to its previous object count.
+
+**No product code changed** — `frontend/assets/js/teacher/api/media.js` and `backend/functions/media/handler.ts` were left untouched because the reproduction was right in every detail (absolute signed URL, token in the URL so no `Authorization` header, `cacheControl` + one file field with an empty name). Live state after the run: 0 `media_files`, 0 objects, 40 questions, 2 profiles; the only trace is 9 `audit_logs` rows, deliberately kept.
+
+**Found in the live data (not a code defect):** the project holds the **owner's own** test — exam `3ad8eb38` ("test", code `4KHU2A`, closed) with one submitted session (`jonathan`, `XII TKJ A`), created 07:14 UTC on 2026-09-25 — plus five `exam.close` rows with `reason: "delete requested while sessions exist"`: the owner hit Delete five times and the app closed the exam instead, on purpose (BR-10/DEC-012). Left untouched; recorded as **ISSUE-023** for an owner decision.
+
+**Previous session — TASK-015 slice 1, the admin audit-log viewer (already live, described in the next section):**
 
 Every staff action has written an `audit_logs` row since v2_08 (BR-13); nothing could read them. This slice adds the read side, admin-only (design.md 1.2 — teachers cannot manage the system audit log):
 
@@ -44,7 +60,16 @@ Every staff action has written an `audit_logs` row since v2_08 (BR-13); nothing 
 - **Screen** `#/audit` — admin-only menu item "Audit log" (`ADMIN_NAV` in `shell.js`), table When/Who/Action/Entity/Details, debounced action/entity filters + day-window chip-select + Clear, pager (25/page), "System" for actor-less rows, empty states. New `api/audit.js` + `screens/auditLog.js`; `router.js`/`shell.js` edited; no CSS changes.
 - The write side (`write_audit`, `backend/functions/_shared/audit.ts`) is untouched — the viewer is read-only.
 
-## LIVE VERIFICATION PERFORMED (2026-09-25) — what the next agent does NOT need to repeat
+## LIVE VERIFICATION PERFORMED (2026-09-25, eighteenth session) — the real media upload
+
+**Do not repeat this unless something in the media path changes.** Run it against the live project with `python frontend/dev-server.py 8123`, then `SUPABASE_TEST_EMAIL=… SUPABASE_TEST_PASSWORD=… [SUPABASE_ACCESS_TOKEN=…] python frontend/tests/live_media_check.py` (ffmpeg builds the real MP3; `--keep` leaves the artifacts for inspection). It needs the Management token only for the database/bucket assertions and its self-cleanup — without it the app part still runs and prints the ids to clean up.
+
+Two things it taught the session that are worth knowing before writing another such check:
+
+1. `@supabase/storage-js`'s reproduction was **correct**: `create_upload` returns an **absolute** URL, the PUT needs no `Authorization` header (the token is a query parameter), and the multipart body is `cacheControl` + one file field with an **empty name**. `exams`/`session`/`results`/`audit` are unrelated; nothing else needs re-checking.
+2. Headless Chromium's audio clock advances **much slower than wall time** — a 900 ms wait only moved `currentTime` to ~0.18 s. The check now waits for the position to actually move (> 0.05 s, polling up to 5 s) instead of asserting a wall-clock amount; and `preload="none"` means `readyState` stays 0 until `load()`/`play()` is called, so never wait for `readyState` before starting playback.
+
+## LIVE VERIFICATION PERFORMED (2026-09-25, seventeenth session) — the audit viewer (already covered; kept for the record)
 
 **The migration was already applied and the function already deployed when this session started** (the sixteenth session's own follow-up did it, without updating the docs). Nothing was re-applied. What was actually run:
 
@@ -65,13 +90,25 @@ Every staff action has written an `audit_logs` row since v2_08 (BR-13); nothing 
 - Live: the rolled-back SQL test and the admin smoke listed above, plus the Auth configuration verification.
 - `question_editor_e2e.py`'s older toast-animation flake (a click racing a toast, `<html> intercepts pointer events`) is unrelated and still stands — it passed every run here.
 
-## DATABASE CHANGES (2026-09-25)
+## DATABASE CHANGES (2026-09-25, eighteenth session, TASK-007)
 
-- **No SQL was applied by this session** — the audit migration was already live. Row counts are unchanged before and after every check: 40 questions, 4 audit rows, 0 exams, 0 sessions, 2 profiles.
+- **No SQL was applied and no schema, policy, function or Edge Function was changed.** The media check created one question, two `media_files` rows, two `question_media` rows and two Storage objects, then deleted all of them; the bucket's object count before and after is identical (0).
+- The only lasting trace is **9 `audit_logs` rows** (3× `question.create`, 6× `media.upload`, 12:14–12:16 UTC) — a truthful record of a real staff action; leave them.
+- **The owner's own live test is in the database and must not be touched**: exam `3ad8eb38` ("test", code `4KHU2A`, `closed`) + one submitted session (`jonathan`, `XII TKJ A`). That is why `exams`/`sessions` are 1/1 now rather than 0/0 (see ISSUE-023).
+
+## DATABASE CHANGES (2026-09-25, seventeenth session)
+
+- **No SQL was applied by that session** — the audit migration was already live. Row counts unchanged before and after every check: 40 questions, 4 audit rows, 0 exams, 0 sessions, 2 profiles.
 - **The one live change was configuration:** `external_email_enabled: true` (with `disable_signup: true` kept), fixed through the Management API after the owner approved it in this conversation. No data, no schema, no policies.
 - Live state for the next agent: Edge Functions `auth-me` v1, `question-bank` v3, `media` v1, `exams` v3, `session` v1, `results` v4, **`audit` v1** — all ACTIVE, `verify_jwt=false`; **61** public SQL functions; `supabase_migrations` newest row `20260925001719 v2_16_audit_functions`.
 
-## FILES CHANGED (2026-09-25 — git `7a5b09e` plus this session's docs commit)
+## FILES CHANGED (2026-09-25, eighteenth session — TASK-007)
+
+- **New:** `frontend/tests/live_media_check.py` — the live media check (32 checks; signs in with the staff test account, drives the real editor, verifies Storage, the database, playback, refusals and its own cleanup). Not part of CI, credentials from the environment, same convention as the other `live_*_check.py` scripts.
+- **Docs corrected:** `.ai/03_FEATURES.md` (F-07 → LIVE-VERIFIED), `.ai/04_CURRENT_STATE.md`, `.ai/05_TASK_QUEUE.md` (TASK-007 → COMPLETE; new next-task line), `.ai/06_DECISIONS.md` (DEC-011 → live-verified), `.ai/07_CHANGELOG.md`, `.ai/08_HANDOFF.md` (this file), `.ai/09_KNOWN_ISSUES.md` (ISSUE-002 closed, **ISSUE-023 added**), `frontend/README.md` (the live-check list).
+- **No product file was changed** — `frontend/assets/js/teacher/api/media.js` and `backend/functions/media/handler.ts` were verified, not edited.
+
+## FILES CHANGED (2026-09-25, seventeenth session — git `7a5b09e` plus that session's docs commit)
 
 - **Fixed (the behavior change):** `frontend/assets/js/teacher/guard.js` (`setLeaveGuard(fn, hasUnsavedWork?)`, `hasUnsavedChanges()`), `frontend/assets/js/teacher/router.js` (ask and URL hold-back only while something is unsaved), `frontend/assets/js/teacher/screens/{examEditor,questionEditor,questionImport}.js` (pass their synchronous dirt predicate), `frontend/tests/exams_e2e.py` (wait for the target screen before reloading; new "untouched editor reloads with no leave warning" check).
 - **Corrected (the docs that had the live state wrong):** `.ai/{02_ARCHITECTURE,03_FEATURES,04_CURRENT_STATE,05_TASK_QUEUE,07_CHANGELOG,08_HANDOFF,09_KNOWN_ISSUES}.md`, `docs/sql-audit.md`, `supabase/tests/audit_functions_test.sql` (header), `supabase/migrations/20260929000000_audit_functions.sql` (header), `frontend/README.md`.
@@ -79,18 +116,18 @@ Every staff action has written an `audit_logs` row since v2_08 (BR-13); nothing 
 
 ## REMAINING WORK
 
-1. **Nothing is pending on the audit viewer** — do not re-apply it (see LIVE VERIFICATION PERFORMED above).
-2. Ordinary next code task: **TASK-020** (duplicate-overview banner) or the TASK-015 remainder — scheduled purge jobs need pg_cron on the live project; notifications need the owner's email-provider decision (DEC-017); backups likewise need live access.
-3. Owner decision: what belongs on the PDF class summary (the last TASK-012 piece).
-4. Owner-only release step: one real image/audio upload against live Storage (TASK-007).
-5. Low-priority follow-up: reconcile the three already-live but untracked migration rows (ISSUE-001), using a real DB connection/password.
+1. **Nothing is pending on TASK-007 or the audit viewer** — do not re-run or re-apply either one (see the two LIVE VERIFICATION PERFORMED sections above).
+2. **No release blocker is open.** The merge of `ai-development` into `main` is the owner's decision (DEC-020) and needs the DEC-021 import reconciliation; the previous session's CI runs were green at `2fcce90`.
+3. Ordinary next code task: **TASK-020** (duplicate-overview banner) or the TASK-015 remainder — scheduled purge jobs need pg_cron on the live project; notifications need the owner's email-provider decision (DEC-017); backups likewise need live access.
+4. Owner decisions wanted: what belongs on the PDF class summary (the last TASK-012 piece), whether the proposed import formats are accepted, and **ISSUE-023** (exam delete with attempts).
+5. Low-priority follow-up: reconcile the already-live but untracked migration rows (ISSUE-001), using a real DB connection/password.
 
 ## SUGGESTED WORK FOR NEXT AI
 
 1. Start on `ai-development`; run `git status --short --branch` and `git pull --ff-only` **before** changing anything.
 2. Read `04_CURRENT_STATE.md`, `05_TASK_QUEUE.md`, `09_KNOWN_ISSUES.md`, and this file. Let source code, database facts, tests, and git history win over stale `.ai/` notes.
 3. If you have a live Supabase connection, read LIVE VERIFICATION PERFORMED above first — the audit slice is already live and verified; do not re-apply or redeploy it.
-4. Continue with TASK-020. Do not invent a random feature if the queue is empty; audit documented debt instead.
+4. Continue with TASK-020, or ask the owner about ISSUE-023 first. Do not invent a random feature if the queue is empty; audit documented debt instead.
 5. Before any live-DB or git-push action, confirm with the owner that no other AI session is active. Previous sessions collided twice; if a push is rejected, park the work on a local branch and ask the owner rather than forcing it.
 
 ## SESSION TOOLING — skill discovery (post-task, 2026-09-29)
@@ -113,6 +150,9 @@ Ran after the main task was pushed, per the owner's workflow. Result: **no new s
 - Do not reopen TASK-014 without a new concrete defect; its browser suite is green in Actions at `2ea6ac0`.
 - Do not re-apply `20260929000000_audit_functions.sql` or redeploy `audit` (both live since 2026-09-25, tracked as `v2_16_audit_functions`) and do not add a `supabase db query` instruction anywhere — that subcommand does not exist.
 - Do not disable the Email provider in Supabase Auth; `disable_signup` is what keeps the public out, and switching the provider off breaks every staff sign-in (ISSUE-007).
+- Do not delete the owner's live test exam `3ad8eb38` ("test", code `4KHU2A`) or its submitted session, and do not "clean up" the 9 `audit_logs` rows the media check produced — they are real records, not test fixtures (ISSUE-023).
+- Do not change `remove_exam`'s close-instead-of-delete rule without the owner's ISSUE-023 decision (BR-10 / DEC-012 protect attempt history).
+- Do not add media handling to the CI suites — `live_media_check.py` is a live check and stays out of CI, like the other `live_*` scripts.
 - In browser tests: do not `goto(hash)` and `reload()` back to back, and never register a leave guard on sight — a firing `beforeunload` warning plus a `page.on("dialog")` listener makes `page.reload()` hang until its timeout (ISSUE-022).
 - Do not touch the v1 project (`Exam_Data_Base`).
 - Do not push secrets or owner credentials anywhere.
