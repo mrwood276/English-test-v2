@@ -9,7 +9,7 @@
 | Development phase | Phase 5 **FULLY LIVE-VERIFIED**; Phase 6 dashboard/UX polish complete and CI-verified; Phase 7 first slice (audit viewer) **FULLY LIVE-VERIFIED**; **F-07 media is now LIVE-VERIFIED too**. |
 | Current focus | Nothing is blocked. Remaining work is optional/owner-driven: **TASK-020** (duplicate banner), the **TASK-015 remainder** (scheduled purge jobs need pg_cron; backups; notifications need DEC-017), the **PDF class summary** (owner decision), and the owner's call on **ISSUE-023**. |
 | Branch model | `main` = stable. `ai-development` = shared AI development. |
-| Current branch / commit | **`ai-development`** on top of `2fcce90` (this session's TASK-007 commit). All local suites green (backend 114, unit 31, eleven browser suites) plus the live check 32/32. |
+| Current branch / commit | **`ai-development`** at `d479ed1` (`d99ca92` the live media check, `d479ed1` the docs), on top of `2fcce90`, pushed and CI-green. Local: media 29 and teacher 36 re-run green; the live check is 32/32. |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
 
 ## What was inspected to write `.ai/`

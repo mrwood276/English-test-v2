@@ -19,9 +19,9 @@ Do not merge `ai-development` into `main` without the owner's explicit go-ahead 
 | | |
 |---|---|
 | Stable branch | `main`. Do not develop or merge here without the owner's explicit decision. |
-| Development branch | **`ai-development`**. Started this session at `2fcce90` (clean tree, in sync with `origin/ai-development`); head after this session is this session's commit on top of `2fcce90`. |
+| Development branch | **`ai-development`**. Started this session at `2fcce90` (clean tree, in sync with `origin/ai-development`); head after this session is **`d479ed1`** (`d99ca92` the live media check, `d479ed1` the docs), pushed to `origin/ai-development`. |
 | Starting point | `2fcce90` — `git status --short --branch` showed a clean tree and no commits behind/ahead. Nothing was fetched-and-missing this time; the previous session's green CI and docs were confirmed before work started. |
-| Push / CI status | Both workflows were green at `2fcce90` (the session before this one). This session adds one new file (`frontend/tests/live_media_check.py`, not part of CI) and documentation, so the workflows should stay green — watch the runs for this session's commit anyway. |
+| Push / CI status | **Both workflows green on `d479ed1`** (Backend and Frontend, runs created 2026-09-25 12:20 UTC). Locally after the change: `media_e2e.py` 29/29 and `teacher_e2e.py` 36/36 re-run green; backend 114 / unit 31 unchanged (this session touched no product code). |
 | Live database | **English_Test_v2** (`lbhnadqmokloyfarrzfv`). Do not touch the v1 project `Exam_Data_Base`. |
 
 ## LAST AGENT
