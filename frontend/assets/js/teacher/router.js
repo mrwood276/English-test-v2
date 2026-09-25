@@ -11,7 +11,7 @@ import { renderSessionReport } from "./screens/sessionReport.js";
 import { renderExamMonitor } from "./screens/examMonitor.js";
 import { renderSessionTimeline } from "./screens/sessionTimeline.js";
 import { renderAuditLog } from "./screens/auditLog.js";
-import { getLeaveGuard, clearLeaveGuard } from "./guard.js";
+import { getLeaveGuard, clearLeaveGuard, hasUnsavedChanges } from "./guard.js";
 
 const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 
@@ -70,7 +70,9 @@ export function startRouter(container, nav, ctx) {
 
   const onChange = async () => {
     const guard = getLeaveGuard();
-    if (guard && location.hash !== currentHash) {
+    // Every editor registers a guard on sight; only ask - and only hold the URL back while asking -
+    // when there is really something unsaved. A clean screen navigates straight through.
+    if (guard && hasUnsavedChanges() && location.hash !== currentHash) {
       const target = location.hash;
       history.replaceState(null, "", currentHash || "#/dashboard"); // stay where we were while asking (no hashchange fires)
       if (!(await guard())) return;

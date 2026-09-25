@@ -391,6 +391,6 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
   setLeaveGuard(async () => {
     if (!isDirty()) return true;
     return confirmDialog({ title: "Leave without saving?", message: "You have changes that are not saved yet. If you leave now, they are lost.", confirmLabel: "Leave", cancelLabel: "Keep editing", danger: true });
-  });
+  }, isDirty);
   if (isEdit) runDup();
 }

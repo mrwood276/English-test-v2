@@ -70,7 +70,7 @@ export function renderExamEditor(container, ctx, match) {
   setLeaveGuard(async () => {
     if (!state.dirty) return true;
     return window.confirm("Leave without saving this exam?");
-  });
+  }, () => state.dirty);
 
   // ---------- fields ----------
   const title = h("input", { class: "input", id: "ee-title", type: "text", maxlength: "120", placeholder: "Narrative Text, Daily Test 3" });

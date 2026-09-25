@@ -136,8 +136,25 @@ with sync_playwright() as pw:
     check("summary turns green after filling in", page.eval_on_selector_all(".summary-list .pill.warn", "els => els.length") == 0)
 
     # --- editor: existing manual exam shows questions and their weights
-    page.goto(BASE + "#/exams/edit/" + EXAM1); page.reload(); page.wait_for_selector("#ee-title")
+    # Fresh document on the existing exam. Reload only once this screen is the one on the URL: a reload
+    # straight after a hash change is a race, because the router holds the URL on the current screen while
+    # it hands the navigation to the leave guard - the reload then loads the PREVIOUS screen. That is how
+    # this suite failed CI twice: the just-saved draft came back, and a draft saved "by filter" has no
+    # .chosen-item to wait for. Reloading an UNTOUCHED editor also pins the guard fix: registering a leave
+    # guard used to warn "Leave site?" on sight, which blocked even this reload.
+    page.goto(BASE + "#/exams"); page.wait_for_selector(".qtable")   # leave the editor and its guard
+    page.goto(BASE + "#/exams/edit/" + EXAM1)
+    page.wait_for_function("document.querySelector('#ee-title').value === 'Narrative Text, Daily Test 3'")
+    # A dialog listener makes the browser's own beforeunload warning visible to us: this reload of an
+    # untouched editor must not produce one (registering a leave guard used to warn on sight), and it
+    # must not hang either. Remove the listener again before the leave-guard checks further down.
+    dialogs = []
+    ondialog = lambda d: (dialogs.append(d.type), d.dismiss())[1]
+    page.on("dialog", ondialog)
+    page.reload(timeout=10_000); page.wait_for_selector("#ee-title")
+    page.remove_listener("dialog", ondialog)
     page.wait_for_function("document.querySelector('#ee-title').value !== ''")
+    check("an untouched editor reloads without a leave warning", dialogs == [], str(dialogs))
     check("existing exam title loaded", page.input_value("#ee-title") == "Narrative Text, Daily Test 3")
     page.click("button[data-sel='manual']")
     page.wait_for_selector(".chosen-item")

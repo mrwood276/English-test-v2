@@ -336,7 +336,7 @@ export function renderQuestionImport(container) {
   setLeaveGuard(async () => {
     if (!isDirty()) return true;
     return confirmDialog({ title: "Leave without importing?", message: "You have questions that are ready to import. If you leave now, nothing is saved.", confirmLabel: "Leave", cancelLabel: "Keep reviewing", danger: true });
-  });
+  }, isDirty);
 
   // Topic suggestions for the defaults panel.
   questionBank.topics().then((topics) => {
