@@ -3,6 +3,7 @@ import { icon } from "../../shared/icons.js";
 import { results } from "../api/results.js";
 import { SessionExpiredError } from "../../core/auth.js";
 import { buildXlsx } from "../export/xlsx.js";
+import { buildClassSummaryPdf } from "../export/classSummaryPdf.js";
 import { COLUMNS, csvText, exportFileName, resultRows } from "../export/resultsTable.js";
 import { fmtDuration, fmtScore, statusPill, summaryStrip } from "../components/resultBits.js";
 
@@ -25,6 +26,11 @@ function downloadXlsx(exam, rows) {
   const bytes = buildXlsx(exam.title, [COLUMNS, ...resultRows(rows)]);
   const type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   saveFile(new Blob([bytes], { type }), exportFileName(exam, "xlsx"));
+}
+
+function downloadClassSummaryPdf(exam, summary, rows) {
+  const bytes = buildClassSummaryPdf(exam, summary, rows);
+  saveFile(new Blob([bytes], { type: "application/pdf" }), exportFileName(exam, "pdf"));
 }
 
 function classStats(rows) {
@@ -226,7 +232,9 @@ export function renderExamResults(container, ctx, { examId }) {
       excel.addEventListener("click", () => downloadXlsx(exam, overview.rows));
       const csv = h("button", { class: "btn ghost", type: "button", "data-export-csv": "true" }, icon("sheet"), "Export CSV");
       csv.addEventListener("click", () => downloadCsv(exam, overview.rows));
-      actions.append(excel, csv);
+      const pdf = h("button", { class: "btn ghost", type: "button", "data-export-pdf": "true" }, icon("download"), "Class summary PDF");
+      pdf.addEventListener("click", () => downloadClassSummaryPdf(exam, overview.summary, overview.rows));
+      actions.append(excel, csv, pdf);
       if (summary.pending_essays > 0) {
         actions.append(h("a", { class: "btn", href: `#/grading/${examId}` }, icon("pencil"), `Grade ${summary.pending_essays} ${summary.pending_essays === 1 ? "essay" : "essays"}`));
       }
