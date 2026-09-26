@@ -17,7 +17,7 @@ const timeOf = (iso) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", 
  * results. Everything is read from the payloads the Exams/Results screens already use,
  * so the dashboard can never disagree with them.
  */
-export function renderDashboard(container, { onSignOut }) {
+export function renderDashboard(container, { onSignOut, user }) {
   const state = { requestId: 0, timer: null };
 
   const signOut = h("button", { class: "btn ghost", type: "button" }, "Sign out");
@@ -158,7 +158,7 @@ export function renderDashboard(container, { onSignOut }) {
   }
 
   // ---------- Dashboard notifications (no email yet; DEC-032) ----------
-  const READ_KEY = "ENGLISH_TEST_V2_DASHBOARD_NOTIFICATION_READ";
+  const READ_KEY = `ENGLISH_TEST_V2_DASHBOARD_NOTIFICATION_READ:${user?.id || "unknown"}`;
   const readNotifications = () => {
     try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || "[]")); } catch { return new Set(); }
   };
