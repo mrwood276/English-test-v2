@@ -1,6 +1,6 @@
 import { handle, readJson } from "../_shared/http.ts";
 import { badRequest, methodNotAllowed } from "../_shared/errors.ts";
-import { requireStaff, type StaffDb } from "../_shared/auth.ts";
+import { isScheduledJob, requireStaff, type StaffDb } from "../_shared/auth.ts";
 import { callRpc, type RpcDb } from "../_shared/rpc.ts";
 import { asArray, asEnum, asInt, asObject, asPlain, asString, asUuid, optional } from "../_shared/validate.ts";
 
@@ -35,6 +35,19 @@ const kindOf = (mime: string) => (mime.startsWith("image/") ? "image" : "audio")
 const fileName = (raw: unknown) => asPlain(raw ?? "file", "File name", { max: 400 }).split(/[\\/]/).pop()!.slice(0, 200);
 
 /**
+ * The database lists the files nobody attached any more and then deletes those rows; the bytes can only
+ * go away through the Storage API, which is why this half lives here and not in the nightly SQL job.
+ */
+async function purgeUnused(db: Db) {
+  const paths = (await callRpc<string[] | null>(db, "purge_orphan_media", { p_older_than: "1 day" })) ?? [];
+  if (paths.length > 0) {
+    const { error } = await db.storage.from(BUCKET).remove(paths);
+    if (error) throw new Error(`could not remove files: ${error.message}`);
+  }
+  return { removed: paths.length };
+}
+
+/**
  * Images and audio for questions. The browser never gets storage keys: it asks for a one-time upload link,
  * uploads the file straight to private Storage, then asks us to register it (we read the real size and type
  * from Storage instead of trusting the browser). Viewing uses short-lived links.
@@ -45,6 +58,11 @@ export function createHandler(getDb: () => Db) {
     const db = getDb();
     const b = asObject(await readJson(req, 50_000));
     const action = asEnum(b.action, "action", ACTIONS);
+
+    // The nightly housekeeping job (pg_cron → pg_net) has no signed-in person: its key opens the purge of
+    // unused files and nothing else. Every other caller must be signed-in staff.
+    if (action === "purge_unused" && await isScheduledJob(req)) return await purgeUnused(db);
+
     const me = await requireStaff(req, db, action === "purge_unused" ? ["admin"] : ["teacher", "admin"]);
     const bucket = db.storage.from(BUCKET);
 
@@ -91,6 +109,9 @@ export function createHandler(getDb: () => Db) {
         const ids = asArray(b.ids, "ids", { max: 20 }).map((v) => asUuid(v, "id"));
         if (ids.length === 0) return { urls: {} };
         const rows = await callRpc<{ id: string; path: string }[]>(db, "get_media_paths", { p_ids: ids });
+        // Every id unknown (a file the nightly purge has already removed, say) means there is nothing to
+        // sign; Storage refuses an empty list, and "no links" is the honest answer here anyway.
+        if (rows.length === 0) return { urls: {} };
         const { data, error } = await bucket.createSignedUrls(rows.map((r) => r.path), SIGNED_URL_SECONDS);
         if (error || !data) throw new Error(`could not create viewing links: ${error?.message}`);
         const byPath = new Map(data.map((d) => [d.path, d.signedUrl]));
@@ -103,12 +124,7 @@ export function createHandler(getDb: () => Db) {
       }
 
       case "purge_unused": {
-        const paths = (await callRpc<string[] | null>(db, "purge_orphan_media", { p_older_than: "1 day" })) ?? [];
-        if (paths.length > 0) {
-          const { error } = await bucket.remove(paths);
-          if (error) throw new Error(`could not remove files: ${error.message}`);
-        }
-        return { removed: paths.length };
+        return await purgeUnused(db);
       }
     }
   });

@@ -15,7 +15,8 @@ functions/
     text.ts       normalizeText, contentHash, sanitizeInlineHtml (same rules as the database)
     codes.ts      exam access code generation
     ratelimit.ts  attempt limiting through public.rate_limit_hit
-    auth.ts       requireStaff (token via Supabase Auth, role from the profiles table)
+    auth.ts       requireStaff (token via Supabase Auth, role from the profiles table), and
+                  isScheduledJob (the nightly housekeeping key; it opens the media purge and nothing else)
     audit.ts      writeAudit
     rpc.ts        callRpc: database functions; messages raised with hint "validation" become friendly 400 errors
     db.ts         service-role client (Edge Functions only)
@@ -53,6 +54,14 @@ tests/
 deno test --allow-env tests/
 ```
 
+## The scheduled housekeeping door
+
+`media` is the one function a machine may call: the nightly `pg_cron` job (TASK-015) sends
+`x-housekeeping-key` with `{"action": "purge_unused"}` and the handler returns before `requireStaff`, so
+the key never becomes a staff identity and opens **no other action** (every other request still needs a
+signed-in person, and a teacher is still refused the purge). Both keys are SHA-256 hashed and compared
+byte by byte; with no `HOUSEKEEPING_KEY` configured the door stays shut. See `docs/sql-jobs.md`.
+
 ## Deploying
 
 `backend/functions/` is the source of truth; `../supabase/functions/` is a generated, gitignored deploy copy.
@@ -65,4 +74,4 @@ Functions verify the caller themselves (`requireStaff`), which is why JWT verifi
 
 ## Secrets
 
-`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically. Optional: `ALLOWED_ORIGIN` (the app's address) to restrict which websites may call the functions.
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically. Optional: `ALLOWED_ORIGIN` (the app's address) to restrict which websites may call the functions; `SESSION_TOKEN_SECRET` (falls back to the service role key) for the signed student session token. Required for the scheduled media purge: **`HOUSEKEEPING_KEY`**, which must equal the `housekeeping_key` secret in Supabase Vault — never commit it (rotation: `docs/sql-jobs.md`).

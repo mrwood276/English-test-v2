@@ -3,7 +3,14 @@
 Project: **English_Test_v2** (region ap-southeast-1, Singapore), reference `lbhnadqmokloyfarrzfv`.
 
 - The database schema is stored in the project as migrations `v2_01` to `v2_15`, and (as of 2026-09-24) also in `supabase/migrations/` in this repository — see below.
-- Edge Functions live in `../backend/functions` (`auth-me`, `question-bank`, `media`, `exams`, `session`, `results`, `audit`). The first six are deployed live; `audit` (the admin's audit-log viewer, TASK-015) is in git pending its first deploy.
+- Edge Functions live in `../backend/functions` (`auth-me`, `question-bank`, `media`, `exams`, `session`, `results`, `audit`). All seven are deployed live (§ "Deploying a function" below).
+- **Scheduled jobs** (TASK-015) run inside the database: `pg_cron` closes abandoned sessions every five
+  minutes and, nightly, drops spent rate-limit windows and asks the `media` function (over `pg_net`) to
+  delete uploads nobody attached — the bytes can only go away through the Storage API, so that one job is
+  an HTTP call, not plain SQL. The call carries a housekeeping key that lives in Vault and as the
+  function secret `HOUSEKEEPING_KEY`, never in this repository; rotation is two SQL/secret updates and no
+  code change. Contract, evidence and the reasons: `docs/sql-jobs.md`; configuration test:
+  `supabase/tests/scheduled_jobs_test.sql`.
 
 To keep the SQL of the migrations in this repository, run this once on your computer with the Supabase CLI:
 
@@ -26,7 +33,9 @@ attempt report, add time / reopen, retake permissions — applied live on 2026-0
 2026-09-23), `20260926000000_security_lockdown_function_execute.sql` (ISSUE-020: closes a gap where
 `anon`/`authenticated` could call 35 staff-only functions directly), `20260930000000_exam_delete_with_attempts.sql`
 (the exam delete rule, DEC-027: `list_exams.session_count` + the admin-only forced delete, applied live
-2026-09-25) and `20260927000000_exam_wide_add_time.sql`
+2026-09-25), `20260926002454_scheduled_housekeeping_jobs.sql` (TASK-015: `pg_cron` + `pg_net` and the
+three housekeeping jobs, applied live 2026-09-26 with its own `schema_migrations` row — see
+`docs/sql-jobs.md`) and `20260927000000_exam_wide_add_time.sql`
 (exam-wide add time, drops the duplicate `list_live_sessions` that ISSUE-020 found live and never committed —
 applied live on 2026-09-24; annotated source in `docs/sql-monitor.md`). `v2_01_foundation` through
 `v2_12_import_questions` (schema, question bank, exams/sessions/results tables, lockdown, text rules, media

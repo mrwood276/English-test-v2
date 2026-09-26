@@ -8,12 +8,13 @@ const M2 = "44444444-4444-4444-8444-444444444444";
 
 function fake(opts: { role?: "teacher" | "admin"; objects?: Record<string, { size?: number; mimetype?: string }>; rpc?: (n: string, a: Record<string, unknown>) => { data?: unknown; error?: { message: string; hint?: string } } } = {}) {
   const removed: string[][] = [];
+  const signed: string[][] = [];
   const rpcCalls: { name: string; args: Record<string, unknown> }[] = [];
   const bucket: StorageBucket = {
     createSignedUploadUrl: (path) => Promise.resolve({ data: { signedUrl: `https://storage.test/upload/${path}?token=t`, token: "t", path }, error: null }),
     list: (dir, o) => Promise.resolve({ data: Object.entries(opts.objects ?? {}).filter(([p]) => p.startsWith(dir + "/") && p.endsWith(o.search)).map(([p, meta]) => ({ name: p.split("/").pop()!, metadata: meta })), error: null }),
     remove: (paths) => { removed.push(paths); return Promise.resolve({ error: null }); },
-    createSignedUrls: (paths) => Promise.resolve({ data: paths.map((p) => ({ path: p, signedUrl: `https://storage.test/view/${p}?sig=1`, error: null })), error: null }),
+    createSignedUrls: (paths) => { signed.push(paths); return Promise.resolve({ data: paths.map((p) => ({ path: p, signedUrl: `https://storage.test/view/${p}?sig=1`, error: null })), error: null }); },
   };
   const db: Db = {
     auth: { getUser: (t: string) => Promise.resolve(t === "good" ? { data: { user: { id: TEACHER } }, error: null } : { data: { user: null }, error: { message: "bad" } }) },
@@ -25,7 +26,7 @@ function fake(opts: { role?: "teacher" | "admin"; objects?: Record<string, { siz
     },
     storage: { from: (b: string) => { assert.equal(b, "question-media"); return bucket; } },
   };
-  return { db, removed, rpcCalls };
+  return { db, removed, signed, rpcCalls };
 }
 const post = (body: unknown, token: string | null = "good") =>
   new Request("http://x/", { method: "POST", headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
@@ -73,6 +74,37 @@ Deno.test("only signed-in staff can use it, and purging is for admins", async ()
   assert.equal((await createHandler(() => db)(post({ action: "drop_table" }))).status, 400);
 });
 
+Deno.test("the scheduled housekeeping job can purge unused files, and only that", async () => {
+  const key = "housekeeping-key-for-tests";
+  const noToken = (body: unknown, header?: string) =>
+    new Request("http://x/", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(header ? { "x-housekeeping-key": header } : {}) },
+      body: JSON.stringify(body),
+    });
+  const { db, removed } = fake({ rpc: () => ({ data: ["image/2026/ffffffff-ffff-4fff-8fff-ffffffffffff.png"] }) });
+  const h = createHandler(() => db);
+
+  try {
+    // With no key configured on the server, a presented key opens nothing (fail closed).
+    assert.equal((await h(noToken({ action: "purge_unused" }, key))).status, 401, "no configured key means no scheduled path");
+
+    Deno.env.set("HOUSEKEEPING_KEY", key);
+    const res = await h(noToken({ action: "purge_unused" }, key));
+    assert.equal(res.status, 200, "the job purges without a signed-in person");
+    assert.equal((await res.json()).removed, 1);
+    assert.deepEqual(removed, [["image/2026/ffffffff-ffff-4fff-8fff-ffffffffffff.png"]], "the bytes are deleted through Storage");
+
+    assert.equal((await h(noToken({ action: "purge_unused" }, "wrong-key"))).status, 401, "a wrong key is not a session");
+    assert.equal((await h(noToken({ action: "purge_unused" }))).status, 401, "no key at all is not a session");
+    const upload = await h(noToken({ action: "create_upload", mime_type: "image/webp", size_bytes: 1000 }, key));
+    assert.equal(upload.status, 401, "the key opens no other action");
+    assert.equal((await h(noToken({ action: "signed_urls", ids: [] }, key))).status, 401);
+  } finally {
+    Deno.env.delete("HOUSEKEEPING_KEY");
+  }
+});
+
 Deno.test("register reads the real size and type from Storage, not from the browser", async () => {
   const path = "image/2026/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp";
   const { db, rpcCalls, removed } = fake({ objects: { [path]: { size: 350_000, mimetype: "image/webp" } }, rpc: () => ({ data: M1 }) });
@@ -110,6 +142,14 @@ Deno.test("signed_urls maps ids to short-lived links", async () => {
   assert.equal(body.expires_in, 3600);
   assert.equal((await createHandler(() => db)(post({ action: "signed_urls", ids: ["nope"] }))).status, 400);
   assert.equal((await createHandler(() => db)(post({ action: "signed_urls", ids: new Array(21).fill(M1) }))).status, 400);
+});
+
+Deno.test("signed_urls answers with no links when every id is unknown (a purged file is not an error)", async () => {
+  const { db, signed } = fake({ rpc: () => ({ data: [] }) });
+  const res = await createHandler(() => db)(post({ action: "signed_urls", ids: [M1] }));
+  assert.equal(res.status, 200, "asking for a file that is gone is not a server error");
+  assert.deepEqual(await res.json(), { urls: {} });
+  assert.equal(signed.length, 0, "Storage is never asked to sign an empty list");
 });
 
 Deno.test("purge_unused removes the files the database says nobody uses", async () => {

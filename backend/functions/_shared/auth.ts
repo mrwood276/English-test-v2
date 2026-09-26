@@ -48,3 +48,33 @@ export async function requireStaff(req: Request, db: StaffDb, allowed: readonly 
 
   return { userId: profile.id, role: profile.role, fullName: profile.full_name };
 }
+
+/** The header the scheduled housekeeping job sends its key in. */
+export const HOUSEKEEPING_HEADER = "x-housekeeping-key";
+
+/** Compares two secrets without short-circuiting and without leaking their length through timing. */
+async function sameSecret(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [ha, hb] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const x = new Uint8Array(ha);
+  const y = new Uint8Array(hb);
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
+}
+
+/**
+ * True when the caller is the scheduled housekeeping job instead of a signed-in person.
+ * The key lives only in this function's secrets and in Supabase Vault — never in this repository — and it
+ * opens exactly one action (today: the unused-file purge), because a machine has no `profiles` row and
+ * must not be able to do anything a person does. With no key configured the answer is always false.
+ */
+export async function isScheduledJob(req: Request): Promise<boolean> {
+  const expected = Deno.env.get("HOUSEKEEPING_KEY");
+  const presented = req.headers.get(HOUSEKEEPING_HEADER);
+  if (!expected || !presented) return false;
+  return await sameSecret(presented, expected);
+}

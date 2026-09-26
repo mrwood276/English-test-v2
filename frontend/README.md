@@ -73,7 +73,13 @@ tests/                          browser tests with a mocked server (mock_server.
                                 live_duplicates_check.py is the newest and the easiest to run: with the
                                 token alone it signs in as the staff test account (a one-time login
                                 link, so no password), then compares the deployed duplicate scan, the
-                                SQL function and the banner in #/questions. It writes nothing
+                                SQL function and the banner in #/questions. It writes nothing.
+                                live_housekeeping_check.py needs no dev server and no browser: it
+                                builds a throwaway exam with one abandoned attempt, a spare upload
+                                and a stale rate-limit row, lets the nightly pg_cron jobs fire for
+                                real, and checks each one did its job (40 checks; also proves the
+                                file's bytes are gone from Storage) before deleting everything it
+                                created
 ```
 
 ## Notes
