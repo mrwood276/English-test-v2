@@ -25,7 +25,7 @@ Browser (static files, ES modules)                   Supabase project lbhnadqmok
        │                                              │              │ service role (bypasses RLS)   │
        │  PUT one-time signed upload URL ───────────► │              ▼                               │
        │   (image/audio bytes go straight to Storage) │ Postgres: 22 tables (RLS on, no policies),   │
-       │                                              │ 62 public functions (business rules, audit)  │
+       │                                              │ 69 public functions (rules, audit, backups)  │
        ▼                                              │ Storage: private bucket question-media       │
   localStorage: the student's attempt + token          └─────────────────────────────────────────────┘
 ```
@@ -83,6 +83,7 @@ Every Edge Function: `Deno.serve(handle(handler))`.
 | `session` | `join` (anonymous, rate limited per address), then `get`, `save`, `heartbeat`, `event`, `submit`, `result`, `media` — all with the signed session token | students (no Supabase account) |
 | `results` | `activity`, `pending`, `overview`, `report`, `grading_questions`, `queue`, `grade`, `add_time`, `reopen`, `grant_retake`, `revoke_retake` (all live since v1, 2026-09-24) | teacher, admin |
 | `audit` | `list` (live since 2026-09-25: function deployed v1, `list_audit_logs` applied; tokenless call → 401) | **admin only** |
+| `backups` | `create` (manual, or **automatic** when the nightly job presents the `x-housekeeping-key` header — that key opens this one action and nothing else), `list`, `download` (signed link), `delete` (row **and** file) — deployed 2026-09-26 (DEC-030, `docs/sql-backups.md`) | **admin only** (+ the nightly cron job, `create` only) |
 
 ## Database architecture (live project, verified)
 
@@ -90,7 +91,7 @@ Every Edge Function: `Deno.serve(handle(handler))`.
 
 | Group | Tables | Used by code today |
 |---|---|---|
-| Accounts/system | `profiles` (id = auth.users.id, role teacher/admin, is_active), `app_settings`, `rate_limits`, `audit_logs`, `backups` | `profiles`, `audit_logs` yes; `rate_limits` only via SQL function (no endpoint uses it yet); `app_settings`, `backups` not yet |
+| Accounts/system | `profiles` (id = auth.users.id, role teacher/admin, is_active), `app_settings`, `rate_limits`, `audit_logs`, `backups` | `profiles`, `audit_logs`, `backups` yes (one row per stored copy, since 2026-09-26); `rate_limits` only via SQL function (no endpoint uses it yet); `app_settings` not yet |
 | Master data | `topics`, `class_aliases` | `topics` yes; `class_aliases` not yet |
 | Question bank | `passages`, `questions`, `question_options`, `accepted_answers`, `question_class_labels`, `media_files`, `question_media` | yes |
 | Exams | `exams`, `exam_questions`, `retake_permissions` | **live-verified (2026-09-22)**: SQL functions applied (`supabase/migrations/20260922000000_exams_functions.sql`) + `exams` function deployed; whole teacher flow verified with the admin account. Schema facts (enum columns, position > 0, code CHECK) in `docs/sql-exams.md` |
@@ -98,7 +99,7 @@ Every Edge Function: `Deno.serve(handle(handler))`.
 
 Key constraints (all verified by SQL tests): one correct option per question; unique exam code among **open** exams; scheduled exams need valid dates; tab-switch limits ordered; unique `(exam_id, normalized name, normalized class, attempt_no)` for the 1-attempt rule; one result per session; result status consistent with pass status; media size cap; question media attached to exactly one of question or passage.
 
-60 public SQL functions (all revoked from public roles; callable only by the service role):
+69 public SQL functions (all revoked from public roles; callable only by the service role):
 
 | Purpose | Functions |
 |---|---|
@@ -114,24 +115,28 @@ Key constraints (all verified by SQL tests): one correct option per question; un
 | Student sessions | `exam_join`, `get_exam_session`, `save_session_answers`, `session_heartbeat`, `log_session_event`, `submit_exam_session`, `get_session_result`, `get_session_media_ids`, `expire_sessions`; helpers `_session_grade`, `_session_public_result`, `_session_question_block`, `_session_key_entry` |
 | Grading/results | `save_answer_grade`, `list_grading_questions`, `get_grading_queue`, `count_pending_grading`, `list_exam_activity`, `list_exam_results`, `get_session_report`, `add_session_time`, `reopen_session`, `grant_retake`, `revoke_retake`; helper `_session_result_write` (the **only** writer of `exam_results`; `_session_grade` was re-created to skip hand-graded questions) |
 | Live monitor | `list_exam_results` is the board's **only** read (read-only `stable`, in-progress rows included, with the exam's own tab limits on every row) and `add_exam_time` is its only write (BR-11 for every running attempt at once, audited). DEC-024 records both, and the duplicate `list_live_sessions` was dropped rather than kept beside it |
+| Backups (TASK-015, DEC-030) | `backup_tables()` (the 22-table allowlist a copy is built from — the contract), `_backup_table_rows(text)` (the guarded dynamic read), `build_backup_payload()` (the whole database as one jsonb document + the media manifest + the applied migrations), `record_backup(kind, path, size, actor, summary)` (row + `backup.create` audit + the retention sweep that returns `pruned_paths`, audited as `backup.prune`), `list_backups(limit, offset)`, `get_backup(id)`, `delete_backup(id, actor)` — the Edge layer zips and touches Storage, because only the Storage API can move bytes; contract `docs/sql-backups.md` |
 
-Migrations in git: `20260922000000_exams_functions.sql` (exams, 2026-09-22), `20260923000000_session_functions.sql` (student engine, 2026-09-23), `20260924000000_result_functions.sql` (grading + results, 2026-09-24), `20260925000000_monitor_overview_fields.sql` (the monitor's progress/heartbeat fields, 2026-09-24), `20260926000000_security_lockdown_function_execute.sql` (ISSUE-020 lockdown), `20260926002454_scheduled_housekeeping_jobs.sql` (the three `pg_cron` jobs + `pg_net` + the Vault housekeeping key, **applied live 2026-09-26 with its own `schema_migrations` row**, DEC-029), `20260927000000_exam_wide_add_time.sql` (exam-wide add time + the monitor payload drift fix, 2026-09-24), `20260929000000_audit_functions.sql` (the admin audit-log viewer, **applied live 2026-09-25**), `20260930000000_exam_delete_with_attempts.sql` (the exam delete rule: `list_exams.session_count` + the admin-only forced delete, **applied live 2026-09-25**, DEC-027). All of them are applied live now; each has an annotated contract in `docs/`.
+Migrations in git: `20260922000000_exams_functions.sql` (exams, 2026-09-22), `20260923000000_session_functions.sql` (student engine, 2026-09-23), `20260924000000_result_functions.sql` (grading + results, 2026-09-24), `20260925000000_monitor_overview_fields.sql` (the monitor's progress/heartbeat fields, 2026-09-24), `20260926000000_security_lockdown_function_execute.sql` (ISSUE-020 lockdown), `20260926002454_scheduled_housekeeping_jobs.sql` (the three `pg_cron` jobs + `pg_net` + the Vault housekeeping key, **applied live 2026-09-26 with its own `schema_migrations` row**, DEC-029), `20260926010636_backup_functions.sql` (the backup functions, the private `backups` bucket and the fourth job `nightly-backup`, **applied live 2026-09-26 with its own `schema_migrations` row** — 11,535 chars, DEC-030, `docs/sql-backups.md`), `20260927000000_exam_wide_add_time.sql` (exam-wide add time + the monitor payload drift fix, 2026-09-24), `20260929000000_audit_functions.sql` (the admin audit-log viewer, **applied live 2026-09-25**), `20260930000000_exam_delete_with_attempts.sql` (the exam delete rule: `list_exams.session_count` + the admin-only forced delete, **applied live 2026-09-25**, DEC-027). All of them are applied live now; each has an annotated contract in `docs/`.
 
-## Scheduled work (lives inside the database — DEC-029)
+## Scheduled work (lives inside the database — DEC-029, DEC-030)
 
-Three `pg_cron` jobs, one concern each, running as `postgres` in the `postgres` database: `expire-sessions`
-every five minutes (`select public.expire_sessions()`), and nightly `purge-rate-limits`
-(`select public.purge_rate_limits()`) and `purge-orphan-media`, which is **not** plain SQL — it calls the
-deployed `media` function over `pg_net` with `{"action": "purge_unused"}` and the `x-housekeeping-key`
-header, because file bytes can only be deleted through the Storage API. The key is generated in the
-migration into `vault.secrets` and mirrored as the function secret `HOUSEKEEPING_KEY`; it opens exactly
-one action and never becomes a staff identity. There is no external scheduler and no hosting requirement:
-the clock is the database's own. Contract and evidence: `docs/sql-jobs.md`; configuration test:
-`supabase/tests/scheduled_jobs_test.sql`; end-to-end live check: `frontend/tests/live_housekeeping_check.py`.
+Four `pg_cron` jobs, one concern each, running as `postgres` in the `postgres` database: `expire-sessions`
+every five minutes (`select public.expire_sessions()`), nightly `purge-rate-limits`
+(`select public.purge_rate_limits()`), nightly `purge-orphan-media`, and nightly `nightly-backup`
+(`41 19 * * *` — 02:41 Jakarta, after both purges). The last two are **not** plain SQL: they call the
+deployed `media` and `backups` functions over `pg_net` with the `x-housekeeping-key` header, because file
+bytes can only move through the Storage API. The key is generated in the migration into `vault.secrets`
+and mirrored as the function secret `HOUSEKEEPING_KEY`; it opens the media purge and an automatic backup
+`create` — and never becomes a staff identity. There is no external scheduler and no hosting requirement: the clock
+is the database's own. Contracts and evidence: `docs/sql-jobs.md` (the purges) and `docs/sql-backups.md`
+(the backup slice); configuration tests: `supabase/tests/scheduled_jobs_test.sql` (all four jobs) and
+`supabase/tests/backup_functions_test.sql`; end-to-end live checks:
+`frontend/tests/live_housekeeping_check.py` and `frontend/tests/live_backup_check.py`.
 
 Live migrations (names only; SQL not in git): `v2_01_foundation`, `v2_02_question_bank`, `v2_03_exams`, `v2_04_sessions_results`, `v2_05_lockdown`, `v2_06_question_content_hash`, `v2_07_text_rules_and_rate_limit`, `v2_08_question_bank_functions`, `v2_09_media_storage`, `v2_10_register_media_path_rule`, `v2_11_media_paths`, `v2_12_import_questions`.
 
-Storage: bucket `question-media`, private, 10 MB limit, mime types image/jpeg, image/png, image/webp, audio/mpeg, audio/mp4, audio/x-m4a. No storage policies. Paths: `image/<year>/<uuid>.(jpg|png|webp)` and `audio/<year>/<uuid>.(mp3|m4a)`.
+Storage: bucket `question-media`, private, 10 MB limit, mime types image/jpeg, image/png, image/webp, audio/mpeg, audio/mp4, audio/x-m4a. No storage policies. Paths: `image/<year>/<uuid>.(jpg|png|webp)` and `audio/<year>/<uuid>.(mp3|m4a)`. A second private bucket, `backups` (50 MB limit, one ZIP per copy, no public URL — signed links only), holds the backups (DEC-030).
 
 ## Data flow examples
 

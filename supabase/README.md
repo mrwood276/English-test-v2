@@ -3,14 +3,16 @@
 Project: **English_Test_v2** (region ap-southeast-1, Singapore), reference `lbhnadqmokloyfarrzfv`.
 
 - The database schema is stored in the project as migrations `v2_01` to `v2_15`, and (as of 2026-09-24) also in `supabase/migrations/` in this repository — see below.
-- Edge Functions live in `../backend/functions` (`auth-me`, `question-bank`, `media`, `exams`, `session`, `results`, `audit`). All seven are deployed live (§ "Deploying a function" below).
+- Edge Functions live in `../backend/functions` (`auth-me`, `question-bank`, `media`, `exams`, `session`, `results`, `audit`, `backups`). All eight are deployed live (§ "Deploying a function" below).
 - **Scheduled jobs** (TASK-015) run inside the database: `pg_cron` closes abandoned sessions every five
-  minutes and, nightly, drops spent rate-limit windows and asks the `media` function (over `pg_net`) to
-  delete uploads nobody attached — the bytes can only go away through the Storage API, so that one job is
-  an HTTP call, not plain SQL. The call carries a housekeeping key that lives in Vault and as the
-  function secret `HOUSEKEEPING_KEY`, never in this repository; rotation is two SQL/secret updates and no
-  code change. Contract, evidence and the reasons: `docs/sql-jobs.md`; configuration test:
-  `supabase/tests/scheduled_jobs_test.sql`.
+  minutes and, nightly, drops spent rate-limit windows, asks the `media` function (over `pg_net`) to
+  delete uploads nobody attached, and takes a **backup** of the whole database (02:41 Jakarta) — the two
+  jobs that need Storage are HTTP calls, not plain SQL, because bytes can only move through the Storage
+  API. The calls carry a housekeeping key that lives in Vault and as the function secret
+  `HOUSEKEEPING_KEY`, never in this repository; rotation is two SQL/secret updates and no code change.
+  Contracts, evidence and the reasons: `docs/sql-jobs.md` (the purges) and `docs/sql-backups.md` (the
+  backup slice); configuration tests: `supabase/tests/scheduled_jobs_test.sql` and
+  `supabase/tests/backup_functions_test.sql`.
 
 To keep the SQL of the migrations in this repository, run this once on your computer with the Supabase CLI:
 
@@ -35,7 +37,7 @@ attempt report, add time / reopen, retake permissions — applied live on 2026-0
 (the exam delete rule, DEC-027: `list_exams.session_count` + the admin-only forced delete, applied live
 2026-09-25), `20260926002454_scheduled_housekeeping_jobs.sql` (TASK-015: `pg_cron` + `pg_net` and the
 three housekeeping jobs, applied live 2026-09-26 with its own `schema_migrations` row — see
-`docs/sql-jobs.md`) and `20260927000000_exam_wide_add_time.sql`
+`docs/sql-jobs.md`), `20260926010636_backup_functions.sql` (TASK-015: the private `backups` bucket, the 22-table allowlist, `build_backup_payload` / `record_backup` (with the retention sweep) / `list_backups` / `get_backup` / `delete_backup`, and the fourth job `nightly-backup` — applied live 2026-09-26 with its own `schema_migrations` row; see `docs/sql-backups.md`) and `20260927000000_exam_wide_add_time.sql`
 (exam-wide add time, drops the duplicate `list_live_sessions` that ISSUE-020 found live and never committed —
 applied live on 2026-09-24; annotated source in `docs/sql-monitor.md`). `v2_01_foundation` through
 `v2_12_import_questions` (schema, question bank, exams/sessions/results tables, lockdown, text rules, media

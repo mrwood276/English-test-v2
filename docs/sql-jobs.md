@@ -28,10 +28,16 @@ is live, which is exactly the drift ISSUE-001 is about.
 | `purge-rate-limits` | `19 19 * * *` — 02:19 Jakarta | `select public.purge_rate_limits()` | Drops `rate_limits` windows older than a day (join attempts, exam-code guesses, autosave counters). Without it the table grows forever. |
 | `purge-orphan-media` | `29 19 * * *` — 02:29 Jakarta | `select net.http_post(…media function…)` | Deletes uploads nobody attached — the same thing the admin's **Purge unused** button does. |
 
-The nightly jobs never share a minute, so neither waits for the other, and both are far from the next
-morning's school hours. The scheduler is `pg_cron` (1.6.4); the HTTP hop is `pg_net` (0.20.4); both were
-already in the project's `shared_preload_libraries` and are now enabled by the migration
+The nightly jobs never share a minute, so none waits for another, and all are far from the next morning's
+school hours. The scheduler is `pg_cron` (1.6.4); the HTTP hop is `pg_net` (0.20.4); both were already in
+the project's `shared_preload_libraries` and are now enabled by the migration
 (`create extension if not exists …`).
+
+**A fourth job joined them on 2026-09-26**: `nightly-backup` (`41 19 * * *` — 02:41 Jakarta, after both
+purges, so the copy is taken from a tidied database) calls the deployed **`backups`** function with the
+**same housekeeping key** and may `create` an automatic copy and nothing else. It is part of the backup
+slice, so its contract lives in **`docs/sql-backups.md`**; `supabase/tests/scheduled_jobs_test.sql` asserts
+all four jobs, while `supabase/tests/backup_functions_test.sql` covers what a copy contains.
 
 ## Why the media job is not plain SQL
 
@@ -87,14 +93,15 @@ A machine has no `profiles` row, so the scheduled call must not pretend to be a 
 transaction, so the error message is the result):
 
 ```
-SCHEDULED JOBS TESTS PASSED (3 jobs active, key 64 chars, nothing written)
+SCHEDULED JOBS TESTS PASSED (4 jobs active, key 64 chars, nothing written)
 ```
 
-It asserts the two extensions exist where the jobs expect them, the three jobs are active, run in
-`postgres`/`postgres`, carry the documented schedules and commands, the nightly pair never shares a
+It asserts the two extensions exist where the jobs expect them, the four jobs are active, run in
+`postgres`/`postgres`, carry the documented schedules and commands, the three nightly jobs never share a
 minute, the media job really goes through `net.http_post` to the deployed function with the Vault key and
-`purge_unused`, the key is 64 chars and unreadable by `anon`/`authenticated`, and that the jobs' role may
-execute all three functions.
+`purge_unused`, the backup job asks for an `automatic` copy the same way, the key is 64 chars and
+unreadable by `anon`/`authenticated`, and that the jobs' role may execute all three functions. (The file
+grew the fourth job when the backup slice landed; it read `3 jobs active` on 2026-09-26 before that.)
 
 **End to end, live** — `frontend/tests/live_housekeeping_check.py` (**40/40**,
 `ALL LIVE HOUSEKEEPING CHECKS PASSED`), which is the half that proves the jobs *fire*:
@@ -125,8 +132,9 @@ and was left untouched — the check counts rows before and after rather than as
 
 ## What is deliberately not here
 
-**Backups** (manual + scheduled) and **notifications** (dashboard + email) are the rest of TASK-015 and are
-not built: the email half needs the owner's provider decision (DEC-017), and a scheduled backup needs a
-decision about what to copy and where (the free plan has no point-in-time recovery). The dashboard's
-"needs your attention" rows already cover the *dashboard* half of notifications. The database now has a
-working clock, so a nightly backup job would be a small addition to this file's pattern.
+**Notifications** (dashboard + email) and **user management** are the rest of TASK-015: the email half
+needs the owner's provider decision (DEC-017), and the dashboard's "needs your attention" rows already
+cover the *dashboard* half. **Backups were here when this file was written and are now built** — the
+manual copy on `#/backups`, the nightly job and everything they contain are documented in
+`docs/sql-backups.md` (DEC-030); a copy still lives in the same project as the data it protects and there
+is no restore UI, both deliberate for now.

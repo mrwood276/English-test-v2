@@ -35,8 +35,10 @@ assets/js/teacher/app.js        boot and session handling
 assets/js/teacher/router.js     small hash router (#/dashboard, #/questions, #/questions/new, #/questions/edit/<id>, #/questions/import,
                                 #/exams, #/exams/new, #/exams/edit/<id>, #/monitor, #/monitor/<exam id>,
                                 #/monitor/<exam id>/session/<session id>, #/grading, #/grading/<exam id>, #/results,
-                                #/results/<exam id>, #/results/<exam id>/session/<session id>)
-assets/js/teacher/api/          one file per Edge Function (questionBank.js, media.js, exams.js, results.js)
+                                #/results/<exam id>, #/results/<exam id>/session/<session id>,
+                                #/audit, #/backups)
+assets/js/teacher/api/          one file per Edge Function (questionBank.js, media.js, exams.js, results.js,
+                                audit.js, backups.js)
 assets/js/teacher/import/       readers that turn files or pasted text into questions (csv, xlsx, zip, text, rows, rules)
 assets/js/teacher/export/       writers for the results exports, built in the browser with no dependency
                                 (zip.js and xlsx.js; resultsTable.js is the one table the CSV and the Excel file
@@ -44,7 +46,8 @@ assets/js/teacher/export/       writers for the results exports, built in the br
 assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionEditor, questionImport, exams,
                                 examEditor, examMonitor (the live board, with exam-wide add time),
                                 sessionTimeline (one attempt while it runs), grading, gradingQuestion,
-                                examResults, sessionReport
+                                examResults, sessionReport, auditLog (the admin audit viewer),
+                                backups (the admin backups: list, make one, download, delete)
 assets/js/teacher/components/   questionView, richTextarea, chipsInput, passageDialog, mediaPicker,
                                 duplicateGroupsDialog (the question list's Review dialog: one section per
                                 group of questions that look alike, each linked to its editor),
@@ -59,7 +62,8 @@ assets/js/student/screens/      join, exam, result
 assets/js/student/components/   question (one question rendered for answering)
 tests/                          browser tests with a mocked server (mock_server.py, teacher_e2e.py, question_bank_e2e.py,
                                 question_editor_e2e.py, media_e2e.py, question_import_e2e.py, exams_e2e.py, student_e2e.py,
-                                results_e2e.py, monitor_e2e.py) and Deno unit tests (tests/unit/). Three one-off
+                                results_e2e.py, monitor_e2e.py, dashboard_e2e.py, audit_e2e.py, backups_e2e.py)
+                                and Deno unit tests (tests/unit/). Three one-off
                                 scripts talk to the real backend by hand (owner's account, password from the
                                 environment): live_results_check.py (the grading loop),
                                 live_monitor_check.py (the monitor payload + exam-wide add time;
@@ -80,6 +84,13 @@ tests/                          browser tests with a mocked server (mock_server.
                                 real, and checks each one did its job (40 checks; also proves the
                                 file's bytes are gone from Storage) before deleting everything it
                                 created
+                                live_backup_check.py also needs no dev server and no browser (63
+                                checks): it takes a real manual backup, downloads the archive
+                                through its signed link and opens it with zipfile (the media bytes
+                                and every table's count compared with the live database), proves
+                                the eighth nightly copy prunes the oldest row AND its file, lets
+                                pg_cron fire the nightly job for real, deletes one copy, and cleans
+                                up everything it created
 ```
 
 ## Notes
@@ -105,4 +116,7 @@ python tests/exams_e2e.py
 python tests/student_e2e.py
 python tests/results_e2e.py  # includes downloading the CSV and the Excel export and opening the .xlsx with Python
 python tests/monitor_e2e.py
+python tests/dashboard_e2e.py
+python tests/audit_e2e.py     # admin audit-log viewer
+python tests/backups_e2e.py   # admin backups: make one, download it, delete it
 ```

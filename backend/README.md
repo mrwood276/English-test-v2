@@ -16,7 +16,8 @@ functions/
     codes.ts      exam access code generation
     ratelimit.ts  attempt limiting through public.rate_limit_hit
     auth.ts       requireStaff (token via Supabase Auth, role from the profiles table), and
-                  isScheduledJob (the nightly housekeeping key; it opens the media purge and nothing else)
+                  isScheduledJob (the nightly housekeeping key; it opens the media purge and an
+                  automatic backup and nothing else)
     audit.ts      writeAudit
     rpc.ts        callRpc: database functions; messages raised with hint "validation" become friendly 400 errors
     db.ts         service-role client (Edge Functions only)
@@ -31,6 +32,12 @@ functions/
                   live monitor's read), report, grading_questions, queue, grade, add_time,
                   add_exam_time (more time for every running attempt), reopen, grant_retake, revoke_retake
                   (staff only)
+  audit/          POST { action, ... } for admins: list (the audit-log viewer; the only endpoint
+                  restricted to the admin role)
+  backups/        POST { action, ... } for admins: create, list, download, delete — one ZIP per copy in
+                  the private `backups` bucket (data.json + the media bytes). zip.ts is a dependency-free
+                  store-only ZIP writer. The nightly job may `create` an automatic copy through the
+                  housekeeping key and nothing else; contract: docs/sql-backups.md
 tests/
   shared.test.ts        unit tests for the shared code
   question_bank.test.ts input parsing and the question-bank endpoint (with a fake database)
@@ -38,6 +45,9 @@ tests/
   exams.test.ts         exams endpoint input rules
   session.test.ts       student session endpoint input rules and the session token
   results.test.ts       grading/results endpoint input rules (minutes to seconds, score bounds, limits)
+  audit.test.ts         the audit viewer's action, the admin-only rule and the paging/filter limits
+  backups.test.ts       the ZIP writer/reader, what a copy contains, media that is missing or too big,
+                        retention pruning, the scheduled door and the admin/teacher/401 rules
 ```
 
 ## Rules for new functions
