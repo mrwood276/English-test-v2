@@ -1,5 +1,12 @@
 # 07 CHANGELOG
 
+## 2026-09-27 — TASK-012 PDF class summary completed — `ai-development`
+- Added a dependency-free one-page A4 landscape PDF writer at `frontend/assets/js/teacher/export/classSummaryPdf.js`.
+- The Results screen now offers **Class summary PDF** beside CSV/Excel. It uses the existing `overview` payload, so there is no new backend read path.
+- The report includes exam metadata, Students/Finished/Average/Passed/Failed/Not final cards, and a Performance by class table with students, finished attempts, average, passed, not-final and score range.
+- Individual answers are intentionally excluded; the PDF is a class summary, not an attempt report.
+- `results_e2e.py` covers the PDF download and structural/content checks. No CI run was available for this commit, so the result is recorded as TESTED-IN-CODE, not falsely marked live-verified.
+
 ## 2026-09-26 — TASK-015 dashboard notifications first (DEC-032) — `ai-development` (`f17ee497`)
 - Owner chose option 4: build the dashboard notification half first and defer email until a provider is chosen.
 - Dashboard derives notices from the existing Exams/Results payloads: pending essays, flagged page-exit sessions, and submitted results. Notices deep-link to the existing Grading, Monitor and Results screens.
