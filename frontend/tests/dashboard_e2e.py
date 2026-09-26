@@ -83,6 +83,19 @@ with sync_playwright() as pw:
     check("the full monitor is one click away",
           page.query_selector(f".now a[href='#/monitor/{EXAM_ID}']") is not None)
 
+    # ---------- Notifications ----------
+    notifications = page.locator('section[aria-label="Notifications"]')
+    check("dashboard notifications are shown", notifications.count() == 1)
+    notification_text = notifications.inner_text()
+    check("notifications surface the essay work", "essay needs grading" in notification_text, notification_text)
+    check("notifications surface the suspicious session", "session needs review" in notification_text, notification_text)
+    check("notifications link to grading", page.query_selector(f'section[aria-label="Notifications"] a[href="#/grading/{EXAM_ID}"]') is not None)
+    check("notifications link to the monitor", page.query_selector(f'section[aria-label="Notifications"] a[href="#/monitor/{EXAM_ID}"]') is not None)
+    check("notifications link to results", page.query_selector(f'section[aria-label="Notifications"] a[href="#/results/{EXAM_ID}"]') is not None)
+    page.click("#mark-notifications-read")
+    check("mark all read removes the new count", "new" not in notifications.locator("h2").inner_text())
+    check("read notifications stay visible", "essay needs grading" in notifications.inner_text())
+
     # ---------- "Needs your attention" ----------
     attention = page.inner_text('section[aria-label="Needs your attention"]')
     check("the essay queue is surfaced", "1 essay to grade" in attention, attention)
