@@ -15,9 +15,10 @@ const NAV = [
   { route: "#/monitor", label: "Monitor", icon: "grid" },
 ];
 
-// The audit log and backups are admin jobs (design.md 1.2), so admins see two more menu items.
+// Accounts, the audit log and backups are admin jobs (design.md 1.2), so admins see three more menu items.
 const ADMIN_NAV = [
   ...NAV,
+  { route: "#/accounts", label: "Accounts", icon: "users" },
   { route: "#/audit", label: "Audit log", icon: "clock" },
   { route: "#/backups", label: "Backups", icon: "cloud" },
 ];

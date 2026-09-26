@@ -56,6 +56,17 @@ export function asNumber(v: unknown, path: string, opts: { min: number; max: num
   return v;
 }
 
+// Deliberately simple: the sign-in service is the real authority on what an address is, and a person can
+// fix "that does not look like an email address" without guessing.
+const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]{2,}$/;
+
+/** An email address, lowercased so two accounts can never differ only by case. */
+export function asEmail(v: unknown, path: string): string {
+  const s = asString(v, path, { min: 5, max: 254 }).toLowerCase();
+  if (!EMAIL_RE.test(s)) throw badRequest(`${path} does not look like an email address.`);
+  return s;
+}
+
 /** Text that is never shown as HTML (names, labels, topics): angle brackets are not allowed. */
 export function asPlain(v: unknown, path: string, opts: { min?: number; max: number }): string {
   const s = asString(v, path, opts);

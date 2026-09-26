@@ -57,3 +57,5 @@ jobs:
         run: python frontend/tests/audit_e2e.py
       - name: Backups (admin side)
         run: python frontend/tests/backups_e2e.py
+      - name: Accounts (admin side)
+        run: python frontend/tests/accounts_e2e.py

@@ -55,8 +55,8 @@ with sync_playwright() as pw:
 
     # ---------- menu ----------
     check("Monitor is a real menu item", page.query_selector("a[data-route='#/monitor']") is not None)
-    check("eight menu links lead somewhere",
-          len(page.query_selector_all(".nav a[data-route]")) == 8,
+    check("nine menu links lead somewhere",
+          len(page.query_selector_all(".nav a[data-route]")) == 9,
           str(len(page.query_selector_all(".nav a[data-route]"))))
 
     # ---------- hub: only exams with people working ----------

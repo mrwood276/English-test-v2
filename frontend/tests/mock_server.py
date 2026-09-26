@@ -65,6 +65,17 @@ class Server:
              "size_bytes": 43920, "created_by": "u1", "created_by_name": "Admin", "created_at": "2026-09-25T09:15:00Z"},
         ]
         self.fail_backup = False; self.backup_note = None; self.backup_pruned = 0
+        # admin side (accounts function): the signed-in admin, one teacher, and one account that was deactivated
+        self.account_calls = []
+        self.accounts = [
+            {"id": "u1", "email": "admin@example.com", "full_name": "Admin", "role": "admin", "is_active": True,
+             "created_at": "2026-09-20T10:11:54Z", "last_sign_in_at": "2026-09-26T01:39:56Z"},
+            {"id": "u2", "email": "rina@example.com", "full_name": "Ms. Rina", "role": "teacher", "is_active": True,
+             "created_at": "2026-09-24T12:00:40Z", "last_sign_in_at": "2026-09-25T07:02:00Z"},
+            {"id": "u3", "email": "old.teacher@example.com", "full_name": "Mr. Budi", "role": "teacher", "is_active": False,
+             "created_at": "2026-09-21T08:00:00Z", "last_sign_in_at": None},
+        ]
+        self.fail_account = False; self.account_passwords = []
         self.passages = [{"id": "pa1", "title": "The Lost Wallet", "body": "Dina found a <u>brown</u> wallet.", "question_count": 3}, {"id": "pa2", "title": "The Smart Monkey", "body": "A clever monkey sat on a branch.", "question_count": 1}]
     def item(self, q):
         return {k: q[k] for k in ["id", "type", "body", "topic", "difficulty", "weight", "class_labels", "has_audio", "has_image", "has_passage", "used_in_exams", "is_archived"]} | {"updated_at": "2026-09-20T00:00:00Z"}
@@ -123,6 +134,8 @@ class Server:
             return self.handle_audit(route, req)
         if "/functions/v1/backups" in url:
             return self.handle_backups(route, req)
+        if "/functions/v1/accounts" in url:
+            return self.handle_accounts(route, req)
         if "/auth-me" in url:
             return route.fulfill(status=200, content_type="application/json", body=json.dumps({"user": {"id": "u1", "fullName": "Admin" if self.role == "admin" else "Ms. Rina", "role": self.role}}))
         body = json.loads(req.post_data or "{}"); a = body.get("action"); self.calls.append(body)
@@ -757,6 +770,47 @@ class Server:
                 return err(400, "That backup no longer exists.")
             self.backups.remove(row)
             return ok({"id": row["id"], "removed": 1})
+        return err(400, "Unknown action")
+
+    def handle_accounts(self, route, req):
+        body = json.loads(req.post_data or "{}"); a = body.get("action")
+        self.account_calls.append(body)
+        def ok(data): route.fulfill(status=200, content_type="application/json", body=json.dumps(data))
+        def err(status, msg): route.fulfill(status=status, content_type="application/json", body=json.dumps({"error": msg, "code": "bad_request"}))
+
+        # Managing accounts is an admin job (design.md 1.2): the mock refuses a teacher exactly like the real function.
+        if self.role != "admin":
+            return route.fulfill(status=403, content_type="application/json", body=json.dumps({"error": "You do not have access to this.", "code": "forbidden"}))
+
+        row = next((x for x in self.accounts if x["id"] == body.get("id")), None)
+        if a == "list":
+            return ok({"accounts": {"total": len(self.accounts), "rows": self.accounts}})
+        if a == "create":
+            if self.fail_account:
+                return route.fulfill(status=500, content_type="application/json",
+                                     body=json.dumps({"error": "Something went wrong. Please try again.", "code": "internal_error"}))
+            email = str(body.get("email", "")).lower()
+            if any(x["email"].lower() == email for x in self.accounts):
+                return err(400, "An account with this email address already exists.")
+            made = {"id": f"u{len(self.accounts) + 1}", "email": email, "full_name": body.get("full_name"),
+                    "role": body.get("role"), "is_active": True,
+                    "created_at": "2026-09-26T02:20:00Z", "last_sign_in_at": None}
+            self.accounts.append(made)
+            return ok({"account": made})
+        if a == "update":
+            if row is None:
+                return err(400, "That account no longer exists.")
+            if row["id"] == "u1" and ((body.get("role") and body["role"] != row["role"]) or body.get("is_active") is False):
+                return err(400, "You cannot change your own role or deactivate your own account.")
+            for key in ("full_name", "role", "is_active"):
+                if body.get(key) is not None:
+                    row[key] = body[key]
+            return ok({"account": {k: row[k] for k in ("id", "full_name", "role", "is_active")}})
+        if a == "password":
+            if row is None:
+                return err(400, "That account no longer exists.")
+            self.account_passwords.append(body.get("password"))
+            return ok({"id": row["id"], "changed": True})
         return err(400, "Unknown action")
 
     def exam_row(self, e):

@@ -23,6 +23,7 @@ const PATHS = {
   offline: '<path d="M3 3l18 18"/><path d="M5 12.5a10 10 0 0114 0"/><path d="M8.5 16a5 5 0 018.5 0"/><circle cx="12" cy="19.6" r=".6"/>',
   download: '<path d="M12 4v11"/><path d="M7.5 11.5l4.5 4.5 4.5-4.5"/><path d="M5 20h14"/>',
   copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 011-1h10"/>',
+  users: '<path d="M9.2 11.2a3.6 3.6 0 100-7.2 3.6 3.6 0 000 7.2z"/><path d="M3.5 20a5.7 5.7 0 0111.4 0"/><path d="M16.2 4.6a3.2 3.2 0 010 6.4"/><path d="M17.4 14.6a5.4 5.4 0 013 4.9"/>',
 };
 
 export function icon(name, label) {
