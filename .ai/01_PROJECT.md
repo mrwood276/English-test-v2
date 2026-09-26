@@ -7,7 +7,7 @@
 | Name | English Daily Test v2 (working title "English Testing Platform"; Claude project "APP_V2") |
 | Repository | `mrwood276/English-test-v2` (GitHub, public) |
 | Purpose | A web platform for English **daily tests** (ulangan harian) at one school, grades X, XI, XII, all majors |
-| Development stage | **Phase 5 done; Phase 6 dashboard/UX polish done.** Foundation, auth, question bank, editor, media, import, exams (teacher side), the student exam engine, essay grading + results, the live monitor and the mockup-5 dashboard are built — the teacher, exam, import, student, grading and monitor flows are live against the v2 project (the monitor was watched in a real browser while a real exam ran, 2026-09-24). Not finished: the PDF class summary (the last piece of TASK-012), and notifications / user management (TASK-015 — its audit viewer, its scheduled purge jobs and its **backup slice** — manual + nightly, LIVE-VERIFIED 2026-09-26 — are done) |
+| Development stage | **Phase 5 done; Phase 6 dashboard/UX polish done.** Foundation, auth, question bank, editor, media, import, exams (teacher side), the student exam engine, essay grading + results, the live monitor and the mockup-5 dashboard are built — the teacher, exam, import, student, grading and monitor flows are live against the v2 project (the monitor was watched in a real browser while a real exam ran, 2026-09-24). Not finished: the PDF class summary (the last piece of TASK-012), and notifications (TASK-015 — its audit viewer, its scheduled purge jobs, its **backup slice** — manual + nightly — and its **user management** — LIVE-VERIFIED 2026-09-26 — are done) |
 | Deployment | v2 is **not deployed anywhere yet**; it runs locally against the live Supabase project. Hosting for the frontend is UNKNOWN (not chosen). The older v1 app is live on a separate static host + separate Supabase project and is **outside this repository** |
 
 ## Problem being solved
@@ -19,8 +19,8 @@ v1 (a single-exam prototype for class XII TKJ) had no exam codes, no attempt lim
 | Role | Who | Access |
 |---|---|---|
 | Student | Students of grades X to XII | No account. Enters name + class (typed freely) + exam code. Takes the exam on a personal phone in the classroom. **Built (2026-09-23)**: `frontend/index.html` — join, take (autosave, offline tolerance, server-enforced time, tab-switch limits), submit, result; live-verified over HTTP, screens verified against the mock server |
-| Teacher | One teacher for now | Email + password (Supabase Auth). Manages questions, exams, grading, results. **Account not created yet** |
-| Admin | The owner (helps the teacher) | Email + password (Supabase Auth). Everything a teacher can do, plus accounts, backup, audit log, purge. Account **exists** (profile role `admin`, display name is the placeholder "Admin") |
+| Teacher | One teacher for now | Email + password (Supabase Auth). Manages questions, exams, grading, results. An admin creates and manages the account on `#/accounts` (DEC-031); the live project's only teacher is the staff test account, and the owner's real teacher account is created whenever he types it in (TASK-016) |
+| Admin | The owner (helps the teacher) | Email + password (Supabase Auth). Everything a teacher can do, plus accounts, backup, audit log, purge. Account **exists** (profile role `admin`); the placeholder name "Admin" can be replaced on `#/accounts`, since renaming yourself is deliberately allowed (DEC-031) |
 
 Only teachers and admins may see student scores.
 
@@ -60,6 +60,9 @@ Only teachers and admins may see student scores.
 | Product requirements, business rules, data model, phases | `docs/design.md` (Draft 4, approved by the owner) |
 | Exam SQL contract and live schema facts | `docs/sql-exams.md` |
 | Student session-engine contract, live facts, verification record | `docs/sql-sessions.md` |
+| Scheduled jobs (the database's own clock) | `docs/sql-jobs.md` |
+| Backups (manual + nightly, and how to restore one by hand) | `docs/sql-backups.md` |
+| User management (what an admin can do to an account, and why deactivate) | `docs/sql-accounts.md` |
 | What was wrong with v1 | `docs/audit-v1.md` |
 | Approved screens | `docs/mockups/round-1.html`, `docs/mockups/round-2.html` (open in a browser) |
 | How to run and test | `README.md`, `frontend/README.md`, `backend/README.md`, `00_AI_RULES.md` section 7 |

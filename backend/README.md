@@ -38,6 +38,12 @@ functions/
                   the private `backups` bucket (data.json + the media bytes). zip.ts is a dependency-free
                   store-only ZIP writer. The nightly job may `create` an automatic copy through the
                   housekeeping key and nothing else; contract: docs/sql-backups.md
+  accounts/       POST { action, ... } for admins: list, create, update, password — the Auth Admin API
+                  creates the login (or sets a new password) and the database keeps the profile row and
+                  the rules (only an active admin; nobody changes their own role or deactivates
+                  themselves; the last active admin stays). An account is deactivated, never deleted,
+                  and a login is deleted again when the database refuses its bookkeeping; contract:
+                  docs/sql-accounts.md
 tests/
   shared.test.ts        unit tests for the shared code
   question_bank.test.ts input parsing and the question-bank endpoint (with a fake database)
@@ -48,6 +54,9 @@ tests/
   audit.test.ts         the audit viewer's action, the admin-only rule and the paging/filter limits
   backups.test.ts       the ZIP writer/reader, what a copy contains, media that is missing or too big,
                         retention pruning, the scheduled door and the admin/teacher/401 rules
+  accounts.test.ts      user management: the admin gate, the exact Auth Admin API calls (and the
+                        deleteUser rollback when the database refuses), the friendly refusals and the
+                        password range
 ```
 
 ## Rules for new functions

@@ -3,7 +3,7 @@
 Project: **English_Test_v2** (region ap-southeast-1, Singapore), reference `lbhnadqmokloyfarrzfv`.
 
 - The database schema is stored in the project as migrations `v2_01` to `v2_15`, and (as of 2026-09-24) also in `supabase/migrations/` in this repository — see below.
-- Edge Functions live in `../backend/functions` (`auth-me`, `question-bank`, `media`, `exams`, `session`, `results`, `audit`, `backups`). All eight are deployed live (§ "Deploying a function" below).
+- Edge Functions live in `../backend/functions` (`auth-me`, `question-bank`, `media`, `exams`, `session`, `results`, `audit`, `backups`, `accounts`). All nine are deployed live (§ "Deploying a function" below).
 - **Scheduled jobs** (TASK-015) run inside the database: `pg_cron` closes abandoned sessions every five
   minutes and, nightly, drops spent rate-limit windows, asks the `media` function (over `pg_net`) to
   delete uploads nobody attached, and takes a **backup** of the whole database (02:41 Jakarta) — the two
@@ -37,7 +37,7 @@ attempt report, add time / reopen, retake permissions — applied live on 2026-0
 (the exam delete rule, DEC-027: `list_exams.session_count` + the admin-only forced delete, applied live
 2026-09-25), `20260926002454_scheduled_housekeeping_jobs.sql` (TASK-015: `pg_cron` + `pg_net` and the
 three housekeeping jobs, applied live 2026-09-26 with its own `schema_migrations` row — see
-`docs/sql-jobs.md`), `20260926010636_backup_functions.sql` (TASK-015: the private `backups` bucket, the 22-table allowlist, `build_backup_payload` / `record_backup` (with the retention sweep) / `list_backups` / `get_backup` / `delete_backup`, and the fourth job `nightly-backup` — applied live 2026-09-26 with its own `schema_migrations` row; see `docs/sql-backups.md`) and `20260927000000_exam_wide_add_time.sql`
+`docs/sql-jobs.md`), `20260926010636_backup_functions.sql` (TASK-015: the private `backups` bucket, the 22-table allowlist, `build_backup_payload` / `record_backup` (with the retention sweep) / `list_backups` / `get_backup` / `delete_backup`, and the fourth job `nightly-backup` — applied live 2026-09-26 with its own `schema_migrations` row; see `docs/sql-backups.md`), `20260926021234_account_functions.sql` (TASK-015 user management, DEC-031: the active-admin gate, `list_accounts`, `record_account`, `update_account` with the two guards — nobody changes their own role or deactivates themselves, the last active admin stays — and `record_account_password`; the login half is the `accounts` Edge Function's Auth Admin API calls, because only the service role may create a user; applied live 2026-09-26 with its own `schema_migrations` row; see `docs/sql-accounts.md`) and `20260927000000_exam_wide_add_time.sql`
 (exam-wide add time, drops the duplicate `list_live_sessions` that ISSUE-020 found live and never committed —
 applied live on 2026-09-24; annotated source in `docs/sql-monitor.md`). `v2_01_foundation` through
 `v2_12_import_questions` (schema, question bank, exams/sessions/results tables, lockdown, text rules, media

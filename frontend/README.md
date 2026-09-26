@@ -36,9 +36,9 @@ assets/js/teacher/router.js     small hash router (#/dashboard, #/questions, #/q
                                 #/exams, #/exams/new, #/exams/edit/<id>, #/monitor, #/monitor/<exam id>,
                                 #/monitor/<exam id>/session/<session id>, #/grading, #/grading/<exam id>, #/results,
                                 #/results/<exam id>, #/results/<exam id>/session/<session id>,
-                                #/audit, #/backups)
+                                #/audit, #/backups, #/accounts)
 assets/js/teacher/api/          one file per Edge Function (questionBank.js, media.js, exams.js, results.js,
-                                audit.js, backups.js)
+                                audit.js, backups.js, accounts.js)
 assets/js/teacher/import/       readers that turn files or pasted text into questions (csv, xlsx, zip, text, rows, rules)
 assets/js/teacher/export/       writers for the results exports, built in the browser with no dependency
                                 (zip.js and xlsx.js; resultsTable.js is the one table the CSV and the Excel file
@@ -47,7 +47,10 @@ assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionE
                                 examEditor, examMonitor (the live board, with exam-wide add time),
                                 sessionTimeline (one attempt while it runs), grading, gradingQuestion,
                                 examResults, sessionReport, auditLog (the admin audit viewer),
-                                backups (the admin backups: list, make one, download, delete)
+                                backups (the admin backups: list, make one, download, delete),
+                                accounts (user management: create with a typed temporary password and
+                                hand it over, rename, promote/demote, deactivate/reactivate, new password;
+                                deactivation is the design — DEC-031, docs/sql-accounts.md)
 assets/js/teacher/components/   questionView, richTextarea, chipsInput, passageDialog, mediaPicker,
                                 duplicateGroupsDialog (the question list's Review dialog: one section per
                                 group of questions that look alike, each linked to its editor),
@@ -62,7 +65,8 @@ assets/js/student/screens/      join, exam, result
 assets/js/student/components/   question (one question rendered for answering)
 tests/                          browser tests with a mocked server (mock_server.py, teacher_e2e.py, question_bank_e2e.py,
                                 question_editor_e2e.py, media_e2e.py, question_import_e2e.py, exams_e2e.py, student_e2e.py,
-                                results_e2e.py, monitor_e2e.py, dashboard_e2e.py, audit_e2e.py, backups_e2e.py)
+                                results_e2e.py, monitor_e2e.py, dashboard_e2e.py, audit_e2e.py, backups_e2e.py,
+                                accounts_e2e.py)
                                 and Deno unit tests (tests/unit/). Three one-off
                                 scripts talk to the real backend by hand (owner's account, password from the
                                 environment): live_results_check.py (the grading loop),
@@ -91,10 +95,18 @@ tests/                          browser tests with a mocked server (mock_server.
                                 the eighth nightly copy prunes the oldest row AND its file, lets
                                 pg_cron fire the nightly job for real, deletes one copy, and cleans
                                 up everything it created
+                                live_accounts_check.py also needs no dev server and no browser (44
+                                checks): it creates a throwaway account with a typed password that
+                                really signs in, renames, promotes, demotes, deactivates and
+                                reactivates it, sets a new password (the old one stops working) and
+                                proves the guards (self-demotion and self-deactivation refused), then
+                                deletes the account again and compares the project's own two
+                                accounts row for row with the ones it read at the start
 ```
 
 ## Notes
 
+- Staff accounts are an admin job (`#/accounts`): create one by typing the email and a temporary password and handing it over (no mailer is needed), rename, promote/demote, deactivate/reactivate, and set a new password. An account is **deactivated, never deleted** — the profile is what the audit trail and the rows the person created point at. DEC-031; contract: `docs/sql-accounts.md`.
 - The question bank shows a banner when the whole-bank duplicate scan finds questions that look like copies (mockup 6): the count comes from the server, the scan runs once per visit, and **Review** lists the groups with a link to each question's editor. Contract: `docs/sql-duplicates.md`.
 - The publishable key in `assets/js/core/config.js` is meant to be public. All tables are locked; data only comes through Edge Functions that check who is calling.
 - The sign-in session lives in `sessionStorage`: closing the tab signs the person out.
@@ -119,4 +131,5 @@ python tests/monitor_e2e.py
 python tests/dashboard_e2e.py
 python tests/audit_e2e.py     # admin audit-log viewer
 python tests/backups_e2e.py   # admin backups: make one, download it, delete it
+python tests/accounts_e2e.py  # admin user management: create, rename, promote, deactivate, password
 ```
