@@ -1,3 +1,5 @@
+**TASK-012 is now COMPLETE (2026-09-27).** `frontend/assets/js/teacher/export/classSummaryPdf.js` builds a single-page A4 landscape PDF with standard Helvetica and no dependency. `#/results/:examId` exposes **Class summary PDF** beside CSV/Excel. The report contains exam metadata, summary totals, and a per-class table; it deliberately omits individual answers. `frontend/tests/results_e2e.py` checks filename, PDF header/page count, xref/EOF, title, class and summary labels. CI was not triggered/available for the new commit in this environment, so no pass count is claimed.
+
 # 08 HANDOFF
 
 Keep this file current after every meaningful change. It must never describe an outdated state.
