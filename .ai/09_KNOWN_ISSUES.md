@@ -52,13 +52,19 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 - Severity: LOW. Status: **FIXED (2026-09-24, TASK-014)**. The dashboard is now the mockup-5 screen, and the phone shell is a compact sticky header: brand + signed-in person on one row, all six menu items in one horizontally scrollable row. `dashboard_e2e.py` checks the one-row menu, internal scrolling, and that the page itself does not scroll sideways.
 
 ## ISSUE-010 — Question list lacks the duplicate-overview banner from the mockup
-- Severity: LOW. Status: OPEN. Related: TASK-020.
+- Severity: LOW. Status: **CLOSED (2026-09-25, TASK-020)** — the banner and its Review dialog are on `#/questions` now (server's own count, one scan per visit, refreshed after archive/restore/delete), live-verified by `frontend/tests/live_duplicates_check.py` (15/15). See DEC-028 and `docs/sql-duplicates.md`.
 
 ## ISSUE-011 — No UI for reading-text management and file reordering
 - Severity: LOW. Status: OPEN. Reading texts are only reachable through the editor's picker/dialog; `passage_remove` has no UI; files cannot be reordered (upload order is kept).
 
 ## ISSUE-012 — Orphan files and stale rate-limit rows are never purged automatically
-- Severity: LOW. Status: OPEN. `purge_unused` (admin action of `media`) and SQL `purge_rate_limits` exist but nothing schedules them (Phase 7).
+- Severity: LOW. Status: **CLOSED (2026-09-26, TASK-015)** — `expire-sessions` / `purge-rate-limits` / `purge-orphan-media` are scheduled with `pg_cron`; the media one calls the deployed function over `pg_net` with a housekeeping key, because the bytes can only be deleted through the Storage API (DEC-029, `docs/sql-jobs.md`). Live: `supabase/tests/scheduled_jobs_test.sql` passed and `frontend/tests/live_housekeeping_check.py` **40/40** (the jobs fired, the session closed, the stale row went, the file's bytes left the bucket).
+
+## ISSUE-026 — `signed_urls` answers 500 when none of the ids exist any more (a purged file)
+- Severity: LOW (a broken file looks like a server error instead of an empty preview). Status: **FIXED (2026-09-26, found by the new live housekeeping check)**.
+- What was wrong: `get_media_paths` returns only the files that still exist, so after the nightly purge (or a delete in another tab) a request for those ids came back with an **empty** list — and the handler then asked Storage to sign zero paths, which Storage refuses, so `media` answered `500 internal_error` with the generic message. The live check caught it: `signed_urls` with a purged id returned 500 instead of "no links".
+- Fix: `backend/functions/media/handler.ts` returns `{urls: {}}` when `get_media_paths` found nothing, before Storage is ever called; a pinned unit test asserts both halves (200 with empty urls, and that Storage is not asked to sign an empty list). Redeployed live; the live check's check now reads "the app is told there are no links, without an error".
+- Note: the *save* path still gives the real, person-fixable message ("A file no longer exists. Please upload it again.", raised with `hint = 'validation'`), which is the right place for it.
 
 ## ISSUE-013 — Import: the XLSX (Excel) reader had no tests and had never read a real file
 - Severity: MEDIUM. Status: **FIXED (2026-09-22) with one remaining caveat**. Branch: `ai-development`. Related: TASK-006.
@@ -91,7 +97,7 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 - Verified: rolled-back SQL assertions (`supabase/tests/result_functions_test.sql`), 18 Deno tests, 59 browser checks, and a live run against the real project (`frontend/tests/live_results_check.py`, 38/38 checks) where two essays were graded and both results turned final — one `passed`, one `failed`.
 
 ## ISSUE-018 — Abandoned student sessions are only closed on demand
-- Severity: LOW. Status: **OPEN** — planned as part of TASK-015 (scheduled jobs).
+- Severity: LOW. Status: **CLOSED (2026-09-26, TASK-015)** — the `expire-sessions` `pg_cron` job runs `public.expire_sessions()` every five minutes (DEC-029, `docs/sql-jobs.md`), so a session whose `ends_at` plus the two-minute tolerance has passed is closed by itself: `auto_submitted` when it has answers, `timed_out` when it has none. Proved live end to end: the live check's throwaway attempt was backdated, the scheduler fired, and the row came back `timed_out` with `submitted_at` stamped.
 - Description: `public.expire_sessions(p_tolerance)` marks silent sessions `auto_submitted`/`timed_out`, but nothing calls it on a schedule, so a student who closes the browser without submitting stays `in_progress` in the database. Their `ends_at` has passed, so a heartbeat, a save, or `exam_join` still closes it correctly the next time that student's phone talks to the server (and the teacher screens will show it as overdue), but the row is not tidied by itself.
 - What is needed: a scheduled call (Supabase cron / `pg_cron`) — the same job that will purge old `rate_limits` rows (`purge_rate_limits` already exists, ISSUE-012).
 

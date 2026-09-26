@@ -78,7 +78,7 @@ Every Edge Function: `Deno.serve(handle(handler))`.
 |---|---|---|
 | `auth-me` | `GET` returns `{user:{id, fullName, role}}` | teacher, admin |
 | `question-bank` | `list`, `get`, `save`, `remove`, `archive`, `restore`, `check_duplicates`, `duplicate_groups` (the list banner's whole-bank scan), `topics`, `class_labels`, `passages`, `passage_get`, `passage_save`, `passage_remove`, `import_check`, `import` (all live; `duplicate_groups` was live before it was in git — ISSUE-024, resolved 2026-09-25) | teacher, admin |
-| `media` | `create_upload`, `register`, `signed_urls`, `purge_unused` (admin only) | teacher, admin |
+| `media` | `create_upload`, `register`, `signed_urls`, `purge_unused` (admin only; **also callable by the scheduled housekeeping job** with the `x-housekeeping-key` header — that key opens this one action and nothing else, DEC-029) | teacher, admin (+ the nightly cron job) |
 | `exams` | `save`, `list`, `get`, `remove` (`hard: true` = permanent delete with the attempts, admin only), `set_status`, `check_code`, `regenerate_code`, `duplicate` | teacher, admin (delete-with-attempts: admin only) |
 | `session` | `join` (anonymous, rate limited per address), then `get`, `save`, `heartbeat`, `event`, `submit`, `result`, `media` — all with the signed session token | students (no Supabase account) |
 | `results` | `activity`, `pending`, `overview`, `report`, `grading_questions`, `queue`, `grade`, `add_time`, `reopen`, `grant_retake`, `revoke_retake` (all live since v1, 2026-09-24) | teacher, admin |
@@ -115,7 +115,19 @@ Key constraints (all verified by SQL tests): one correct option per question; un
 | Grading/results | `save_answer_grade`, `list_grading_questions`, `get_grading_queue`, `count_pending_grading`, `list_exam_activity`, `list_exam_results`, `get_session_report`, `add_session_time`, `reopen_session`, `grant_retake`, `revoke_retake`; helper `_session_result_write` (the **only** writer of `exam_results`; `_session_grade` was re-created to skip hand-graded questions) |
 | Live monitor | `list_exam_results` is the board's **only** read (read-only `stable`, in-progress rows included, with the exam's own tab limits on every row) and `add_exam_time` is its only write (BR-11 for every running attempt at once, audited). DEC-024 records both, and the duplicate `list_live_sessions` was dropped rather than kept beside it |
 
-Migrations in git: `20260922000000_exams_functions.sql` (exams, 2026-09-22), `20260923000000_session_functions.sql` (student engine, 2026-09-23), `20260924000000_result_functions.sql` (grading + results, 2026-09-24), `20260925000000_monitor_overview_fields.sql` (the monitor's progress/heartbeat fields, 2026-09-24), `20260926000000_security_lockdown_function_execute.sql` (ISSUE-020 lockdown), `20260927000000_exam_wide_add_time.sql` (exam-wide add time + the monitor payload drift fix, 2026-09-24), `20260929000000_audit_functions.sql` (the admin audit-log viewer, **applied live 2026-09-25**), `20260930000000_exam_delete_with_attempts.sql` (the exam delete rule: `list_exams.session_count` + the admin-only forced delete, **applied live 2026-09-25**, DEC-027). All of them are applied live now; each has an annotated contract in `docs/`.
+Migrations in git: `20260922000000_exams_functions.sql` (exams, 2026-09-22), `20260923000000_session_functions.sql` (student engine, 2026-09-23), `20260924000000_result_functions.sql` (grading + results, 2026-09-24), `20260925000000_monitor_overview_fields.sql` (the monitor's progress/heartbeat fields, 2026-09-24), `20260926000000_security_lockdown_function_execute.sql` (ISSUE-020 lockdown), `20260926002454_scheduled_housekeeping_jobs.sql` (the three `pg_cron` jobs + `pg_net` + the Vault housekeeping key, **applied live 2026-09-26 with its own `schema_migrations` row**, DEC-029), `20260927000000_exam_wide_add_time.sql` (exam-wide add time + the monitor payload drift fix, 2026-09-24), `20260929000000_audit_functions.sql` (the admin audit-log viewer, **applied live 2026-09-25**), `20260930000000_exam_delete_with_attempts.sql` (the exam delete rule: `list_exams.session_count` + the admin-only forced delete, **applied live 2026-09-25**, DEC-027). All of them are applied live now; each has an annotated contract in `docs/`.
+
+## Scheduled work (lives inside the database — DEC-029)
+
+Three `pg_cron` jobs, one concern each, running as `postgres` in the `postgres` database: `expire-sessions`
+every five minutes (`select public.expire_sessions()`), and nightly `purge-rate-limits`
+(`select public.purge_rate_limits()`) and `purge-orphan-media`, which is **not** plain SQL — it calls the
+deployed `media` function over `pg_net` with `{"action": "purge_unused"}` and the `x-housekeeping-key`
+header, because file bytes can only be deleted through the Storage API. The key is generated in the
+migration into `vault.secrets` and mirrored as the function secret `HOUSEKEEPING_KEY`; it opens exactly
+one action and never becomes a staff identity. There is no external scheduler and no hosting requirement:
+the clock is the database's own. Contract and evidence: `docs/sql-jobs.md`; configuration test:
+`supabase/tests/scheduled_jobs_test.sql`; end-to-end live check: `frontend/tests/live_housekeeping_check.py`.
 
 Live migrations (names only; SQL not in git): `v2_01_foundation`, `v2_02_question_bank`, `v2_03_exams`, `v2_04_sessions_results`, `v2_05_lockdown`, `v2_06_question_content_hash`, `v2_07_text_rules_and_rate_limit`, `v2_08_question_bank_functions`, `v2_09_media_storage`, `v2_10_register_media_path_rule`, `v2_11_media_paths`, `v2_12_import_questions`.
 
@@ -134,8 +146,8 @@ Storage: bucket `question-media`, private, 10 MB limit, mime types image/jpeg, i
 ## Environment and configuration
 
 - Frontend: `frontend/assets/js/core/config.js` (project URL, publishable key, timeouts, session key, `APP_BUILD` label). No `.env`.
-- Edge Functions: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically; optional secret `ALLOWED_ORIGIN` (not set; `*` is used until the app has an address) and optional `SESSION_TOKEN_SECRET` (not set — the service role key signs student session tokens until it is).
-- Auth settings (signup disabled, redirect URLs, leaked-password protection) live in the Supabase dashboard, not in git. UNKNOWN whether signups are disabled (the owner was asked to disable them; NEEDS VERIFICATION).
+- Edge Functions: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically; optional secret `ALLOWED_ORIGIN` (not set; `*` is used until the app has an address) and optional `SESSION_TOKEN_SECRET` (not set — the service role key signs student session tokens until it is). **`HOUSEKEEPING_KEY` is set** (2026-09-26) and must equal `vault.secrets.housekeeping_key`; it is the scheduled media job's door (DEC-029).
+- Auth settings (signup disabled, redirect URLs, leaked-password protection) live in the Supabase dashboard, not in git. **Verified live 2026-09-25**: the email provider is ON and `disable_signup: true` (sign-ups refused with `signup_disabled`, staff sign-in works — ISSUE-007; re-check `auth/v1/settings` after any dashboard change).
 
 ## External integrations
 
