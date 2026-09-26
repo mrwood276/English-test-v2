@@ -1,5 +1,11 @@
 # 07 CHANGELOG
 
+## 2026-09-26 — TASK-015 dashboard notifications first (DEC-032) — `ai-development` (`f17ee497`)
+- Owner chose option 4: build the dashboard notification half first and defer email until a provider is chosen.
+- Dashboard derives notices from the existing Exams/Results payloads: pending essays, flagged page-exit sessions, and submitted results. Notices deep-link to the existing Grading, Monitor and Results screens.
+- Read state is browser-local, scoped to the signed-in staff user, with a “Mark all read” action. No SQL, Edge Function, email provider, dependency, or second notification read path was added.
+- `frontend/tests/dashboard_e2e.py` now covers the notification area, the three destinations, and the read action. The test runner was not available in this chat environment, so no unverified pass count is recorded here.
+
 ## 2026-09-26 — TASK-015's user-management slice: an admin creates accounts with a typed temporary password, and an account is deactivated, never deleted (DEC-031) — git `ai-development` (`1218caa` + docs `bd7c78c`), **both workflows green on `bd7c78c`** (runs 36213053547 / 36213053640, 2026-09-26)
 - Agent: Buffy (twenty-second session, Windows clone with real network + Management API), continuing the owner's "continue the project to the next step". The next recommended item was the TASK-015 remainder; of the two halves left, **user management** is the one that needs no external provider (notifications wait for the owner's email decision, DEC-017), so it went first.
 - **Two questions went to the owner before anything was built** (the same discipline as DEC-029/DEC-030): how a new teacher or admin should receive their login, and what should happen to somebody who leaves. His answers became **DEC-031**: the admin types the email and **a temporary password and hands it over** — no invitation email, because the free plan has no working mailer for this project (sign-ups are deliberately off, ISSUE-007, and SMTP is not configured) — and an account is **deactivated, never deleted**, because a profile is what the audit trail and every `created_by` row point at, and a recreated account is a different id.
