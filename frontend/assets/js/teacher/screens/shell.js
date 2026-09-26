@@ -15,8 +15,12 @@ const NAV = [
   { route: "#/monitor", label: "Monitor", icon: "grid" },
 ];
 
-// The audit log is an admin job (design.md 1.2), so admins see one more menu item.
-const ADMIN_NAV = [...NAV, { route: "#/audit", label: "Audit log", icon: "clock" }];
+// The audit log and backups are admin jobs (design.md 1.2), so admins see two more menu items.
+const ADMIN_NAV = [
+  ...NAV,
+  { route: "#/audit", label: "Audit log", icon: "clock" },
+  { route: "#/backups", label: "Backups", icon: "cloud" },
+];
 
 /** The signed-in shell. The menu matches the approved mockups. */
 export function renderShell(root, ctx) {

@@ -1,22 +1,23 @@
--- SQL test for the scheduled housekeeping jobs (TASK-015).
+-- SQL test for the scheduled jobs (TASK-015): the three housekeeping purges and the nightly backup.
 -- Run against the v2 project as ONE request (one request = one session):
 --   POST https://api.supabase.com/v1/projects/lbhnadqmokloyfarrzfv/database/query  {"query": "<this file>"}
 --   (CLI 2.117.0 has NO `supabase db query` subcommand), or paste it into the dashboard SQL editor.
 -- Passed live on 2026-09-26.
 --
--- Read-only: it asserts how the three jobs are configured, it does not run them and writes nothing — the
+-- Read-only: it asserts how the four jobs are configured, it does not run them and writes nothing — the
 -- whole file is one transaction that is deliberately aborted at the end, so the error message IS the
 -- result (the same trick as the other tests):
 --   "SCHEDULED JOBS TESTS PASSED (...)"  → every assertion held
 --   "ASSERT FAILED: <message>"           → a rule is broken
 --
--- What is checked: the two extensions exist where the jobs expect them; the three jobs exist, are active,
+-- What is checked: the two extensions exist where the jobs expect them; the four jobs exist, are active,
 -- run in this database and as the role that owns the functions; the schedules are the documented ones and
 -- never collide with each other; expire_sessions and purge_rate_limits are called directly, while the
--- media job goes through pg_net to the deployed function with the Vault key; the key is long enough to be
--- a secret and unreadable by anon/authenticated; and the job's role may not just read the key but execute
--- all three functions. What this file can NOT prove — that the jobs actually fire and delete things — is
--- in frontend/tests/live_housekeeping_check.py.
+-- media job and the nightly backup go through pg_net to the deployed functions with the Vault key; the
+-- key is long enough to be a secret and unreadable by anon/authenticated; and the job's role may not just
+-- read the key but execute all three functions. What this file can NOT prove — that the jobs actually fire
+-- and do their work — is in frontend/tests/live_housekeeping_check.py (the purges) and
+-- frontend/tests/live_backup_check.py (the nightly copy).
 --
 -- Note on reachability (verified live 2026-09-26, not asserted here because it is a platform default):
 -- pg_cron and pg_net ship PUBLIC grants (cron.job is world-readable, net.http_post is world-executable),
@@ -49,19 +50,19 @@ begin
              where n.nspname = 'net' and p.proname = 'http_post'),
     'net.http_post exists, so the media job command can resolve');
 
-  -- ---------- the three jobs ----------
+  -- ---------- the four jobs ----------
   select count(*) into v_jobs
     from cron.job
-   where jobname in ('expire-sessions', 'purge-rate-limits', 'purge-orphan-media')
+   where jobname in ('expire-sessions', 'purge-rate-limits', 'purge-orphan-media', 'nightly-backup')
      and active;
-  perform pg_temp.assert_true(v_jobs = 3, 'the three jobs exist and are enabled');
+  perform pg_temp.assert_true(v_jobs = 4, 'the four jobs exist and are enabled');
 
   select count(*) into v_jobs
     from cron.job
-   where jobname in ('expire-sessions', 'purge-rate-limits', 'purge-orphan-media')
+   where jobname in ('expire-sessions', 'purge-rate-limits', 'purge-orphan-media', 'nightly-backup')
      and database = current_database()
      and username = 'postgres';
-  perform pg_temp.assert_true(v_jobs = 3, 'all three run in this database as postgres (the functions'' owner)');
+  perform pg_temp.assert_true(v_jobs = 4, 'all four run in this database as postgres (the functions'' owner)');
 
   select schedule, command into v_sched, v_cmd from cron.job where jobname = 'expire-sessions';
   perform pg_temp.assert_true(v_sched = '*/5 * * * *', 'sessions are expired every five minutes');
@@ -72,8 +73,8 @@ begin
   perform pg_temp.assert_true(v_cmd = 'select public.purge_rate_limits()', 'the rate-limit job calls the function directly');
 
   perform pg_temp.assert_true(
-    (select count(distinct schedule) = 2 from cron.job where jobname in ('purge-rate-limits', 'purge-orphan-media')),
-    'the two nightly jobs never share a minute, so neither waits for the other');
+    (select count(distinct schedule) = 3 from cron.job where jobname in ('purge-rate-limits', 'purge-orphan-media', 'nightly-backup')),
+    'the three nightly jobs never share a minute, so none waits for another');
 
   -- ---------- the media job: the one that needs the Storage API ----------
   select schedule, command into v_sched, v_cmd from cron.job where jobname = 'purge-orphan-media';
@@ -88,6 +89,19 @@ begin
   perform pg_temp.assert_true(
     v_cmd like '%purge_unused%',
     'it asks for purge_unused — the action that deletes the bytes through the Storage API');
+
+  -- ---------- the nightly backup: the other job that needs Storage ----------
+  select schedule, command into v_sched, v_cmd from cron.job where jobname = 'nightly-backup';
+  perform pg_temp.assert_true(v_sched = '41 19 * * *', 'the copy of the whole database is taken nightly (19:41 UTC = 02:41 Jakarta)');
+  perform pg_temp.assert_true(
+    v_cmd like '%net.http_post%' and v_cmd like '%lbhnadqmokloyfarrzfv.supabase.co/functions/v1/backups%',
+    'the backup job goes through pg_net to the deployed backups function');
+  perform pg_temp.assert_true(
+    v_cmd like '%x-housekeeping-key%' and v_cmd like '%vault.decrypted_secrets%',
+    'it presents the housekeeping key from Vault (the same key as the media sweep, never a key from the repository)');
+  perform pg_temp.assert_true(
+    v_cmd like '%"action": "create"%' and v_cmd like '%"automatic"%',
+    'it may ask for an automatic copy and nothing else');
 
   -- ---------- the key ----------
   select decrypted_secret into v_key from vault.decrypted_secrets where name = 'housekeeping_key';

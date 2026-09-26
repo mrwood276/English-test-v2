@@ -56,6 +56,15 @@ class Server:
         self.manual_grades = {}; self.retakes = {}; self.result_calls = []; self.class_aliases = {}
         # admin side (audit function)
         self.audit_rows = []; self.audit_calls = []
+        # admin side (backups function): one nightly copy with bytes in it and one made by hand, so the list has both kinds
+        self.backup_calls = []
+        self.backups = [
+            {"id": "bk-1", "kind": "automatic", "storage_path": "20260926T024100Z_automatic_1111aaaa.zip",
+             "size_bytes": 3412000, "created_by": None, "created_by_name": None, "created_at": "2026-09-26T02:41:00Z"},
+            {"id": "bk-2", "kind": "manual", "storage_path": "20260925T091500Z_manual_2222bbbb.zip",
+             "size_bytes": 43920, "created_by": "u1", "created_by_name": "Admin", "created_at": "2026-09-25T09:15:00Z"},
+        ]
+        self.fail_backup = False; self.backup_note = None; self.backup_pruned = 0
         self.passages = [{"id": "pa1", "title": "The Lost Wallet", "body": "Dina found a <u>brown</u> wallet.", "question_count": 3}, {"id": "pa2", "title": "The Smart Monkey", "body": "A clever monkey sat on a branch.", "question_count": 1}]
     def item(self, q):
         return {k: q[k] for k in ["id", "type", "body", "topic", "difficulty", "weight", "class_labels", "has_audio", "has_image", "has_passage", "used_in_exams", "is_archived"]} | {"updated_at": "2026-09-20T00:00:00Z"}
@@ -112,6 +121,8 @@ class Server:
             return self.handle_results(route, req)
         if "/functions/v1/audit" in url:
             return self.handle_audit(route, req)
+        if "/functions/v1/backups" in url:
+            return self.handle_backups(route, req)
         if "/auth-me" in url:
             return route.fulfill(status=200, content_type="application/json", body=json.dumps({"user": {"id": "u1", "fullName": "Admin" if self.role == "admin" else "Ms. Rina", "role": self.role}}))
         body = json.loads(req.post_data or "{}"); a = body.get("action"); self.calls.append(body)
@@ -708,6 +719,44 @@ class Server:
                 rows = [r for r in rows if datetime.datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")).timestamp() >= since]
             rows = sorted(rows, key=lambda r: r["created_at"], reverse=True)
             return ok({"logs": {"total": len(rows), "rows": rows[offset:offset + limit]}})
+        return err(400, "Unknown action")
+
+    def handle_backups(self, route, req):
+        body = json.loads(req.post_data or "{}"); a = body.get("action")
+        self.backup_calls.append(body)
+        def ok(data): route.fulfill(status=200, content_type="application/json", body=json.dumps(data))
+        def err(status, msg): route.fulfill(status=status, content_type="application/json", body=json.dumps({"error": msg, "code": "forbidden"}))
+
+        # Backups are an admin job (design.md 1.2): the mock refuses a teacher exactly like the real function.
+        if self.role != "admin":
+            return err(403, "You do not have access to this.")
+
+        if a == "create":
+            if self.fail_backup:
+                return route.fulfill(status=500, content_type="application/json",
+                                     body=json.dumps({"error": "Something went wrong. Please try again.", "code": "internal_error"}))
+            row = {"id": f"bk-{len(self.backups) + 1}", "kind": "manual",
+                   "storage_path": "20260926T032000Z_manual_3333cccc.zip", "size_bytes": 44512,
+                   "created_by": "u1", "created_by_name": "Admin", "created_at": "2026-09-26T03:20:00Z"}
+            self.backups.insert(0, row)
+            return ok({"backup": row, "files": 3, "media_included": self.backup_note is None,
+                       "media_note": self.backup_note, "pruned": self.backup_pruned})
+        if a == "list":
+            limit = body.get("limit") or 50
+            offset = body.get("offset") or 0
+            return ok({"backups": {"total": len(self.backups), "rows": self.backups[offset:offset + limit]}})
+        if a == "download":
+            row = next((b for b in self.backups if b["id"] == body.get("id")), None)
+            if row is None:
+                return err(400, "That backup no longer exists.")
+            return ok({"url": f"https://storage.test/signed/{row['storage_path']}?token=t",
+                       "name": f"english-test-v2_{row['storage_path']}", "expires_in": 3600})
+        if a == "delete":
+            row = next((b for b in self.backups if b["id"] == body.get("id")), None)
+            if row is None:
+                return err(400, "That backup no longer exists.")
+            self.backups.remove(row)
+            return ok({"id": row["id"], "removed": 1})
         return err(400, "Unknown action")
 
     def exam_row(self, e):
