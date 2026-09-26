@@ -200,6 +200,21 @@ with sync_playwright() as pw:
     check("an attempt still running has holes in the CSV too",
           re.search(r"^Bima Saputra,Class XII TKJ A,1,,,,,2,in_progress$", csv_export, re.M) is not None, csv_export)
 
+    # ---------- class summary PDF (mockup 14) ----------
+    with page.expect_download() as wanted:
+        page.click("button[data-export-pdf]")
+    download = wanted.value
+    check("the PDF export is named after the exam", download.suggested_filename == f"{export_name}.pdf", download.suggested_filename)
+    pdf_bytes = pathlib.Path(download.path()).read_bytes()
+    pdf_text = pdf_bytes.decode("latin-1")
+    check("the PDF has a PDF header", pdf_bytes.startswith(b"%PDF-1.4"))
+    check("the PDF has one page", pdf_text.count("/Type /Page /Parent") == 1 and "/Count 1" in pdf_text)
+    check("the PDF has a cross-reference table", b"startxref" in pdf_bytes and b"%%EOF" in pdf_bytes)
+    check("the PDF contains the exam title", "Narrative Text" in pdf_text)
+    check("the PDF contains the class summary heading", "Class summary" in pdf_text and "Performance by class" in pdf_text)
+    check("the PDF contains the merged class name", "Class XII TKJ A" in pdf_text)
+    check("the PDF contains the summary metrics", "Students" in pdf_text and "Average" in pdf_text and "Passed" in pdf_text)
+
     # ---------- one attempt in detail ----------
     page.query_selector(f"tr[data-session='{sid_c}'] a:has-text('Details')").click()
     page.wait_for_selector(".review-list")
