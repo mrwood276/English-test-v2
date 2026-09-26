@@ -30,6 +30,7 @@ export function renderDashboard(container, { onSignOut }) {
   const openArea = h("div", { class: "dash-open" });
   const attentionBody = h("div", {});
   const recentBody = h("div", {});
+  const notificationBody = h("div", {});
 
   mount(
     container,
@@ -43,6 +44,11 @@ export function renderDashboard(container, { onSignOut }) {
     status,
     h("div", { class: "dash-layout" },
       openArea,
+      h("section", { class: "card dash-list notifications", "aria-label": "Notifications" },
+        h("div", { class: "dash-section-head" },
+          h("div", {}, h("h2", {}, "Notifications"), h("p", { class: "hint" }, "Dashboard notices from the same live exam and results data.")),
+          h("button", { class: "btn small ghost", type: "button", id: "mark-notifications-read" }, "Mark all read")),
+        notificationBody),
       h("div", { class: "grid2" },
         h("section", { class: "card dash-list", "aria-label": "Needs your attention" },
           h("h2", {}, "Needs your attention"),
@@ -151,6 +157,74 @@ export function renderDashboard(container, { onSignOut }) {
         h("a", { class: "btn small ghost", href: "#/exams" }, "All exams")));
   }
 
+  // ---------- Dashboard notifications (no email yet; DEC-032) ----------
+  const READ_KEY = "ENGLISH_TEST_V2_DASHBOARD_NOTIFICATION_READ";
+  const readNotifications = () => {
+    try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || "[]")); } catch { return new Set(); }
+  };
+  const writeReadNotifications = (ids) => {
+    try { localStorage.setItem(READ_KEY, JSON.stringify([...ids].slice(-100))); } catch { /* best effort */ }
+  };
+
+  function notificationRows(activity, overviews) {
+    const items = [];
+    for (const exam of activity) {
+      if (exam.pending_essays > 0) {
+        items.push({
+          id: `essay:${exam.exam_id}`,
+          title: `${exam.pending_essays} ${exam.pending_essays === 1 ? "essay needs" : "essays need"} grading`,
+          detail: exam.title,
+          href: `#/grading/${exam.exam_id}`,
+          label: "Grade",
+        });
+      }
+      const ov = overviews.get(exam.exam_id);
+      const flagged = ov ? ov.rows.filter((r) => isWorking(r) &&
+        (r.tab_switch_count || 0) >= (r.tab_switch_flag_limit ?? 3)).length : 0;
+      if (flagged > 0) {
+        items.push({
+          id: `flag:${exam.exam_id}`,
+          title: `${flagged} ${flagged === 1 ? "session needs" : "sessions need"} review`,
+          detail: `${exam.title} · many page exits`,
+          href: `#/monitor/${exam.exam_id}`,
+          label: "Review",
+        });
+      }
+      if ((exam.finished || 0) > 0 && exam.last_submitted_at) {
+        items.push({
+          id: `result:${exam.exam_id}:${exam.last_submitted_at}`,
+          title: `${exam.finished} ${exam.finished === 1 ? "student has" : "students have"} finished`,
+          detail: exam.title,
+          href: `#/results/${exam.exam_id}`,
+          label: "View results",
+        });
+      }
+    }
+    return items
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .slice(0, 8);
+  }
+
+  function renderNotifications(items) {
+    const read = readNotifications();
+    const unread = items.filter((item) => !read.has(item.id));
+    const head = notificationBody.parentElement?.querySelector(".dash-section-head");
+    if (head) {
+      const label = head.querySelector("h2");
+      if (label) label.textContent = unread.length ? `Notifications (${unread.length} new)` : "Notifications";
+    }
+    if (items.length === 0) {
+      return h("p", { class: "hint" }, "No new dashboard notices.");
+    }
+    return items.map((item) =>
+      h("div", { class: `dash-item notification${read.has(item.id) ? " is-read" : ""}` },
+        h("span", {},
+          h("strong", {}, item.title),
+          h("small", {}, item.detail)),
+        h("a", { class: "btn small ghost", href: item.href, "data-notification-id": item.id }, item.label))
+    );
+  }
+
   // ---------- "Needs your attention": only what a teacher must act on ----------
   function attentionRows(activity, overviews) {
     const items = [];
@@ -227,11 +301,22 @@ export function renderDashboard(container, { onSignOut }) {
       for (const ov of loaded) if (ov) overviews.set(ov.exam.id, ov);
 
       status.replaceChildren();
+      const notificationItems = notificationRows(activity, overviews);
+      notificationBody.replaceChildren(...renderNotifications(notificationItems));
       openArea.replaceChildren(
         ...open.map((exam) => openCard(exam, overviews.get(exam.id))),
         open.length === 0 ? noOpenCard() : null);
       attentionBody.replaceChildren(...attentionRows(activity, overviews));
       recentBody.replaceChildren(...recentRows(activity));
+      const markRead = container.querySelector("#mark-notifications-read");
+      if (markRead) {
+        markRead.onclick = () => {
+          const read = readNotifications();
+          for (const item of notificationItems) read.add(item.id);
+          writeReadNotifications(read);
+          notificationBody.replaceChildren(...renderNotifications(notificationItems));
+        };
+      }
     } catch (err) {
       if (id !== state.requestId || ignorable(err)) return;
       status.replaceChildren(h("p", { class: "sub" }, errorText(err)));
