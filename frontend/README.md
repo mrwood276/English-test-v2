@@ -106,6 +106,18 @@ tests/                          browser tests with a mocked server (mock_server.
                                 proves the guards (self-demotion and self-deactivation refused), then
                                 deletes the account again and compares the project's own two
                                 accounts row for row with the ones it read at the start
+                                live_bulk_check.py is the bulk half of the question bank (F-17). It
+                                writes, and it says exactly what it writes: three throwaway questions
+                                of its own, changed in bulk through the deployed question-bank —
+                                topic, difficulty, points, class labels add/remove/replace, an id
+                                that is gone, the archive/restore round trip — with every refusal
+                                tried as well, plus a control question read before and after to
+                                prove nothing else moved. It drives the real screen once (filter,
+                                select the page, new topic, preview, apply), then deletes its three
+                                questions and its two test topics and compares the live counts with
+                                the ones it took at the start. Needs the dev server for the screen
+                                half (`--api-only` skips it); the owner's own questions are never
+                                modified
 ```
 
 ## Notes

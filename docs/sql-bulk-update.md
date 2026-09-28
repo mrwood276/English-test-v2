@@ -121,13 +121,35 @@ it also inserts one (the pattern `docs/sql-jobs.md` describes):
   The mock server (`frontend/tests/mock_server.py`) grew a `bulk_update` handler with the same rules.
 * The other twelve browser suites are unchanged and green (689 checks in total).
 
+## Running it against the live project (TASK-024)
+
+`frontend/tests/live_bulk_check.py` is written and **has never been run** — the session that wrote it had no
+Supabase credential (see ISSUE-033). It needs one:
+
+```
+python frontend/dev-server.py 8123                        # for its screen half
+SUPABASE_ACCESS_TOKEN='...' python frontend/tests/live_bulk_check.py
+SUPABASE_ACCESS_TOKEN='...' python frontend/tests/live_bulk_check.py --api-only   # skip the browser half
+```
+
+What it does, and what it promises: it **creates three throwaway questions of its own** (`LIVE BULK CHECK
+<stamp>` in each body), changes them in bulk through the deployed function — topic, difficulty, points, class
+labels add/remove/replace, an id that is gone, archive and restore — tries every refusal (tokenless 401, no
+change, unknown difficulty, points out of range, unknown label action, no labels, more than 500 ids, a
+selection that no longer exists), drives the real screen once (filter, select the page, choose a **new**
+topic, read the preview, apply), checks the audit trail (one entry per act with the real count, and no
+`question.update` rows for its ids), then **deletes its three questions and its two test topics** and compares
+the live counts with the ones it took at the start. The owner's own questions are never modified — the one
+real question it reads is a control, fetched before and after. The only thing it deliberately leaves behind
+is the audit history of its own acts.
+
 ## Still to do, and honestly not done
 
 * **`supabase/tests/bulk_update_test.sql` has never been run.** It is written against the real catalogue
   (`save_question`, `upsert_topic`, `question_class_labels`, `difficulty_level`, the audit table) and its
   header says so; it is the one file in this feature without a pass behind it. Run it as step 2 above.
-* **No live browser check.** A `live_bulk_check.py` in the style of `live_duplicates_check.py` would join
-  the other live checks: tick two real questions, change a real topic, and put them back.
+* **`frontend/tests/live_bulk_check.py` has never been run either** — it compiles, and its two halves refuse
+  to start without a credential and say so, but no pass line exists for it yet.
 * **A bulk change does not touch the question text, answers, explanation or reading text** — deliberately.
   Those are per-question decisions, and a batch edit of a shared reading text is a de-duplication problem
   (see `duplicateGroupsDialog`), not a bulk-edit one.
