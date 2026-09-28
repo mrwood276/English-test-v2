@@ -35,6 +35,9 @@ class Server:
         self.saved = []; self.dup_calls = []; self.media = {}; self.media_calls = []; self.register_error = None; self.last_upload_size = None
         # the whole-bank duplicate scan behind the list banner (TASK-020): one exact group and one pair that reads alike
         self.dup_scans = []; self.fail_duplicates = False
+        # bulk changes (F-05): what was asked for, whether the server refuses, ids that are "gone", and a
+        # pretend total so the "more than one change may touch" guard can be reached with a small bank
+        self.bulk_calls = []; self.fail_bulk = False; self.bulk_forget = set(); self.fake_total = None
         qid = lambda n: f"00000000-0000-4000-8000-{n:012d}"
         qbody = lambda n: f"Question number {n} about {'Narrative Text' if n <= 15 else 'Simple Past'}"
         self.dup_groups = {
@@ -158,7 +161,7 @@ class Server:
             if sort == "oldest": rows.sort(key=lambda q: q["created"])
             if sort == "body": rows.sort(key=lambda q: q["body"])
             size = body.get("page_size", 25); page = body.get("page", 1)
-            return ok({"items": [self.item(q) for q in rows[(page - 1) * size: page * size]], "total": len(rows), "page": page, "page_size": size})
+            return ok({"items": [self.item(q) for q in rows[(page - 1) * size: page * size]], "total": self.fake_total if self.fake_total is not None else len(rows), "page": page, "page_size": size})
         if a == "get":
             q = next((q for q in self.qs if q["id"] == body["id"]), None)
             return ok({"question": self.full(q)}) if q else route.fulfill(status=404, content_type="application/json", body=json.dumps({"error": "That question no longer exists.", "code": "not_found"}))
@@ -185,6 +188,56 @@ class Server:
             if self.fail_duplicates:
                 return route.fulfill(status=500, content_type="application/json", body=json.dumps({"error": "Something went wrong. Please try again.", "code": "internal_error"}))
             return ok(self.dup_groups)
+        if a == "bulk_update":
+            self.bulk_calls.append(body)
+            def bad(msg): return route.fulfill(status=400, content_type="application/json", body=json.dumps({"error": msg, "code": "bad_request"}))
+            if self.fail_bulk:
+                return route.fulfill(status=500, content_type="application/json", body=json.dumps({"error": "Something went wrong. Please try again.", "code": "internal_error"}))
+            selected = list(dict.fromkeys(body.get("ids") or []))
+            ids = [i for i in selected if i not in self.bulk_forget]
+            ch = body.get("changes") or {}
+            if not selected: return bad("Select at least one question.")
+            if len(selected) > 500: return bad("Change at most 500 questions at once.")
+            if not ch: return bad("Choose at least one thing to change.")
+            if "difficulty" in ch and ch["difficulty"] not in DIFFS: return bad("Choose Easy, Medium, or HOTS.")
+            weight = None
+            if "weight" in ch:
+                try: weight = float(ch["weight"])
+                except (TypeError, ValueError): return bad("Points must be a number.")
+                if not 0 < weight <= 100: return bad("Points must be more than 0 and at most 100.")
+            if "class_labels" in ch:
+                mode = (ch["class_labels"] or {}).get("mode")
+                if mode not in ("add", "remove", "replace"): return bad("Choose what to do with the class labels.")
+                if not [x for x in (ch["class_labels"].get("labels") or []) if str(x).strip()] and mode != "remove":
+                    return bad("Add at least one class label.")
+            rows = [q for q in self.qs if q["id"] in ids]
+            if not rows: return bad("Those questions no longer exist. Refresh the list and try again.")
+            norm = lambda t: " ".join(str(t).split()).lower()
+            changed = set()
+            for q in rows:
+                if "topic" in ch and q["topic"] != (ch["topic"] or ""):
+                    q["topic"] = ch["topic"] or ""; changed.add(q["id"])
+                if "difficulty" in ch and q["difficulty"] != ch["difficulty"]:
+                    q["difficulty"] = ch["difficulty"]; changed.add(q["id"])
+                if weight is not None and float(q["weight"]) != weight:
+                    q["weight"] = weight; changed.add(q["id"])
+                if "class_labels" in ch:
+                    want = []
+                    for l in ch["class_labels"].get("labels") or []:
+                        if str(l).strip() and norm(l) not in [norm(x) for x in want]: want.append(str(l).strip())
+                    have = list(q["class_labels"])
+                    if mode == "add": after = have + [l for l in want if norm(l) not in [norm(x) for x in have]]
+                    elif mode == "remove": after = [l for l in have if norm(l) not in [norm(x) for x in want]]
+                    else: after = want
+                    if len(after) > 10: return bad("A question can have at most 10 class labels.")
+                    if [norm(x) for x in after] != [norm(x) for x in have]:
+                        q["class_labels"] = after; changed.add(q["id"])
+            if "archived" in ch:
+                want = bool(ch["archived"])
+                for q in rows:
+                    if q["is_archived"] != want:
+                        q["is_archived"] = want; changed.add(q["id"])
+            return ok({"matched": len(rows), "updated": len(changed), "unchanged": len(rows) - len(changed), "missing": len(selected) - len(rows)})
         if a == "import_check":
             self.import_checks.append(body)
             results = []

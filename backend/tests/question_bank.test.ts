@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHandler, type Db } from "../functions/question-bank/handler.ts";
-import { parseListFilters, parseQuestionInput, parsePassageInput } from "../functions/question-bank/parse.ts";
+import { parseBulkUpdate, parseListFilters, parseQuestionInput, parsePassageInput } from "../functions/question-bank/parse.ts";
 import { asNumber, asPlain } from "../functions/_shared/validate.ts";
 import { callRpc } from "../functions/_shared/rpc.ts";
 import { ApiError } from "../functions/_shared/errors.ts";
@@ -278,4 +278,65 @@ Deno.test("the import endpoints check first and save all-or-nothing", async () =
   const refused = await dbErr(post({ action: "import", items: [importRow] }));
   assert.equal(refused.status, 400);
   assert.equal((await refused.json()).error, "Row 7: Choose exactly one correct answer.");
+});
+
+// ---------- changing many questions at once (F-05) ----------
+Deno.test("parseBulkUpdate sends only the fields that were asked for", () => {
+  const { ids, changes } = parseBulkUpdate({ ids: [QID, QID], changes: { topic: "Simple Past", class_labels: { mode: "add", labels: ["XI TKJ A", "  "] } } });
+  assert.deepEqual(ids, [QID], "a question picked twice is sent once");
+  assert.deepEqual(changes, { topic: "Simple Past", class_labels: { mode: "add", labels: ["XI TKJ A"] } });
+  assert.deepEqual(parseBulkUpdate({ ids: [QID], changes: { difficulty: "hots", weight: 2.5, archived: true } }).changes,
+    { difficulty: "hots", weight: 2.5, archived: true });
+});
+
+Deno.test("parseBulkUpdate reads a blank topic as 'remove the topic'", () => {
+  assert.deepEqual(parseBulkUpdate({ ids: [QID], changes: { topic: "   " } }).changes, { topic: "" });
+  assert.deepEqual(parseBulkUpdate({ ids: [QID], changes: { topic: null } }).changes, { topic: "" });
+});
+
+Deno.test("parseBulkUpdate refuses a change that would change nothing, or too much", () => {
+  assert.throws(() => parseBulkUpdate({ ids: [], changes: { topic: "x" } }), /at least 1/);
+  assert.throws(() => parseBulkUpdate({ ids: new Array(501).fill(QID), changes: { topic: "x" } }), /at most 500/);
+  assert.throws(() => parseBulkUpdate({ ids: ["not-a-uuid"], changes: { topic: "x" } }), /Question 1/);
+  assert.throws(() => parseBulkUpdate({ ids: [QID], changes: {} }), (e: ApiError) => e.status === 400 && e.message === "Choose at least one thing to change.");
+  assert.throws(() => parseBulkUpdate({ ids: [QID], changes: { difficulty: "impossible" } }), /Difficulty/);
+  assert.throws(() => parseBulkUpdate({ ids: [QID], changes: { weight: 0 } }), /Points/);
+  assert.throws(() => parseBulkUpdate({ ids: [QID], changes: { weight: 101 } }), /Points/);
+  assert.throws(() => parseBulkUpdate({ ids: [QID], changes: { weight: "two" } }), /Points/);
+  assert.throws(() => parseBulkUpdate({ ids: [QID], changes: { archived: "yes" } }), /Archived/);
+  assert.throws(() => parseBulkUpdate({ ids: [QID], changes: { topic: "x".repeat(121) } }), /Topic/);
+  assert.throws(() => parseBulkUpdate({ ids: [QID], changes: { class_labels: { mode: "merge", labels: ["A"] } } }), /Class label action/);
+  assert.throws(() => parseBulkUpdate({ ids: [QID], changes: { class_labels: { mode: "add", labels: [] } } }), /Add at least one class label/);
+  assert.throws(() => parseBulkUpdate({ ids: [QID], changes: { class_labels: { mode: "replace", labels: ["x".repeat(41)] } } }), /Class label/);
+  assert.throws(() => parseBulkUpdate({ ids: [QID], changes: { class_labels: { mode: "add", labels: new Array(11).fill("L") } } }), /at most 10/);
+  // Taking a label away needs no labels: "remove nothing" is a legal, honest request.
+  assert.deepEqual(parseBulkUpdate({ ids: [QID], changes: { class_labels: { mode: "remove", labels: [] } } }).changes,
+    { class_labels: { mode: "remove", labels: [] } });
+});
+
+Deno.test("bulk_update is one call for the whole selection, with the signed-in person as actor", async () => {
+  const result = { matched: 3, updated: 2, unchanged: 1, missing: 0 };
+  const { db, calls } = fakeDb((name) => (name === "bulk_update_questions" ? { data: result } : {}));
+  const res = await createHandler(() => db)(post({ action: "bulk_update", ids: [QID], changes: { archived: true } }));
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), result, "the counts the screen reports come straight from the database");
+  assert.deepEqual(calls, [{ name: "bulk_update_questions", args: { p_ids: [QID], p_changes: { archived: true }, p_actor: TEACHER } }]);
+});
+
+Deno.test("a database refusal of a bulk change comes back as a friendly 400", async () => {
+  const { db } = fakeDb(() => ({ error: { message: "Change at most 500 questions at once.", hint: "validation" } }));
+  const res = await createHandler(() => db)(post({ action: "bulk_update", ids: [QID], changes: { archived: true } }));
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).error, "Change at most 500 questions at once.");
+  const broken = createHandler(() => fakeDb(() => ({ error: { message: "relation does not exist", code: "42P01" } })).db);
+  const hidden = await broken(post({ action: "bulk_update", ids: [QID], changes: { archived: true } }));
+  assert.equal(hidden.status, 500);
+  assert.ok(!JSON.stringify(await hidden.json()).includes("relation"), "a real database failure is not quoted to the browser");
+});
+
+Deno.test("bulk_update is not reachable without a signed-in teacher or admin", async () => {
+  const { db, calls } = fakeDb();
+  const res = await createHandler(() => db)(post({ action: "bulk_update", ids: [QID], changes: { archived: true } }, null));
+  assert.equal(res.status, 401);
+  assert.equal(calls.length, 0, "nothing reaches the database");
 });

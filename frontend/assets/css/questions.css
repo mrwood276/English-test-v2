@@ -50,6 +50,24 @@
 .pager:empty { display: none; }
 .pager-buttons { display: flex; gap: 8px; }
 
+/* ---------- Bulk selection and bulk edit (F-05) ---------- */
+.col-pick { width: 40px; text-align: center; }
+.col-pick input { width: 18px; height: 18px; cursor: pointer; }
+.qtable tr.picked td { background: var(--paper); }
+.qtable tr.picked.sel td { background: var(--pen-tint); }
+/* The bar sits between the toolbar and the list, and wraps instead of squeezing on a narrow screen. */
+.bulkbar { display: flex; align-items: center; justify-content: space-between; gap: 10px 12px; flex-wrap: wrap; background: var(--pen-tint); border: 1.5px solid var(--pen); border-radius: var(--radius-m); padding: 8px 12px; margin-bottom: 12px; font-size: 13.5px; color: var(--pen); }
+.bulk-summary { display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; min-width: 0; }
+.bulk-count { font-weight: 700; }
+.bulkbar .hint { color: var(--ink-2); margin: 0; }
+.bulk-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.bulk-all { flex-basis: 100%; display: flex; align-items: center; gap: 4px 6px; flex-wrap: wrap; color: var(--ink-2); }
+.bulk-dialog { max-width: 560px; max-height: 90vh; overflow: auto; }
+.bulk-lines { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 16px; margin: 0 0 14px; font-size: 14px; }
+.bulk-lines dt { color: var(--ink-2); font-weight: 600; }
+.bulk-lines dd { margin: 0; }
+.bulk-total { font-weight: 700; margin-bottom: 0 !important; }
+
 /* ---------- Preview ---------- */
 .preview { padding: 16px 18px !important; position: sticky; top: 16px; }
 .preview-head { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }

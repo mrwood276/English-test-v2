@@ -1,11 +1,16 @@
 import { asArray, asBool, asEnum, asInt, asNumber, asObject, asPlain, asString, asUuid, optional } from "../_shared/validate.ts";
-import { ApiError } from "../_shared/errors.ts";
+import { ApiError, badRequest } from "../_shared/errors.ts";
 import { sanitizeInlineHtml } from "../_shared/text.ts";
 
 export const QUESTION_TYPES = ["multiple_choice", "true_false", "short_answer", "essay"] as const;
 export const DIFFICULTIES = ["easy", "medium", "hots"] as const;
 export const SORTS = ["newest", "oldest", "difficulty", "body"] as const;
 export const USED_FILTERS = ["any", "used", "unused"] as const;
+export const BULK_LABEL_MODES = ["add", "remove", "replace"] as const;
+
+/** How many questions one bulk change may touch, and the most class labels one question may carry. */
+export const BULK_MAX_QUESTIONS = 500;
+const MAX_CLASS_LABELS = 10;
 
 /** File ids from the editor. Absent means "leave the files as they are"; an empty list removes them all. */
 const mediaList = (v: unknown): { id: string }[] =>
@@ -30,6 +35,44 @@ export function parseListFilters(b: Record<string, unknown>): Record<string, unk
   if (b.page !== undefined) out.page = asInt(b.page, "Page", { min: 1, max: 100000 });
   if (b.page_size !== undefined) out.page_size = asInt(b.page_size, "Page size", { min: 1, max: 100 });
   return out;
+}
+
+/**
+ * A bulk change for the question bank: the questions to touch and what to change about them.
+ * Only the keys that are really present are sent on, and an absent key means "leave this field alone" —
+ * that is what the dialog's "Keep the same" options produce, so "keep" is never a value the database has
+ * to interpret. At least one change is required, or the call would be a silent no-op.
+ *
+ *   { ids: [uuid, ...], changes: {
+ *       topic?: string,                                        // "" clears it
+ *       difficulty?: "easy" | "medium" | "hots",
+ *       weight?: number,
+ *       archived?: boolean,
+ *       class_labels?: { mode: "add" | "remove" | "replace", labels: string[] } } }
+ */
+export function parseBulkUpdate(b: Record<string, unknown>): { ids: string[]; changes: Record<string, unknown> } {
+  const ids = [...new Set(asArray(b.ids, "Questions", { min: 1, max: BULK_MAX_QUESTIONS }).map((v, i) => asUuid(v, `Question ${i + 1}`)))];
+  const raw = b.changes === undefined || b.changes === null ? {} : asObject(b.changes, "Changes");
+  const changes: Record<string, unknown> = {};
+
+  // A blank topic means "remove the topic", so it is kept as an empty string rather than dropped.
+  if (raw.topic !== undefined) changes.topic = isBlank(raw.topic) ? "" : asPlain(raw.topic, "Topic", { max: 120 });
+  if (raw.difficulty !== undefined) changes.difficulty = asEnum(raw.difficulty, "Difficulty", DIFFICULTIES);
+  if (raw.weight !== undefined) changes.weight = asNumber(raw.weight, "Points", { min: 0.01, max: 100 });
+  if (raw.archived !== undefined) changes.archived = asBool(raw.archived, "Archived");
+
+  if (raw.class_labels !== undefined && raw.class_labels !== null) {
+    const label = asObject(raw.class_labels, "Class labels");
+    const mode = asEnum(label.mode, "Class label action", BULK_LABEL_MODES);
+    const labels = asArray(label.labels ?? [], "Class labels", { max: MAX_CLASS_LABELS })
+      .filter((v) => !isBlank(v))
+      .map((v, i) => asPlain(v, `Class label ${i + 1}`, { min: 1, max: 40 }));
+    if (labels.length === 0 && mode !== "remove") throw badRequest("Add at least one class label.");
+    changes.class_labels = { mode, labels };
+  }
+
+  if (Object.keys(changes).length === 0) throw badRequest("Choose at least one thing to change.");
+  return { ids, changes };
 }
 
 /** A question from the editor, cleaned and shaped for public.save_question. */

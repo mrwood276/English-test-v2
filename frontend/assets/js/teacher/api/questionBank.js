@@ -11,6 +11,13 @@ export const questionBank = {
   remove: (id) => call({ action: "remove", id }).then((r) => r.result),
   archive: (id) => call({ action: "archive", id }),
   restore: (id) => call({ action: "restore", id }),
+  /**
+   * Change many questions in one request. `changes` holds only what should change (a missing key means
+   * "leave it alone"). Returns { matched, updated, unchanged, missing }: how many of the ids were found,
+   * how many really changed, how many already looked the way they were asked to, and how many ids no
+   * longer exist.
+   */
+  bulkUpdate: (ids, changes) => call({ action: "bulk_update", ids, changes }),
   save: (question) => call({ action: "save", ...question }).then((r) => r.id),
   checkDuplicates: ({ body, options, excludeId }) => call({ action: "check_duplicates", body, options, exclude_id: excludeId }).then((r) => r.matches),
   /** The whole-bank duplicate scan for the list banner: { question_count, exact_groups, similar_pairs }. */

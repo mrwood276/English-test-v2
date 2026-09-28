@@ -16,6 +16,10 @@ from mock_server import Server, make_questions
 
 def rows(page): return page.query_selector_all(".qtable tbody tr")
 def wait_rows(page, n): page.wait_for_function(f"document.querySelectorAll('.qtable tbody tr').length === {n}")
+def qid(n): return f"00000000-0000-4000-8000-{n:012d}"
+def pick(page, n): page.check(f"tr[data-id='{qid(n)}'] input.pick")
+def bulk(page, label): page.click(f"dialog.bulk-dialog button:has-text('{label}')")
+def count_is(page, text): page.wait_for_function(f"document.querySelector('.head .sub').textContent === '{text}'")
 
 with sync_playwright() as pw:
     browser = pw.chromium.launch()
@@ -161,6 +165,184 @@ with sync_playwright() as pw:
     page.wait_for_function("document.querySelector('.head .sub').textContent === '28 questions'")
     check("used question is archived, not deleted", True)
 
+    # --- bulk selection (F-05): select a page, add up across pages, and never change anything unseen
+    count_is(page, "28 questions")
+    check("there is no bulk bar until something is picked", page.is_hidden(".bulkbar"))
+    check("every row carries a checkbox", len(page.query_selector_all(".qtable tbody tr input.pick")) == 25)
+    pick(page, 1); page.wait_for_selector(".bulkbar:not([hidden])")
+    check("picking one shows the bar and the count", "1 question selected" in page.inner_text(".bulkbar"), page.inner_text(".bulkbar"))
+    check("a picked row is shaded", page.query_selector(f"tr[data-id='{qid(1)}'].picked") is not None)
+    check("the header box is half-ticked when part of the page is picked", page.evaluate("document.querySelector('#qb-pick-all').indeterminate"))
+    pick(page, 2); page.uncheck(f"tr[data-id='{qid(1)}'] input.pick")
+    check("unticking one leaves the other", "1 question selected" in page.inner_text(".bulkbar"))
+    page.check("#qb-pick-all")
+    check("the header box picks the whole page", len(rows(page)) == 25 and len(page.query_selector_all("tr.picked")) == 25 and "25 questions selected" in page.inner_text(".bulkbar"))
+    check("the bar ticks the header box and drops the half-tick", page.evaluate("document.querySelector('#qb-pick-all').checked && !document.querySelector('#qb-pick-all').indeterminate"))
+    check("the bar offers to take the whole filtered result",
+          "All 25 questions on this page are selected." in page.inner_text(".bulk-all") and "Select all 28 matching questions" in page.inner_text(".bulk-all"), page.inner_text(".bulk-all"))
+    page.uncheck("#qb-pick-all")
+    check("unticking the header box clears the page and hides the bar", page.is_hidden(".bulkbar") and not page.query_selector("tr.picked"))
+
+    # --- selection across pages
+    page.check("#qb-pick-all")
+    page.click("button[aria-label='Next page']"); wait_rows(page, 3)
+    check("paging keeps the ticks and says how much is off this page",
+          "25 questions selected" in page.inner_text(".bulkbar") and "25 not on this page" in page.inner_text(".bulkbar"), page.inner_text(".bulkbar"))
+    check("the rows on the second page start unpicked", len(page.query_selector_all("tr.picked")) == 0)
+    page.check("#qb-pick-all")
+    check("picks add up across pages", "28 questions selected" in page.inner_text(".bulkbar"))
+    check("nothing more is offered once the whole result is picked", page.is_hidden(".bulk-all"))
+    page.click("button[aria-label='Previous page']"); wait_rows(page, 25)
+    check("the first page comes back picked", len(page.query_selector_all("tr.picked")) == 25)
+
+    # --- what a filter change does to a selection
+    page.fill("#qb-search", "number 12"); page.wait_for_function("document.querySelector('.head .sub').textContent.includes('matches')")
+    check("a filter change keeps the ticks and shows where they went",
+          "28 questions selected" in page.inner_text(".bulkbar") and "27 not on this page" in page.inner_text(".bulkbar")
+          and [t.get_attribute("data-id") for t in page.query_selector_all("tr.picked")] == [qid(12)],
+          page.inner_text(".bulkbar"))
+    page.fill("#qb-search", ""); count_is(page, "28 questions")
+    check("clearing the filter brings the ticks back", len(page.query_selector_all("tr.picked")) == 25)
+    page.check("#qb-archived"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 1")
+    check("the archived switch clears the ticks, because it flips what the buttons mean", page.is_hidden(".bulkbar"))
+    page.uncheck("#qb-archived"); count_is(page, "28 questions")
+
+    # --- select all filtered results
+    page.check("#qb-pick-all")
+    calls_before = len(srv.calls)
+    page.click(".bulk-all .link-btn")
+    page.wait_for_function("document.querySelector('.bulk-count').textContent.includes('28')")
+    check("select all matching takes the whole result, not just this page", "28 questions selected" in page.inner_text(".bulkbar") and len(page.query_selector_all("tr.picked")) == 25)
+    check("it asks for the ids in the fewest requests the list API allows",
+          len(srv.calls) - calls_before == 1 and srv.calls[-1]["action"] == "list" and srv.calls[-1]["page_size"] == 100)
+    check("the offer goes away once it is taken", page.is_hidden(".bulk-all"))
+
+    # --- bulk edit: preview, then apply
+    page.click(".bulkbar button:has-text('Edit')"); page.wait_for_selector("dialog.bulk-dialog[open]")
+    check("the dialog names how many questions it will change", "Edit 28 questions" in page.inner_text("dialog.bulk-dialog"))
+    check("every field starts on keep-as-it-is",
+          page.input_value("#bulk-topic") == "" and page.input_value("#bulk-difficulty") == "" and page.input_value("#bulk-labels-mode") == "" and page.input_value("#bulk-weight") == "")
+    bulk(page, "Preview changes")
+    check("an empty change set is refused", "Choose at least one thing to change." in page.inner_text("dialog.bulk-dialog .notice.error"))
+    page.select_option("#bulk-topic", "Simple Past")
+    page.select_option("#bulk-labels-mode", "add")
+    page.fill("#bulk-labels", "XI TKJ A"); page.keyboard.press("Enter")
+    page.wait_for_selector("dialog.bulk-dialog .chipx:has-text('XI TKJ A')")
+    check("the errors go away once the form is filled in", page.is_hidden("dialog.bulk-dialog .notice.error"))
+    bulk(page, "Preview changes")
+    preview = page.inner_text("dialog.bulk-dialog")
+    check("the preview says what happens and how much",
+          "You selected 28 questions." in preview and "28 questions will be affected." in preview, preview[:300])
+    check("the preview spells out each change and each thing left alone",
+          "Change to \"Simple Past\"" in preview and "Keep as it is" in preview and "Add XI TKJ A" in preview and "Keep each question's own points" in preview, preview[:400])
+    check("nothing has been sent yet", not srv.bulk_calls)
+    check("the preview can be backed out of", page.is_visible("dialog.bulk-dialog button:has-text('Back')"))
+    targets = [q["id"] for q in srv.qs if not q["is_archived"]]
+    bulk(page, "Apply changes")
+    page.wait_for_selector(".toast:has-text('28 questions updated')")
+    page.wait_for_function("document.querySelector('dialog.bulk-dialog') === null")
+    check("the dialog closes and the bar goes with the applied selection", page.is_hidden(".bulkbar"))
+    sent = srv.bulk_calls[-1]
+    check("one request carries every selected id", sent["action"] == "bulk_update" and sorted(sent["ids"]) == sorted(targets), str(len(sent.get("ids", []))))
+    check("a field left alone is not sent at all", set(sent["changes"]) == {"topic", "class_labels"}, str(sent["changes"]))
+    check("the label action travels as add", sent["changes"]["class_labels"] == {"mode": "add", "labels": ["XI TKJ A"]}, str(sent["changes"]))
+    by_id = {q["id"]: q for q in srv.qs}
+    check("the change reached every selected question and nobody else",
+          all(by_id[i]["topic"] == "Simple Past" and "XI TKJ A" in by_id[i]["class_labels"] for i in targets)
+          and "XI TKJ A" not in by_id[qid(3)]["class_labels"], str(by_id[qid(3)]["class_labels"]))
+    page.wait_for_function("document.querySelector('.qtable tbody tr .qcell small').textContent.includes('Simple Past')")
+    check("the list is reloaded from the server, not patched by hand", True)
+
+    # --- bulk edit of a few questions, and a change that changes nothing
+    pick(page, 1); pick(page, 2)
+    page.click(".bulkbar button:has-text('Edit')"); page.wait_for_selector("dialog.bulk-dialog[open]")
+    page.select_option("#bulk-difficulty", "hots"); bulk(page, "Preview changes")
+    check("the preview keeps to what is picked", "You selected 2 questions." in page.inner_text("dialog.bulk-dialog"))
+    bulk(page, "Apply changes"); page.wait_for_selector(".toast:has-text('2 questions updated')")
+    check("only the two picked questions changed", by_id[qid(1)]["difficulty"] == "hots" and by_id[qid(2)]["difficulty"] == "hots" and by_id[qid(5)]["difficulty"] != "hots")
+    pick(page, 1); pick(page, 2)
+    page.click(".bulkbar button:has-text('Edit')"); page.wait_for_selector("dialog.bulk-dialog[open]")
+    page.select_option("#bulk-difficulty", "hots"); bulk(page, "Preview changes"); bulk(page, "Apply changes")
+    page.wait_for_selector(".toast:has-text('Nothing changed')")
+    check("a change that changes nothing says so instead of claiming success", True)
+
+    # --- a question that is gone is counted, not hidden
+    pick(page, 5); pick(page, 6)
+    srv.bulk_forget = {qid(5)}
+    page.click(".bulkbar button:has-text('Edit')"); page.wait_for_selector("dialog.bulk-dialog[open]")
+    page.select_option("#bulk-difficulty", "easy"); bulk(page, "Preview changes"); bulk(page, "Apply changes")
+    page.wait_for_selector(".toast:has-text('is no longer there')")
+    check("a question that vanished is reported with the rest of the news", "1 question updated" in page.inner_text(".toasts"), page.inner_text(".toasts"))
+    check("the questions that still exist were still changed", by_id[qid(6)]["difficulty"] == "easy")
+    srv.bulk_forget = set()
+
+    # --- a failed change is shown where the form is, and nothing is pretended
+    before = by_id[qid(8)]["difficulty"]
+    check("the question this checks starts on another difficulty", before != "hots")
+    pick(page, 8)
+    page.click(".bulkbar button:has-text('Edit')"); page.wait_for_selector("dialog.bulk-dialog[open]")
+    page.select_option("#bulk-difficulty", "hots"); bulk(page, "Preview changes")
+    srv.fail_bulk = True
+    bulk(page, "Apply changes"); page.wait_for_selector("dialog.bulk-dialog .notice.error")
+    check("a refused change is explained inside the dialog, which stays open", "Something went wrong" in page.inner_text("dialog.bulk-dialog .notice.error"))
+    check("the buttons come back so it can be tried again", page.is_enabled("dialog.bulk-dialog button:has-text('Apply changes')"))
+    check("the question was not touched", by_id[qid(8)]["difficulty"] == before)
+    srv.fail_bulk = False
+    bulk(page, "Apply changes")
+    page.wait_for_function("document.querySelector('dialog.bulk-dialog') === null")
+    check("trying again after the server recovers works", by_id[qid(8)]["difficulty"] == "hots")
+
+    # --- closing without applying keeps the ticks
+    pick(page, 8)
+    page.click(".bulkbar button:has-text('Edit')"); page.wait_for_selector("dialog.bulk-dialog[open]")
+    page.keyboard.press("Escape"); page.wait_for_function("document.querySelector('dialog.bulk-dialog') === null")
+    check("closing without applying keeps the ticks", "1 question selected" in page.inner_text(".bulkbar"))
+    page.click(".bulkbar button:has-text('Clear')")
+    check("clear empties the selection", page.is_hidden(".bulkbar"))
+
+    # --- bulk archive and restore
+    pick(page, 9); pick(page, 10); pick(page, 11)
+    changes_before = len(srv.bulk_calls)
+    page.click(".bulkbar button:has-text('Archive')"); page.wait_for_selector("dialog[open]")
+    check("archiving a batch asks first and explains what it means",
+          "Archive 3 questions?" in page.inner_text("dialog") and "restore them later" in page.inner_text("dialog"))
+    page.keyboard.press("Escape"); page.wait_for_function("document.querySelector('dialog') === null")
+    check("backing out of the question changes nothing", page.inner_text(".head .sub") == "28 questions" and len(page.query_selector_all("tr.picked")) == 3 and len(srv.bulk_calls) == changes_before,
+          page.inner_text(".head .sub"))
+    page.click(".bulkbar button:has-text('Archive')"); page.wait_for_selector("dialog[open]")
+    page.click("dialog button:has-text('Archive')"); page.wait_for_selector(".toast:has-text('3 questions updated')")
+    count_is(page, "25 questions")
+    check("archiving takes the whole batch out of the list in one request",
+          srv.bulk_calls[-1]["changes"] == {"archived": True} and len(srv.bulk_calls[-1]["ids"]) == 3)
+    page.check("#qb-archived"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 4")
+    check("the archived questions can be found again", page.inner_text(".head .sub") == "4 questions match (archived)", page.inner_text(".head .sub"))
+    page.check("#qb-pick-all")
+    check("the bar offers Restore while archived questions are shown", page.is_visible(".bulkbar button:has-text('Restore')") and page.is_hidden(".bulkbar button:has-text('Archive')"))
+    page.click(".bulkbar button:has-text('Restore')"); page.wait_for_selector("dialog[open]")
+    check("restoring asks first too", "Restore 4 questions?" in page.inner_text("dialog"))
+    page.click("dialog button:has-text('Restore')"); page.wait_for_selector(".toast:has-text('4 questions updated')")
+    page.wait_for_function("document.querySelector('.head .sub').textContent === '0 questions match (archived)'")
+    check("one request brings the whole batch back",
+          srv.bulk_calls[-1]["changes"] == {"archived": False} and len(srv.bulk_calls[-1]["ids"]) == 4)
+    page.uncheck("#qb-archived"); count_is(page, "29 questions")
+    check("everything is back and the ticks are gone", len(page.query_selector_all("tr.picked")) == 0)
+
+    # --- more matching questions than one change may touch
+    picks_before = len(srv.bulk_calls)
+    srv.fake_total = 842
+    page.select_option("#qb-difficulty", "easy"); page.wait_for_function("document.querySelector('.head .sub').textContent.includes('842')")
+    page.check("#qb-pick-all")
+    check("the offer names the whole filtered result", "Select all 842 matching questions" in page.inner_text(".bulk-all"), page.inner_text(".bulk-all"))
+    calls_before = len(srv.calls)
+    page.click(".bulk-all .link-btn")
+    page.wait_for_selector(".bulk-note:not(:empty)")
+    check("it says the filter is too wide instead of quietly changing the first 500",
+          "a bulk change works on up to 500 at a time" in page.inner_text(".bulk-note"), page.inner_text(".bulk-note"))
+    check("nothing was fetched or changed while refusing", len(srv.calls) == calls_before and len(srv.bulk_calls) == picks_before)
+    srv.fake_total = None
+    page.click(".bulkbar button:has-text('Clear')")
+    page.select_option("#qb-difficulty", ""); wait_rows(page, 25)
+
     # --- errors
     srv.fail_list = 1; page.select_option("#qb-difficulty", "easy"); page.wait_for_selector(".list-status.error")
     check("a failed load shows a message and a retry button", "Could not load questions" in page.inner_text(".list-status") and page.is_visible(".list-status button:has-text('Try again')"))
@@ -190,6 +372,16 @@ with sync_playwright() as pw:
     page.click("tr:first-child .qlink"); page.wait_for_selector(".preview .qtext")
     check("no sideways scrolling on a phone", page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"))
     check("preview shows under the list on a phone", page.is_visible(".preview"))
+    pick(page, 1); page.wait_for_selector(".bulkbar:not([hidden])")
+    check("the bulk bar fits a phone without sideways scrolling", page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"))
+    check("the bulk actions are all on screen on a phone",
+          page.is_visible(".bulkbar button:has-text('Edit')") and page.is_visible(".bulkbar button:has-text('Archive')") and page.is_visible(".bulkbar button:has-text('Clear')"))
+    page.click(".bulkbar button:has-text('Edit')"); page.wait_for_selector("dialog.bulk-dialog[open]")
+    check("the bulk dialog stays inside a phone screen",
+          page.evaluate("(() => { const r = document.querySelector('dialog.bulk-dialog').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.height <= window.innerHeight; })()"))
+    page.keyboard.press("Escape"); page.wait_for_function("document.querySelector('dialog.bulk-dialog') === null")
+    page.click(".bulkbar button:has-text('Clear')")
+    check("a phone can start over", page.is_hidden(".bulkbar"))
     page.set_viewport_size({"width": 1280, "height": 900})
 
     # --- session ended while on the page

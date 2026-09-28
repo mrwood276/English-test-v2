@@ -6,6 +6,7 @@ import { questionBank } from "../api/questionBank.js";
 import { attachMediaUrls } from "../api/media.js";
 import { questionView, TYPE_LABEL, DIFFICULTY_LABEL, usedText } from "../components/questionView.js";
 import { duplicateGroupsDialog } from "../components/duplicateGroupsDialog.js";
+import { bulkEditDialog } from "../components/bulkEditDialog.js";
 import { SessionExpiredError } from "../../core/auth.js";
 
 const PAGE_SIZE = 25;
@@ -21,8 +22,13 @@ export function renderQuestionBank(container) {
     total: 0,
     items: [],
     selectedId: null,
+    // The questions ticked for a bulk change. Deliberately kept across pages and filter changes: the ids
+    // are explicit, so the teacher can see the count and nothing invisible changes by surprise. The one
+    // exception is the archived switch, which flips what the bar's Archive/Restore button would mean.
+    selected: new Set(),
     requestId: 0,
   };
+  let topicNames = [];
 
   // ---------- filter controls ----------
   const search = h("input", { class: "input", type: "search", id: "qb-search", placeholder: "Search questions", autocomplete: "off", "aria-label": "Search questions" });
@@ -39,7 +45,24 @@ export function renderQuestionBank(container) {
   // ---------- list ----------
   const countText = h("p", { class: "sub" }, "Loading…");
   const tbody = h("tbody");
-  const table = h("table", { class: "qtable" }, h("thead", {}, h("tr", {}, h("th", {}, "Question"), h("th", { class: "col-class" }, "Class"), h("th", { class: "col-diff" }, "Difficulty"), h("th", { class: "col-media" }, "Media"), h("th", { class: "col-used" }, "Used"))), tbody);
+
+  // ---------- selection and the bulk action bar ----------
+  const headPick = h("input", { type: "checkbox", class: "pick", id: "qb-pick-all", "aria-label": "Select every question on this page" });
+  const bulkCount = h("span", { class: "bulk-count", role: "status" });
+  const bulkOff = h("span", { class: "hint" });
+  const bulkNote = h("span", { class: "hint bulk-note", role: "status" });
+  const bulkActions = h("div", { class: "bulk-actions" });
+  const bulkAll = h("div", { class: "bulk-all" });
+  const bulkbar = h(
+    "div",
+    { class: "bulkbar", role: "region", "aria-label": "Bulk actions", hidden: true },
+    h("div", { class: "bulk-summary" }, bulkCount, bulkOff, bulkNote),
+    bulkActions,
+    bulkAll,
+  );
+  headPick.addEventListener("change", () => setPageSelected(headPick.checked));
+
+  const table = h("table", { class: "qtable" }, h("thead", {}, h("tr", {}, h("th", { class: "col-pick" }, headPick), h("th", {}, "Question"), h("th", { class: "col-class" }, "Class"), h("th", { class: "col-diff" }, "Difficulty"), h("th", { class: "col-media" }, "Media"), h("th", { class: "col-used" }, "Used"))), tbody);
   const status = h("div", { class: "list-status", role: "status" });
   const pager = h("div", { class: "pager" });
   const preview = h("aside", { class: "card preview", "aria-label": "Question preview", hidden: true });
@@ -61,6 +84,7 @@ export function renderQuestionBank(container) {
       h("label", { class: "check", for: "qb-archived" }, archivedBox, "Show archived"),
     ),
     banner,
+    bulkbar,
     h("div", { class: "qb-layout" }, h("div", { class: "card list-card" }, table, status, pager), preview),
   );
 
@@ -70,9 +94,7 @@ export function renderQuestionBank(container) {
     status.className = "list-status";
     status.replaceChildren(h("span", {}, "Loading…"));
     try {
-      const filters = { page: state.page, page_size: PAGE_SIZE, ...Object.fromEntries(Object.entries(state.filters).filter(([, v]) => v !== "" && v !== false)) };
-      if (state.filters.archived) filters.archived = true;
-      const res = await questionBank.list(filters);
+      const res = await questionBank.list(filtersFor(state.page, PAGE_SIZE));
       if (id !== state.requestId) return;
       state.items = res.items;
       state.total = res.total;
@@ -113,15 +135,24 @@ export function renderQuestionBank(container) {
       status.replaceChildren();
     }
     renderPager();
+    updateSelection();
   }
 
   function row(q) {
     const link = h("button", { class: "qlink", type: "button", "aria-pressed": String(q.id === state.selectedId) }, plainText(q.body, 150));
     link.addEventListener("click", () => select_(q.id));
+    const pick = h("input", { type: "checkbox", class: "pick", checked: state.selected.has(q.id), "aria-label": `Select: ${plainText(q.body, 60)}` });
+    pick.addEventListener("change", () => {
+      if (pick.checked) state.selected.add(q.id);
+      else state.selected.delete(q.id);
+      pick.closest("tr").classList.toggle("picked", pick.checked);
+      updateSelection();
+    });
     const media = h("td", { class: "col-media" }, q.has_audio ? icon("audio", "Has audio") : null, q.has_image ? icon("image", "Has image") : null);
     return h(
       "tr",
-      { class: q.id === state.selectedId ? "sel" : "", "data-id": q.id },
+      { class: [q.id === state.selectedId ? "sel" : "", state.selected.has(q.id) ? "picked" : ""].filter(Boolean).join(" "), "data-id": q.id },
+      h("td", { class: "col-pick" }, pick),
       h("td", { class: "qcell" }, link, h("small", {}, [TYPE_LABEL[q.type] || q.type, q.topic, q.has_passage ? "reading text" : null].filter(Boolean).join(", "))),
       h("td", { class: "col-class" }, q.class_labels.map((l) => h("span", { class: "tag" }, l))),
       h("td", { class: "col-diff" }, DIFFICULTY_LABEL[q.difficulty] || q.difficulty),
@@ -186,7 +217,9 @@ export function renderQuestionBank(container) {
   typeSelect.addEventListener("change", () => setFilter("type", typeSelect.value));
   usedSelect.addEventListener("change", () => setFilter("used", usedSelect.value));
   sortSelect.addEventListener("change", () => setFilter("sort", sortSelect.value));
-  archivedBox.addEventListener("change", () => { closePreview(); setFilter("archived", archivedBox.checked); });
+  // The archived switch is the one filter that changes what the bar's Archive/Restore button would do, so
+  // it clears the selection instead of leaving a tick that could mean the opposite action a moment later.
+  archivedBox.addEventListener("change", () => { closePreview(); clearSelection(); setFilter("archived", archivedBox.checked); });
 
   function clearFilters() {
     Object.assign(state.filters, { q: "", topic: "", difficulty: "", type: "", class_label: "", used: "" });
@@ -266,10 +299,177 @@ export function renderQuestionBank(container) {
     } catch (err) { if (!ignorable(err)) toast(errorText(err), "error"); }
   }
 
+  // ---------- bulk actions ----------
+  const SELECT_PAGE = 100; // the list API's own page-size cap
+  const BULK_MAX = 500; // the most questions one change may touch; the Edge layer and the database enforce it too
+
+  /** The filters exactly as the list API wants them, so the list, the pager and "select all" cannot drift. */
+  function filtersFor(page, pageSize) {
+    const out = { page, page_size: pageSize };
+    for (const [key, value] of Object.entries(state.filters)) if (value !== "" && value !== false) out[key] = value;
+    return out;
+  }
+
+  function setPageSelected(on) {
+    for (const q of state.items) {
+      if (on) state.selected.add(q.id);
+      else state.selected.delete(q.id);
+    }
+    syncRows();
+  }
+
+  /** Matches the rows to the selection without rebuilding the table, so focus and scroll are not lost. */
+  function syncRows() {
+    for (const tr of tbody.children) {
+      const picked = state.selected.has(tr.dataset.id);
+      const box = tr.querySelector(".pick");
+      if (box) box.checked = picked;
+      tr.classList.toggle("picked", picked);
+    }
+    updateSelection();
+  }
+
+  function clearSelection() {
+    if (state.selected.size === 0) return;
+    state.selected.clear();
+    bulkNote.textContent = "";
+    syncRows();
+  }
+
+  /** Keeps the header checkbox, the counter, the bar, its buttons and the "select all" offer in step. */
+  function updateSelection() {
+    const pageIds = state.items.map((q) => q.id);
+    const onPage = pageIds.filter((id) => state.selected.has(id)).length;
+    const n = state.selected.size;
+
+    headPick.checked = pageIds.length > 0 && onPage === pageIds.length;
+    headPick.indeterminate = onPage > 0 && onPage < pageIds.length; // half the page ticked
+    headPick.disabled = pageIds.length === 0;
+
+    bulkbar.hidden = n === 0;
+    bulkActions.replaceChildren();
+    bulkAll.replaceChildren();
+    bulkAll.hidden = true;
+    if (n === 0) {
+      bulkCount.textContent = "";
+      bulkOff.textContent = "";
+      return;
+    }
+
+    bulkCount.textContent = `${n} question${n === 1 ? "" : "s"} selected`;
+    const offPage = n - onPage;
+    bulkOff.textContent = offPage > 0 ? `· ${offPage} not on this page` : "";
+
+    const edit = h("button", { class: "btn small", type: "button" }, "Edit…");
+    edit.addEventListener("click", openBulkEdit);
+    const toggle = h("button", { class: "btn small ghost", type: "button" }, state.filters.archived ? "Restore" : "Archive");
+    toggle.addEventListener("click", () => bulkSetArchived(!state.filters.archived));
+    const clear = h("button", { class: "btn small ghost", type: "button" }, "Clear");
+    clear.addEventListener("click", clearSelection);
+    bulkActions.append(edit, toggle, clear);
+
+    if (pageIds.length > 0 && onPage === pageIds.length && n < state.total) {
+      const all = h("button", { class: "link-btn", type: "button" }, `Select all ${state.total} matching questions`);
+      all.addEventListener("click", selectAllMatching);
+      bulkAll.append(h("span", {}, `All ${pageIds.length} question${pageIds.length === 1 ? "" : "s"} on this page are selected. `), all);
+      bulkAll.hidden = false;
+    }
+  }
+
+  /**
+   * "All N matching questions": the ids of the whole filter result, not just the page on screen. The list API
+   * caps a page at 100, so this walks the pages the way the pager does. When the filter matches more than one
+   * change may touch it says so instead of quietly selecting the first 500 — a partial bulk change nobody
+   * asked for is worse than being told to narrow the filter.
+   */
+  async function selectAllMatching() {
+    const total = state.total;
+    if (total > BULK_MAX) {
+      bulkNote.textContent = `These filters match ${total} questions; a bulk change works on up to ${BULK_MAX} at a time. Narrow the filters, or tick the ones you want.`;
+      return;
+    }
+    bulkNote.textContent = "Selecting…";
+    try {
+      const ids = [];
+      const pages = Math.max(1, Math.ceil(total / SELECT_PAGE));
+      for (let page = 1; page <= pages; page++) {
+        const res = await questionBank.list(filtersFor(page, SELECT_PAGE));
+        for (const item of res.items) ids.push(item.id);
+        if (res.items.length < SELECT_PAGE) break;
+      }
+      for (const id of ids) state.selected.add(id);
+      bulkNote.textContent = "";
+      syncRows();
+    } catch (err) {
+      bulkNote.textContent = ignorable(err) ? "" : errorText(err);
+    }
+  }
+
+  /** What the server reported, said plainly — never "success" when part of it did not happen. */
+  function resultText(res) {
+    const updated = res.updated || 0;
+    const unchanged = res.unchanged || 0;
+    const missing = res.missing || 0;
+    if (updated === 0 && missing === 0) return "Nothing changed — those questions already looked like that.";
+    const parts = [`${updated} question${updated === 1 ? "" : "s"} updated`];
+    if (unchanged > 0) parts.push(`${unchanged} already looked like that`);
+    if (missing > 0) parts.push(`${missing} ${missing === 1 ? "is" : "are"} no longer there`);
+    return `${parts.join(" · ")}.`;
+  }
+
+  /** The one place a bulk change is sent and reported; a failure travels on, to be shown where the form is. */
+  async function runBulk(ids, changes) {
+    const res = await questionBank.bulkUpdate(ids, changes);
+    toast(resultText(res));
+    return res;
+  }
+
+  async function bulkSetArchived(archived) {
+    const ids = [...state.selected];
+    if (ids.length === 0) return;
+    const noun = ids.length === 1 ? "question" : "questions";
+    const ok = await confirmDialog({
+      title: archived ? `Archive ${ids.length} ${noun}?` : `Restore ${ids.length} ${noun}?`,
+      message: archived
+        ? "They stay in the question bank and old results keep working, but they are hidden from the list and cannot be used in a new exam. You can restore them later."
+        : "They come back into the question bank and can be used in exams again.",
+      confirmLabel: archived ? "Archive" : "Restore",
+    });
+    if (!ok) return;
+    bulkNote.textContent = "Saving…";
+    try {
+      await runBulk(ids, { archived });
+      clearSelection();
+      await load();
+      loadDuplicates();
+    } catch (err) {
+      if (ignorable(err)) return;
+      bulkNote.textContent = errorText(err);
+      toast(errorText(err), "error");
+    }
+  }
+
+  function openBulkEdit() {
+    const ids = [...state.selected];
+    if (ids.length === 0) return;
+    bulkNote.textContent = "";
+    bulkEditDialog({
+      count: ids.length,
+      topics: topicNames,
+      suggestLabels: (prefix) => questionBank.classLabels(prefix),
+      onApply: (changes) => runBulk(ids, changes),
+    }).then((applied) => {
+      if (!applied) return; // closed without applying: the form is gone, the ticks are still there
+      clearSelection();
+      load();
+    });
+  }
+
   // ---------- start ----------
   load();
   loadDuplicates();
   questionBank.topics().then((topics) => {
+    topicNames = topics.map((t) => t.name);
     for (const t of topics) topicSelect.append(h("option", { value: t.name }, `${t.name} (${t.question_count})`));
   }).catch(() => { /* the filters still work without the suggestions */ });
   questionBank.classLabels().then((labels) => {

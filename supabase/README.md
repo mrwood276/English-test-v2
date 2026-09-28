@@ -39,7 +39,13 @@ attempt report, add time / reopen, retake permissions — applied live on 2026-0
 three housekeeping jobs, applied live 2026-09-26 with its own `schema_migrations` row — see
 `docs/sql-jobs.md`), `20260926010636_backup_functions.sql` (TASK-015: the private `backups` bucket, the 22-table allowlist, `build_backup_payload` / `record_backup` (with the retention sweep) / `list_backups` / `get_backup` / `delete_backup`, and the fourth job `nightly-backup` — applied live 2026-09-26 with its own `schema_migrations` row; see `docs/sql-backups.md`), `20260926021234_account_functions.sql` (TASK-015 user management, DEC-031: the active-admin gate, `list_accounts`, `record_account`, `update_account` with the two guards — nobody changes their own role or deactivates themselves, the last active admin stays — and `record_account_password`; the login half is the `accounts` Edge Function's Auth Admin API calls, because only the service role may create a user; applied live 2026-09-26 with its own `schema_migrations` row; see `docs/sql-accounts.md`) and `20260927000000_exam_wide_add_time.sql`
 (exam-wide add time, drops the duplicate `list_live_sessions` that ISSUE-020 found live and never committed —
-applied live on 2026-09-24; annotated source in `docs/sql-monitor.md`). `v2_01_foundation` through
+applied live on 2026-09-24; annotated source in `docs/sql-monitor.md`), and `20260928000001_bulk_question_update.sql`
+(F-17 bulk question changes, DEC-035: `public.bulk_update_questions` — many questions in one transaction and
+one audit entry, `service_role` only, additive — **written but NOT APPLIED YET**, and its rolled-back test
+`supabase/tests/bulk_update_test.sql` has never been run: the session that wrote them had no Supabase
+credential, so `question-bank`'s new `bulk_update` action would answer 500 until the migration is applied
+and the function redeployed — ISSUE-033 / TASK-024, with the ordered steps in `docs/sql-bulk-update.md`).
+`v2_01_foundation` through
 `v2_12_import_questions` (schema, question bank, exams/sessions/results tables, lockdown, text rules, media
 storage, import) were pulled from `supabase_migrations.schema_migrations` and committed verbatim on 2026-09-24
 — see ISSUE-001. **Known drift, the other direction**: `20260922000000`/`20260923000000`/`20260924000000`

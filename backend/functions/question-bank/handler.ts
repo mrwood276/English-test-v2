@@ -4,12 +4,12 @@ import { requireStaff, type StaffDb } from "../_shared/auth.ts";
 import { callRpc, type RpcDb } from "../_shared/rpc.ts";
 import { asArray, asEnum, asObject, asPlain, asString, asUuid, optional } from "../_shared/validate.ts";
 import { sanitizeInlineHtml } from "../_shared/text.ts";
-import { parseImportCheckItems, parseImportItems, parseListFilters, parsePassageInput, parseQuestionInput } from "./parse.ts";
+import { parseBulkUpdate, parseImportCheckItems, parseImportItems, parseListFilters, parsePassageInput, parseQuestionInput } from "./parse.ts";
 
 export type Db = StaffDb & RpcDb;
 
 const ACTIONS = [
-  "list", "get", "save", "remove", "archive", "restore", "check_duplicates",
+  "list", "get", "save", "remove", "archive", "restore", "bulk_update", "check_duplicates",
   "duplicate_groups",
   "topics", "class_labels",
   "passages", "passage_get", "passage_save", "passage_remove",
@@ -54,6 +54,13 @@ export function createHandler(getDb: () => Db) {
       case "restore":
         await callRpc(db, "set_question_archived", { p_id: asUuid(b.id, "id"), p_archived: action === "archive", p_actor: me.userId });
         return { ok: true };
+
+      // Changing many questions at once is one database function, one transaction and one audit entry
+      // (DEC-004) — never a loop of save calls, which could half-apply and would lose the act.
+      case "bulk_update": {
+        const { ids, changes } = parseBulkUpdate(b);
+        return await callRpc(db, "bulk_update_questions", { p_ids: ids, p_changes: changes, p_actor: me.userId });
+      }
 
       case "check_duplicates": {
         const body = sanitizeInlineHtml(asString(b.body, "The question", { min: 1, max: 5000 }));
