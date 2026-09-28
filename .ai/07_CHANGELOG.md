@@ -1,5 +1,12 @@
 # 07 CHANGELOG
 
+## 2026-09-28 — Audit session: dashboard empty-state crash fixed — `ai-development`
+- **Bug (HIGH, ISSUE-029):** `frontend/assets/js/teacher/screens/dashboard.js` — `renderNotifications`, `attentionRows` and `recentRows` returned a single element in their empty case but were spread (`replaceChildren(...x)`), throwing `Spread syntax requires ...iterable` and leaving the whole dashboard (notifications, attention, recent exams, open-exam area) blank whenever a section had nothing to show. Also `openArea.replaceChildren(..., null)` drew the literal text `null` under the title whenever an exam was open.
+- **Fix:** the three builders now always return arrays; the open area spreads either `[noOpenCard()]` or the open-exam cards (no `null` child).
+- **Tests:** `teacher_e2e.py` already failed on this ("the empty dashboard explains itself") on the audited commit `1077fdc`; it passes now. `dashboard_e2e.py` gained a check that no stray `null` text is drawn (verified: fails on the old file, passes on the new).
+- No backend, database, or Edge Function change. Files: `frontend/assets/js/teacher/screens/dashboard.js`, `frontend/tests/dashboard_e2e.py`.
+
+
 ## 2026-09-27 — TASK-012 PDF class summary completed — `ai-development`
 - Added a dependency-free one-page A4 landscape PDF writer at `frontend/assets/js/teacher/export/classSummaryPdf.js`.
 - The Results screen now offers **Class summary PDF** beside CSV/Excel. It uses the existing `overview` payload, so there is no new backend read path.

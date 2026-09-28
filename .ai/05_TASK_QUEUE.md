@@ -5,6 +5,8 @@ Order follows dependencies. Completed tasks are listed at the end for history (a
 
 ## NEXT RECOMMENDED TASK
 
+**2026-09-28 audit:** ISSUE-029 (dashboard crash) fixed; push of that commit pending owner/credentialed agent. Suggested next: a credentialed session re-runs the live checks and the Supabase security/performance advisors (not possible in the audit sandbox).
+
 **Deployed live (2026-09-22, fifth session):** `question-bank` v3 (with `import_check`/`import`) and the new `exams` function are both live on the v2 project, and the exam SQL is applied (first migration in git: `supabase/migrations/20260922000000_exams_functions.sql`). The import screen now works against the real backend — `import_check` answered live. Remaining for TASK-006: step 4 (owner review of the file formats; templates are ready on the screen) and one real Excel/Google-Sheets file check (ISSUE-013 caveat).
 
 **Done since (2026-09-23, seventh session):** **TASK-010 is built and live-verified** — students join by code and take the test end to end (SQL engine + `session` function + the student page), see the changelog and `docs/sql-sessions.md`.

@@ -12,6 +12,11 @@
 | Current branch / commit | **`ai-development`** at **`1218caa`** (the user-management feature commit; this docs commit and a records/CI commit sit on top of it) — **both workflows green on `bd7c78c`** (Backend tests run 36213053547 + Frontend tests run 36213053640 with the first run of the thirteenth browser suite, 2026-09-26). Locally this session: backend **143**, unit **31**, `accounts_e2e.py` **46 checks**, all thirteen browser suites green, the rolled-back accounts SQL test passed live, and the live accounts check **44/44**. The session before it was green on `3cb714c` (Backend + Frontend, 2026-09-26, the first run of the twelfth browser suite), after `d4502da`/`e4820a6` (the scheduled jobs); its local numbers were backend **130**, unit **31**, all twelve browser suites and the live checks **40/40** (housekeeping) / **63/63** (backups). Before that, **`d00a77d`** (`cc2b0d5` the duplicate-banner feature, `d00a77d` its docs), pushed with **both workflows green**; the TASK-007 and exam-delete work is below it (`cdad496`/`5252359`/`b799af1`/`b520f80`). Local: backend **120**, unit **31**, all eleven browser suites green (`question_bank` now **67** checks, `exams` 37); live checks 32/32 (media), 17/17 (exam delete rule) and **15/15 (duplicate banner)**. |
 | Repository baseline | Prefer `ai-development` for all work. `origin/main` still has Codex import variant (DEC-021). |
 
+## Audit note (2026-09-28)
+
+Independent audit from a sandbox with no Supabase/push access: backend 143/143, unit 42/42, all 13 browser suites green **after** the ISSUE-029 fix (`teacher_e2e.py` was red on `1077fdc`). Live database, RLS and deployed functions were **not** re-verified in this session.
+
+
 ## What was inspected to write `.ai/`
 
 - All files of the repository copy (65 tracked files before `.ai/`), including code, tests, docs, workflow.

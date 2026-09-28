@@ -214,7 +214,7 @@ export function renderDashboard(container, { onSignOut, user }) {
       if (label) label.textContent = unread.length ? `Notifications (${unread.length} new)` : "Notifications";
     }
     if (items.length === 0) {
-      return h("p", { class: "hint" }, "No new dashboard notices.");
+      return [h("p", { class: "hint" }, "No new dashboard notices.")];
     }
     return items.map((item) =>
       h("div", { class: `dash-item notification${read.has(item.id) ? " is-read" : ""}` },
@@ -248,7 +248,7 @@ export function renderDashboard(container, { onSignOut, user }) {
       }
     }
     if (items.length === 0) {
-      return h("p", { class: "hint" }, "Nothing needs you right now. New essays and suspicious sessions appear here.");
+      return [h("p", { class: "hint" }, "Nothing needs you right now. New essays and suspicious sessions appear here.")];
     }
     return items;
   }
@@ -260,7 +260,7 @@ export function renderDashboard(container, { onSignOut, user }) {
       .sort((a, b) => String(b.last_submitted_at ?? "").localeCompare(String(a.last_submitted_at ?? "")))
       .slice(0, 3);
     if (recent.length === 0) {
-      return h("p", { class: "hint" }, "No exam has been taken yet. Finished tests appear here.");
+      return [h("p", { class: "hint" }, "No exam has been taken yet. Finished tests appear here.")];
     }
     return recent.map((exam) => {
       const decided = (exam.passed || 0) + (exam.failed || 0);
@@ -305,7 +305,7 @@ export function renderDashboard(container, { onSignOut, user }) {
       notificationBody.replaceChildren(...renderNotifications(notificationItems));
       openArea.replaceChildren(
         ...open.map((exam) => openCard(exam, overviews.get(exam.id))),
-        open.length === 0 ? noOpenCard() : null);
+        ...(open.length === 0 ? [noOpenCard()] : []));
       attentionBody.replaceChildren(...attentionRows(activity, overviews));
       recentBody.replaceChildren(...recentRows(activity));
       const markRead = container.querySelector("#mark-notifications-read");

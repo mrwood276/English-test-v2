@@ -115,6 +115,8 @@ with sync_playwright() as pw:
     check("the meter is full for one passed result",
           page.get_attribute('section[aria-label="Recent exams"] .meter i', "style") == "width:100%",
           page.get_attribute('section[aria-label="Recent exams"] .meter i', "style"))
+    check("no stray 'null' text is drawn where the empty-state card would go",
+          "null" not in page.inner_text(".main").lower().split(), page.inner_text(".main"))
     check("the empty states are not shown while there is data",
           "No exam is open right now" not in page.inner_text(".main")
           and "Nothing needs you right now" not in attention

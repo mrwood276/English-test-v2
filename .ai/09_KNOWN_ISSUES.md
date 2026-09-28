@@ -172,5 +172,12 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 - What a session *can* do when asked: add the Auth Site URL/redirect URLs once the app has a home (TASK-017), then wire a reset link; the `accounts` endpoint already exists as the fallback either way.
 - Affected: `frontend/assets/js/teacher/screens/accounts.js`, `backend/functions/accounts/handler.ts`, `docs/sql-accounts.md`, TASK-017.
 
+## ISSUE-029 — Dashboard crashed on empty sections and drew a stray `null` (FIXED 2026-09-28)
+
+- **Severity:** HIGH (the teacher landing screen showed only a raw JavaScript error whenever no exam was open, nothing needed attention, or no exam was finished).
+- **Root cause:** builders returned one element in their empty case but the call sites spread them; and `replaceChildren(..., null)` stringifies `null`.
+- **Fix:** always return arrays; no `null` child. Covered by `teacher_e2e.py` and a new check in `dashboard_e2e.py`. **Lesson:** the notification slice (DEC-032) was committed without a fresh run of `teacher_e2e.py`; run every browser suite before committing dashboard changes.
+- Affected: `frontend/assets/js/teacher/screens/dashboard.js`.
+
 ## Legacy v1 issues (outside this repository; not being fixed, DEC-015)
 Summarized from `docs/audit-v1.md`: server does not enforce exam time (H-1); no attempt limit or open/close/code (H-2); teacher password stored plaintext, no login throttling (H-3); token signing secret hard-coded in function code (H-4); no server-side validation of name/class and no rate limit on session creation (H-5); answers only in browser storage until submit (M-1); duplicate result rows possible (M-2). These disappear when v2 replaces v1.
