@@ -200,6 +200,34 @@ with sync_playwright() as pw:
     check("an attempt still running has holes in the CSV too",
           re.search(r"^Bima Saputra,Class XII TKJ A,1,,,,,2,in_progress$", csv_export, re.M) is not None, csv_export)
 
+    # ---------- the PDF class summary (DEC-025/DEC-033): same overview payload, laid out as a report ----------
+    # First export on this browser profile: schoolNameForExport() asks once and remembers the answer.
+    page.once("dialog", lambda d: d.accept("SMK Negeri 1 Contoh"))
+    with page.expect_download() as wanted:
+        page.click("button[data-export-pdf]")
+    download = wanted.value
+    check("the PDF export is named after the exam", download.suggested_filename == f"{export_name}.pdf",
+          download.suggested_filename)
+    pdf_bytes = pathlib.Path(download.path()).read_bytes()
+    check("the PDF starts with the PDF header and ends with %%EOF",
+          pdf_bytes.startswith(b"%PDF-1.4") and pdf_bytes.rstrip().endswith(b"%%EOF"))
+    # The writer's own text operands, read back the same way the unit tests do (no PDF library needed).
+    shown = [m.replace("\\(", "(").replace("\\)", ")").replace("\\\\", "\\")
+             for m in re.findall(r"\(((?:[^()\\]|\\.)*)\)\s*Tj", pdf_bytes.decode("latin1"))]
+    check("the school name typed into the prompt is on the page", shown[0] == "SMK Negeri 1 Contoh", shown[:4])
+    check("the exam title and class are on the page", shown[1] == exam["title"] and "XII TKJ" in shown[2], shown[:4])
+    check("the stats line matches the summary strip", "of" in shown[3] and "passed" in shown[3], shown[3])
+    check("every student who joined is on the report", all(n in shown for n in ("Aisyah Putri", "Bima Saputra", "Citra Lestari")), shown)
+    check("a still-running attempt shows a dash instead of a score", shown[shown.index("Bima Saputra") + 2] == "-", shown)
+
+    # Exporting again on the same browser profile must not ask a second time (the answer is remembered).
+    reprompted = []
+    page.once("dialog", lambda d: (reprompted.append(True), d.dismiss()))
+    with page.expect_download() as wanted:
+        page.click("button[data-export-pdf]")
+    wanted.value  # the download must still complete even though no dialog handler needed to fire
+    check("the school name is remembered, not asked again", not reprompted)
+
     # ---------- one attempt in detail ----------
     page.query_selector(f"tr[data-session='{sid_c}'] a:has-text('Details')").click()
     page.wait_for_selector(".review-list")

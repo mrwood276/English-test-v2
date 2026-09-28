@@ -90,3 +90,10 @@
   .grid2 { grid-template-columns: minmax(0, 1fr); }
   .bigcode { font-size: 44px; }
 }
+
+.notifications { margin-top: 16px; }
+.dash-section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.dash-section-head h2 { margin-bottom: 2px; }
+.dash-section-head .hint { margin: 0; font-size: 12.5px; }
+.notification.is-read { opacity: .62; }
+.notification strong { font-weight: 650; }

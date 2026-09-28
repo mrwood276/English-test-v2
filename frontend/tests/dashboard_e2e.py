@@ -83,6 +83,19 @@ with sync_playwright() as pw:
     check("the full monitor is one click away",
           page.query_selector(f".now a[href='#/monitor/{EXAM_ID}']") is not None)
 
+    # ---------- Notifications ----------
+    notifications = page.locator('section[aria-label="Notifications"]')
+    check("dashboard notifications are shown", notifications.count() == 1)
+    notification_text = notifications.inner_text()
+    check("notifications surface the essay work", "essay needs grading" in notification_text, notification_text)
+    check("notifications surface the suspicious session", "session needs review" in notification_text, notification_text)
+    check("notifications link to grading", page.query_selector(f'section[aria-label="Notifications"] a[href="#/grading/{EXAM_ID}"]') is not None)
+    check("notifications link to the monitor", page.query_selector(f'section[aria-label="Notifications"] a[href="#/monitor/{EXAM_ID}"]') is not None)
+    check("notifications link to results", page.query_selector(f'section[aria-label="Notifications"] a[href="#/results/{EXAM_ID}"]') is not None)
+    page.click("#mark-notifications-read")
+    check("mark all read removes the new count", "new" not in notifications.locator("h2").inner_text())
+    check("read notifications stay visible", "essay needs grading" in notifications.inner_text())
+
     # ---------- "Needs your attention" ----------
     attention = page.inner_text('section[aria-label="Needs your attention"]')
     check("the essay queue is surfaced", "1 essay to grade" in attention, attention)
@@ -102,14 +115,12 @@ with sync_playwright() as pw:
     check("the meter is full for one passed result",
           page.get_attribute('section[aria-label="Recent exams"] .meter i', "style") == "width:100%",
           page.get_attribute('section[aria-label="Recent exams"] .meter i', "style"))
+    check("no stray 'null' text is drawn where the empty-state card would go",
+          "null" not in page.inner_text(".main").lower().split(), page.inner_text(".main"))
     check("the empty states are not shown while there is data",
           "No exam is open right now" not in page.inner_text(".main")
           and "Nothing needs you right now" not in attention
           and "No exam has been taken yet" not in recent)
-    # A `null` child handed to replaceChildren is drawn as the literal text "null" (ISSUE-029).
-    check("no stray 'null' text is drawn next to the open exam",
-          "null" not in page.inner_text(".main").lower().split(),
-          page.inner_text(".dash-open")[:200])
 
     # ---------- actions: clipboard works; the dangerous ones ask first and can be cancelled ----------
     page.click(".now button:has-text('Copy code')")
