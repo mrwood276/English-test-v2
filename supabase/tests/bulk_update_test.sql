@@ -1,11 +1,17 @@
--- SQL test for public.bulk_update_questions (F-05, bulk question management).
+-- SQL test for public.bulk_update_questions (F-17, bulk question management).
 -- Run against the v2 project as ONE request (one request = one session):
---   POST https://api.supabase.com/v1/projects/lbhnadmokloyfarrzfv/database/query  {"query": "<this file>"}
+--   POST https://api.supabase.com/v1/projects/lbhnadqmokloyfarrzfv/database/query  {"query": "<this file>"}
 --   (CLI 2.117.0 has NO `supabase db query` subcommand), or paste it into the dashboard SQL editor.
 --
--- **NOT RUN YET.** It was written on 2026-09-28 in a session that had no Supabase credential, so unlike
--- the other files in this folder it has no pass result behind it. Run it against the v2 project and
--- record the outcome in `.ai/04_CURRENT_STATE.md` before believing anything about the bulk path.
+-- RUN LIVE: 2026-09-28 against project lbhnadqmokloyfarrzfv, immediately after the migration was applied,
+-- as one `/v1/projects/<ref>/database/query` request. Result: `BULK UPDATE TESTS PASSED (counts, topic,
+-- difficulty, points, labels add/remove/replace, the ten-label ceiling, archive/restore, one audit entry
+-- per act) — everything rolled back` (HTTP 400 is expected: the final `raise` is how the test rolls back).
+-- Two faults in this file were found by that first run and fixed before it passed, both in the test rather
+-- than in the function: the "a selection that matches nothing is refused" case passed one live id beside
+-- the absent one (matching one, so the call correctly succeeded), and the control question was created
+-- `hots` and then asserted not to be `hots` — a check that could never fail. The contract, the live steps
+-- and the full record are in docs/sql-bulk-update.md.
 --
 -- It creates its own questions and lets the transaction abort at the end, so nothing it writes survives —
 -- the ERROR MESSAGE is the result:
@@ -86,7 +92,7 @@ begin
     'type', 'short_answer', 'difficulty', 'medium', 'topic', 'Bulk Test Other', 'weight', 3,
     'body', 'BULK TEST question C', 'accepted_answers', jsonb_build_array('gamma')), v_actor);
   v_control := public.save_question(null, jsonb_build_object(
-    'type', 'short_answer', 'difficulty', 'hots', 'topic', 'Bulk Test Untouched', 'weight', 1,
+    'type', 'short_answer', 'difficulty', 'easy', 'topic', 'Bulk Test Untouched', 'weight', 1,
     'body', 'BULK TEST control question', 'accepted_answers', jsonb_build_array('delta')), v_actor);
   perform pg_temp.assert_true(v_a is not null and v_b is not null and v_c is not null and v_control is not null,
     'the test created its four questions');
@@ -121,8 +127,10 @@ begin
     format('select public.bulk_update_questions(%L::uuid[], %L, %L)', v_ids,
            '{"class_labels":{"mode":"add","labels":["' || repeat('x', 41) || '"]}}', v_actor),
     'A class label is too long', 'an over-long label is refused');
+  -- A selection that matches NOTHING is refused. Note this must be ids that really are absent: mixing
+  -- one live id with a missing one is the case further down, and there it is counted, not refused.
   perform pg_temp.expect_error(
-    format('select public.bulk_update_questions(%L::uuid[], %L, %L)', array[v_a, '00000000-0000-4000-8000-000000000000'::uuid],
+    format('select public.bulk_update_questions(%L::uuid[], %L, %L)', array['00000000-0000-4000-8000-000000000000'::uuid],
            '{"topic":"Bulk Test Moved"}', v_actor),
     'Those questions no longer exist', 'a selection that matches nothing is refused');
 
@@ -138,8 +146,9 @@ begin
       where q.id = any(v_ids) and q.difficulty = 'hots' and q.default_weight = 2.5
         and public.normalize_text((select t.name from public.topics t where t.id = q.topic_id)) = 'bulk test moved') = 3,
     'the topic, difficulty and points reached every selected question');
+  -- The control was created Easy, the call above asked for HOTS: it must still be Easy.
   perform pg_temp.assert_true(
-    (select count(*) from public.questions q where q.id = v_control and q.difficulty = 'hots') = 0,
+    (select count(*) from public.questions q where q.id = v_control and q.difficulty = 'easy') = 1,
     'a question that was not selected was left alone');
 
   -- The same call again must not claim work it did not do.

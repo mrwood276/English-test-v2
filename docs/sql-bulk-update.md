@@ -1,12 +1,12 @@
-# SQL for changes to many questions at once (F-05)
+# SQL for changes to many questions at once (F-17)
 
 The question bank lets a teacher tinker with one question at a time (`#/questions/new` →
-`save_question`, one transaction per question). F-05 asks for the other half: **tick many questions,
+`save_question`, one transaction per question). F-17 asks for the other half: **tick many questions,
 say what should change, see what will happen, and have it happen once** — select → filter → bulk edit →
 preview → apply → feedback.
 
-The statements live in **`supabase/migrations/20260928000001_bulk_question_update.sql`** and are **NOT
-APPLIED LIVE YET** (written 2026-09-28 in a session with no Supabase credential — see "Applying it" below).
+The statements live in **`supabase/migrations/20260928000001_bulk_question_update.sql`** and are
+**APPLIED LIVE on 2026-09-28** — the record is the first section below, and "Applying it" is the recipe.
 The Edge layer is **`backend/functions/question-bank/`** (`action: "bulk_update"`, deployed with the rest of
 that function), the screen is **`frontend/assets/js/teacher/screens/questionBank.js`** with the dialog in
 **`frontend/assets/js/teacher/components/bulkEditDialog.js`**.
@@ -80,7 +80,7 @@ is 401, a student or a stranger is 403, and an inactive account is refused. Noth
 before that check, so a malicious caller cannot touch a question the question bank would not let them touch,
 and they cannot raise their own privileges: `bulk_update_questions` writes only the fields listed above.
 
-## Applying it
+## Applying it (the recipe, and how the live apply was done)
 
 CLI 2.117.0 has **no `supabase db query` subcommand**; use the Management API query endpoint
 (`POST https://api.supabase.com/v1/projects/<ref>/database/query` with `{"query": "…"}` — one request is one
@@ -121,10 +121,35 @@ it also inserts one (the pattern `docs/sql-jobs.md` describes):
   The mock server (`frontend/tests/mock_server.py`) grew a `bulk_update` handler with the same rules.
 * The other twelve browser suites are unchanged and green (689 checks in total).
 
-## Running it against the live project (TASK-024)
+## Applied live (TASK-024), 2026-09-28
 
-`frontend/tests/live_bulk_check.py` is written and **has never been run** — the session that wrote it had no
-Supabase credential (see ISSUE-033). It needs one:
+Project **`lbhnadqmokloyfarrzfv`** (`English_Test_v2`). Every step below was run in one session, in order:
+
+1. **The migration is applied.** `20260928000001_bulk_question_update.sql` was sent as one
+   `/v1/projects/lbhnadqmokloyfarrzfv/database/query` request (CLI 2.117.0 has no `supabase db query`).
+   `public.bulk_update_questions(uuid[], jsonb, uuid) returns jsonb` exists with `search_path = ''` and an
+   ACL of `{postgres, service_role}` only — `anon` and `authenticated` cannot execute it.
+2. **The SQL test passed.** `supabase/tests/bulk_update_test.sql` returned `BULK UPDATE TESTS PASSED
+   (counts, topic, difficulty, points, labels add/remove/replace, the ten-label ceiling, archive/restore,
+   one audit entry per act) — everything rolled back`. The HTTP status is 400, which is expected: the
+   file's last statement is a `raise`, and that is how it rolls back. The **first** run failed, and it was
+   the *test* that was wrong in two places — a "a selection that matches nothing" case that included a live
+   id (so the call correctly succeeded), and a control question created `hots` then asserted not to be
+   `hots` (a check that could never fail). Both were fixed in the test file; the SQL function did not change.
+3. **The tracking row is recorded.** `supabase_migrations.schema_migrations` has `20260928000001` /
+   `bulk_question_update` with the file's text in `statements`, so a later `supabase db push` will not
+   re-run it (applying through the Management API writes no tracking row by itself).
+4. **`question-bank` was redeployed** (`python backend/sync_functions.py`, then
+   `npx supabase functions deploy question-bank --no-verify-jwt --use-api`).
+5. **The live check passed.** `frontend/tests/live_bulk_check.py` → **65/65 checks,
+   `ALL LIVE BULK CHECKS PASSED`**, through the deployed function and a real teacher session. It created its
+   three throwaway questions, made every change described below, drove the real screen once, then deleted
+   its three questions and its two test topics: the live bank ended at **43 questions / 3 archived**, exactly
+   what it measured before it started. The owner's own questions were only ever read (one as a control,
+   fetched before and after). The Supabase **security** and **performance** advisors both returned
+   **0 findings**.
+
+Re-running it is safe and idempotent; it needs a credential:
 
 ```
 python frontend/dev-server.py 8123                        # for its screen half
@@ -132,7 +157,7 @@ SUPABASE_ACCESS_TOKEN='...' python frontend/tests/live_bulk_check.py
 SUPABASE_ACCESS_TOKEN='...' python frontend/tests/live_bulk_check.py --api-only   # skip the browser half
 ```
 
-What it does, and what it promises: it **creates three throwaway questions of its own** (`LIVE BULK CHECK
+What the live check does, and what it promised: it **creates three throwaway questions of its own** (`LIVE BULK CHECK
 <stamp>` in each body), changes them in bulk through the deployed function — topic, difficulty, points, class
 labels add/remove/replace, an id that is gone, archive and restore — tries every refusal (tokenless 401, no
 change, unknown difficulty, points out of range, unknown label action, no labels, more than 500 ids, a
@@ -145,11 +170,6 @@ is the audit history of its own acts.
 
 ## Still to do, and honestly not done
 
-* **`supabase/tests/bulk_update_test.sql` has never been run.** It is written against the real catalogue
-  (`save_question`, `upsert_topic`, `question_class_labels`, `difficulty_level`, the audit table) and its
-  header says so; it is the one file in this feature without a pass behind it. Run it as step 2 above.
-* **`frontend/tests/live_bulk_check.py` has never been run either** — it compiles, and its two halves refuse
-  to start without a credential and say so, but no pass line exists for it yet.
 * **A bulk change does not touch the question text, answers, explanation or reading text** — deliberately.
   Those are per-question decisions, and a batch edit of a shared reading text is a de-duplication problem
   (see `duplicateGroupsDialog`), not a bulk-edit one.

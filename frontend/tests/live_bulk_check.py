@@ -274,6 +274,7 @@ def main(api_only=False):
 
     # ---------- 10. the real screen, against the real project ----------
     errors = []
+    screen_acts = 0  # successful bulk_update calls the screen made itself (not through bulk())
     if not api_only:
         with sync_playwright() as pw:
             browser = pw.chromium.launch()
@@ -311,6 +312,7 @@ def main(api_only=False):
                   preview[:250])
             page.click("dialog.bulk-dialog button:has-text('Apply changes')")
             page.wait_for_selector(".toast:has-text('3 questions updated')", timeout=30000)
+            screen_acts += 1
             page.wait_for_function("document.querySelector('dialog.bulk-dialog') === null", timeout=15000)
             check("the screen reports what the server did and lets the selection go", page.is_hidden(".bulkbar"))
             moved = [get(i)[1] for i in ids]
@@ -335,8 +337,11 @@ def main(api_only=False):
     # ---------- 12. the audit trail: one entry per act, never one per question ----------
     if ACCESS:
         row = sql("select count(*) as n from public.audit_logs where action = 'question.bulk_update'")[0]
-        check("every successful act wrote exactly one audit entry", int(row["n"]) - before["bulk_audits"] == calls,
-              f"{int(row['n']) - before['bulk_audits']} new rows for {calls} acts")
+        # Every successful act is audited exactly once: the calls this file made through bulk(), plus the
+        # one the screen made itself when its Apply button was used.
+        check("every successful act wrote exactly one audit entry",
+              int(row["n"]) - before["bulk_audits"] == calls + screen_acts,
+              f"{int(row['n']) - before['bulk_audits']} new rows for {calls} + {screen_acts} acts")
         entry = sql("select changes from public.audit_logs where action = 'question.bulk_update' "
                     "order by created_at desc limit 1")[0]["changes"]
         check("the newest entry names the change that was just made",
@@ -370,7 +375,7 @@ def main(api_only=False):
     else:
         print(f"note: no Management token, so the two test topics ({TOPIC_A!r}, {TOPIC_B!r}) stay in "
               f"public.topics, and the database's own counts could not be compared")
-    print(f"note: {calls} question.bulk_update audit rows remain — that history is the feature, not litter")
+    print(f"note: {calls + screen_acts} question.bulk_update audit rows remain — that history is the feature, not litter")
 
     failed = [n for n, ok, _ in checks if not ok]
     print(f"\n{len(checks) - len(failed)}/{len(checks)} checks passed")

@@ -41,10 +41,11 @@ three housekeeping jobs, applied live 2026-09-26 with its own `schema_migrations
 (exam-wide add time, drops the duplicate `list_live_sessions` that ISSUE-020 found live and never committed —
 applied live on 2026-09-24; annotated source in `docs/sql-monitor.md`), and `20260928000001_bulk_question_update.sql`
 (F-17 bulk question changes, DEC-035: `public.bulk_update_questions` — many questions in one transaction and
-one audit entry, `service_role` only, additive — **written but NOT APPLIED YET**, and its rolled-back test
-`supabase/tests/bulk_update_test.sql` has never been run: the session that wrote them had no Supabase
-credential, so `question-bank`'s new `bulk_update` action would answer 500 until the migration is applied
-and the function redeployed — ISSUE-033 / TASK-024, with the ordered steps in `docs/sql-bulk-update.md`).
+one audit entry, `service_role` only, additive — **applied live 2026-09-28 with its own `schema_migrations`
+row**; its rolled-back test `supabase/tests/bulk_update_test.sql` passed live the same day
+(`BULK UPDATE TESTS PASSED (…)`, after fixing two faults in the test itself), `question-bank` was redeployed
+with the `bulk_update` action, and `frontend/tests/live_bulk_check.py` then passed **65/65** against the
+deployed function — see `docs/sql-bulk-update.md`).
 `v2_01_foundation` through
 `v2_12_import_questions` (schema, question bank, exams/sessions/results tables, lockdown, text rules, media
 storage, import) were pulled from `supabase_migrations.schema_migrations` and committed verbatim on 2026-09-24

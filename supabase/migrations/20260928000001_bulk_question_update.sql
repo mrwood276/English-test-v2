@@ -1,11 +1,13 @@
--- Fase 2, bulk question management (F-05). Changing many questions is ONE transaction, so a teacher
+-- Fase 2, bulk question management (F-17). Changing many questions is ONE transaction, so a teacher
 --
--- APPLIED LIVE: NOT YET. This file was written on 2026-09-28 in a session that had no Supabase credential,
--- so the live project has no public.bulk_update_questions yet and the Edge function's `bulk_update` action
--- cannot work until this file is run and recorded in supabase_migrations.schema_migrations — the exact
--- steps and the test that proves it are in docs/sql-bulk-update.md. Nothing here is destructive (one
--- function, no table, no column), so running it late is safe; running it after the Edge function is
--- deployed is what makes the feature live.
+-- APPLIED LIVE: 2026-09-28, against project lbhnadqmokloyfarrzfv, with its own `schema_migrations` row
+-- (`20260928000001` / `bulk_question_update`) written in the same session — applying through the Management
+-- API or the dashboard leaves no tracking row, so that row is what stops a later `supabase db push` from
+-- re-running it (the pattern docs/sql-jobs.md describes). The rolled-back test
+-- `supabase/tests/bulk_update_test.sql` passed live the same day — two faults in the test file itself were
+-- found and fixed first (`BULK UPDATE TESTS PASSED (…)`) — and `frontend/tests/live_bulk_check.py` passed
+-- **65/65** against the deployed function: `ALL LIVE BULK CHECKS PASSED`. Both Supabase advisors (security
+-- and performance) came back with **0 findings** afterwards. Record: docs/sql-bulk-update.md.
 -- who ticks 40 questions and changes their topic gets 40 changes or none, and the audit trail records
 -- one act instead of forty (DEC-004: business rules are database functions, one transaction per act).
 -- Doing it per question from the Edge layer would also be 40 round trips and 40 transactions.
