@@ -26,6 +26,7 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 | F-14 | Audit log viewer (built), scheduled purge jobs (built), backups (built), user management (built), notifications | **PARTIAL — dashboard notifications TESTED; email deferred** | ACTIVE | Viewer, scheduled jobs, backups and user management are live and verified; dashboard notices use existing dashboard payloads and are covered by `dashboard_e2e.py`; email remains deferred pending DEC-032. **Audit 2026-09-28 (ISSUE-030): the audit log's empty state drew the text `null` — fixed, `audit_e2e.py` 25 → 26 checks. A *second*, server-backed notification design (bell + `notifications` Edge Function + a `notification_reads` table) exists uncommitted in one checkout and has NOT been adopted — ISSUE-031 / TASK-023** |
 | F-15 | Design system and approved mockups | COMPLETE | PROTECTED | Owner-approved |
 | F-16 | Legacy v1 app (outside this repo) | DEPRECATED (live, untouched) | – | – |
+| F-17 | **Bulk question management** (select many, bulk edit with preview, bulk archive/restore) | COMPLETE in code; **the SQL migration is not applied live** | ACTIVE | TESTED (backend **153**, `question_bank_e2e.py` **129 checks**); **UNVERIFIED live** — migration + rolled-back SQL test unrun (ISSUE-033 / TASK-024) |
 
 ---
 
@@ -62,7 +63,8 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 - Status: COMPLETE. Protection: STABLE.
 - Behavior: 25 per page; search; filters (class label, topic, difficulty, type, used/unused, archived); sort; preview panel (student view, correct answers, accepted answers, essay guide, explanation, files); archive/restore; delete (permanent if never used, otherwise archived; confirmation dialog explains which); **the duplicate banner** (mockup 6): one whole-bank scan per visit reports how many questions look duplicated, **Review** opens the groups (exact text and "N% alike" pairs, each question linked to its editor), and a scan that fails only hides the notice.
 - Files: `frontend/assets/js/teacher/screens/questionBank.js`, `components/questionView.js`, `api/questionBank.js`; `backend/functions/question-bank/handler.ts` (`list`, `get`, `remove`, `archive`, `restore`, `topics`, `class_labels`); SQL `list_questions`, `get_question`, `remove_question`, `set_question_archived`, `list_topics`, `list_class_labels`.
-- Tests: `frontend/tests/question_bank_e2e.py` (**67 checks**, 10 of them the banner), `backend/tests/question_bank.test.ts`, SQL tests (rolled back), and the live `frontend/tests/live_duplicates_check.py` (**15/15**).
+- Selection and bulk changes live in this list too — see **F-17**.
+- Tests: `frontend/tests/question_bank_e2e.py` (**129 checks**, 10 of them the banner and 62 the bulk selection), `backend/tests/question_bank.test.ts`, SQL tests (rolled back), and the live `frontend/tests/live_duplicates_check.py` (**15/15**).
 - Limitations: the banner scans the **non-archived** bank with the SQL defaults (similarity 0.55, at most 50 pairs) and offers no "fix this" action — you open a question from the review and decide there; archived questions are deliberately not scanned (they are out of the way already).
 
 ## F-05 Question editor
@@ -73,6 +75,16 @@ Requirement IDs (BR-xx, D-xx) refer to `docs/design.md`.
 - Routes: `#/questions/new`, `#/questions/edit/<uuid>`.
 - Tests: `frontend/tests/question_editor_e2e.py` (75 checks), `question_bank.test.ts`, SQL tests.
 - Limitations: no Excel/Word import inside the editor (see F-08); a question keeps at most 4 files.
+
+## F-17 Bulk question management
+
+- Status: COMPLETE in code; Protection: **ACTIVE** (new — expect changes). Verification: TESTED, **UNVERIFIED live** (the migration is not applied).
+- Behavior: every row in `#/questions` has a checkbox, the header box picks or clears the page (with a half-ticked state), and a bulk bar appears with `N questions selected` plus how many of them are **not on this page**. Ticking the page when the filter matches more offers *"All 25 questions on this page are selected. → Select all 28 matching questions"*, which selects the whole filter result (fetched in as few requests as the list API allows). `Edit…` opens a two-step dialog — choose what to change (every field starts on "keep as it is"; an untouched field is **not sent at all**), then a preview naming the count, each change and each thing left alone — before `Apply changes`. Class labels support **add / remove / replace**; the topic can be an existing or new name, or cleared; difficulty and points follow the existing rules. `Archive` / `Restore` act on the whole selection behind a confirm dialog (never a permanent delete).
+- Selection rules: a filter change **keeps** the ticks (the ids are explicit and the counter says where they are); the **archived switch clears** them, because it flips what the buttons mean; paging keeps them; leaving the screen drops them. Over 500 matching questions the screen says the filter is too wide and changes nothing — it never quietly acts on a subset.
+- Files: `frontend/assets/js/teacher/screens/questionBank.js`, `components/bulkEditDialog.js`, `api/questionBank.js` (`bulkUpdate`); `backend/functions/question-bank/handler.ts` (`bulk_update`) + `parse.ts` (`parseBulkUpdate`, a whitelist of the five possible keys); SQL `public.bulk_update_questions` in `supabase/migrations/20260928000001_bulk_question_update.sql`.
+- One act = one transaction = one `question.bulk_update` audit entry (DEC-035). The reply is `{matched, updated, unchanged, missing}`: only questions that really changed are counted, and ids that no longer exist are reported, never hidden.
+- Tests: `backend/tests/question_bank.test.ts` (+6), `question_bank_e2e.py` (+62), `frontend/tests/mock_server.py` (a `bulk_update` handler with the same rules). The rolled-back live test `supabase/tests/bulk_update_test.sql` is written but **has not been run**; contract and steps: `docs/sql-bulk-update.md`.
+- Limitations: a bulk change never touches the question text, answers, explanation, reading text or files (deliberately — those are per-question decisions), and it never deletes: archive/restore only. The feature is **not live** until the migration is applied and `question-bank` is redeployed.
 
 ## F-06 Reading texts (passages)
 
