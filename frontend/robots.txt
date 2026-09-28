@@ -1,0 +1,4 @@
+# One school's exam app. Both pages also carry <meta name="robots" content="noindex">; this file is the
+# belt to that braces, because a crawler that ignores the meta tag still reads this one first.
+User-agent: *
+Disallow: /

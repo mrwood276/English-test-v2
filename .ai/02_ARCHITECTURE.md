@@ -70,7 +70,7 @@ Key property: **the browser never reads or writes a table directly.** Everything
 ## Backend architecture
 
 Every Edge Function: `Deno.serve(handle(handler))`.
-- `handle` (`_shared/http.ts`): CORS (`ALLOWED_ORIGIN` secret, default `*`), JSON responses, request id, ApiError → `{error, code}` with its status, unexpected errors → logged + generic 500.
+- `handle` (`_shared/http.ts`): CORS (the `ALLOWED_ORIGIN` secret — one origin or a comma-separated list, default `*`; only a listed `Origin` is echoed, with `Vary: Origin`, DEC-034), JSON responses, request id, ApiError → `{error, code}` with its status, unexpected errors → logged + generic 500.
 - `requireStaff(req, db, roles)` (`_shared/auth.ts`): verifies the bearer token with Supabase Auth, then loads the person's **role from `public.profiles`** (never from the token); inactive or missing profile → 403.
 - Endpoints use one URL with `POST { action, ... }`.
 
@@ -153,7 +153,7 @@ Storage: bucket `question-media`, private, 10 MB limit, mime types image/jpeg, i
 ## Environment and configuration
 
 - Frontend: `frontend/assets/js/core/config.js` (project URL, publishable key, timeouts, session key, `APP_BUILD` label). No `.env`.
-- Edge Functions: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically; optional secret `ALLOWED_ORIGIN` (not set; `*` is used until the app has an address) and optional `SESSION_TOKEN_SECRET` (not set — the service role key signs student session tokens until it is). **`HOUSEKEEPING_KEY` is set** (2026-09-26) and must equal `vault.secrets.housekeeping_key`; it is the scheduled media job's door (DEC-029).
+- Edge Functions: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically; optional secret `ALLOWED_ORIGIN` (**not set; `*` is used until the app has an address** — set it to the hosted address, or a comma-separated list such as `https://<app>,http://localhost:8000`, as the first thing after hosting; **DEC-034**) and optional `SESSION_TOKEN_SECRET` (not set — the service role key signs student session tokens until it is; **set this before the first real exam day**, because changing it invalidates every token in flight). **`HOUSEKEEPING_KEY` is set** (2026-09-26) and must equal `vault.secrets.housekeeping_key`; it is the scheduled media job's door (DEC-029).
 - Auth settings (signup disabled, redirect URLs, leaked-password protection) live in the Supabase dashboard, not in git. **Verified live 2026-09-25**: the email provider is ON and `disable_signup: true` (sign-ups refused with `signup_disabled`, staff sign-in works — ISSUE-007; re-check `auth/v1/settings` after any dashboard change).
 
 ## External integrations

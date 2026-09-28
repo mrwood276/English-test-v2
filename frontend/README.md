@@ -42,7 +42,11 @@ assets/js/teacher/api/          one file per Edge Function (questionBank.js, med
 assets/js/teacher/import/       readers that turn files or pasted text into questions (csv, xlsx, zip, text, rows, rules)
 assets/js/teacher/export/       writers for the results exports, built in the browser with no dependency
                                 (zip.js and xlsx.js; resultsTable.js is the one table the CSV and the Excel file
-                                are both made from, so the two cannot drift apart)
+                                are both made from, so the two cannot drift apart; pdfDoc.js is a small PDF
+                                writer and classSummaryPdf.js lays the class summary out on it — one row per
+                                student, Name/Class/Score/Status, from the same overview payload the screen
+                                has, DEC-033; schoolName.js remembers the school name the header asks for
+                                once per device)
 assets/js/teacher/screens/      login, shell, dashboard, questionBank, questionEditor, questionImport, exams,
                                 examEditor, examMonitor (the live board, with exam-wide add time),
                                 sessionTimeline (one attempt while it runs), grading, gradingQuestion,

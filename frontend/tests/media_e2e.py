@@ -129,7 +129,12 @@ with sync_playwright() as pw:
     # ---- saving while an upload is running
     store.hold = True
     up(page, "small3.png"); page.wait_for_selector(".media-item.uploading")
-    check("an upload in progress is shown", "Uploading" in page.inner_text(".media-item.uploading") or "Saving" in page.inner_text(".media-item.uploading") or "Waiting" in page.inner_text(".media-item.uploading") or "Shrinking" in page.inner_text(".media-item.uploading"))
+    # The mock keeps the PUT open, so the row must stay in the queue; the label itself moves through
+    # Waiting… → Shrinking… → Uploading… → Saving…, so read it once and report what was really there.
+    row_text = page.eval_on_selector(".media-item.uploading", "el => el.textContent")
+    check("an upload in progress is shown",
+          any(word in row_text for word in ("Uploading", "Saving", "Waiting", "Shrinking")),
+          f"the row read {row_text!r}")
     page.fill("#q-body", "Busy save"); page.fill("[aria-label='Answer A']", "A"); page.fill("[aria-label='Answer B']", "B"); page.click("[aria-label='Mark answer A as the correct one']")
     n = len(srv.saved)
     page.click("button:has-text('Save question')")

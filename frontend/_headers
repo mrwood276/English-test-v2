@@ -1,0 +1,13 @@
+# Headers for static hosts that read this file (Cloudflare Pages and Netlify both do; other hosts
+# simply ignore it). It is not a build step and nothing reads it locally.
+#
+# Why Cache-Control: no-cache: the app has no build step, so no file name carries a content hash and a
+# long cache would keep serving last week's JavaScript after a deploy — the stale-module problem the
+# owner already hit once (fixed locally by dev-server.py, which sends no-store). "no-cache" means
+# "store it, but check with the server before using it", so a deploy is picked up on the next load.
+
+/*
+  Cache-Control: no-cache
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin
+  X-Frame-Options: DENY

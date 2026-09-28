@@ -3,7 +3,7 @@ import { normalizeText, contentHash, sanitizeInlineHtml } from "../functions/_sh
 import { generateAccessCode, normalizeAccessCode, CODE_ALPHABET, ACCESS_CODE_PATTERN } from "../functions/_shared/codes.ts";
 import { asString, asInt, asEnum, asUuid, asArray, asObject, asBool, optional } from "../functions/_shared/validate.ts";
 import { ApiError, badRequest } from "../functions/_shared/errors.ts";
-import { handle, readJson } from "../functions/_shared/http.ts";
+import { handle, readJson, corsHeaders } from "../functions/_shared/http.ts";
 import { requireStaff, bearerToken, type StaffDb } from "../functions/_shared/auth.ts";
 import { rateLimit, type RpcClient } from "../functions/_shared/ratelimit.ts";
 import { writeAudit } from "../functions/_shared/audit.ts";
@@ -161,6 +161,79 @@ Deno.test("readJson enforces size and validity", async () => {
   await assert.rejects(() => readJson(new Request("http://x/", { method: "POST", body: "{nope" })), /not valid JSON/);
   await assert.rejects(() => readJson(new Request("http://x/", { method: "POST", body: "" })), /no content/);
   await assert.rejects(() => readJson(new Request("http://x/", { method: "POST", body: JSON.stringify({ big: "x".repeat(500) }) }), 100), /too large/);
+});
+
+// ---------- CORS (ALLOWED_ORIGIN) ----------
+/** Runs `fn` with ALLOWED_ORIGIN set to `value` (or unset), then puts the environment back. */
+function withAllowedOrigin(value: string | null, fn: () => void) {
+  const previous = Deno.env.get("ALLOWED_ORIGIN");
+  if (value === null) Deno.env.delete("ALLOWED_ORIGIN");
+  else Deno.env.set("ALLOWED_ORIGIN", value);
+  try {
+    fn();
+  } finally {
+    if (previous === undefined) Deno.env.delete("ALLOWED_ORIGIN");
+    else Deno.env.set("ALLOWED_ORIGIN", previous);
+  }
+}
+const fromOrigin = (origin: string) => new Request("http://x/", { headers: { origin } });
+
+Deno.test("corsHeaders allows any website while ALLOWED_ORIGIN is unset", () => {
+  withAllowedOrigin(null, () => {
+    assert.equal(corsHeaders()["Access-Control-Allow-Origin"], "*");
+    assert.equal(corsHeaders(fromOrigin("https://anyone.example"))["Access-Control-Allow-Origin"], "*");
+    assert.equal(corsHeaders(fromOrigin("https://anyone.example"))["Vary"], undefined);
+  });
+  withAllowedOrigin("", () => assert.equal(corsHeaders()["Access-Control-Allow-Origin"], "*"));
+  withAllowedOrigin(" * ", () => assert.equal(corsHeaders()["Access-Control-Allow-Origin"], "*"));
+});
+
+Deno.test("corsHeaders echoes an allowed origin and never a stranger's", () => {
+  withAllowedOrigin("https://app.sekolah.sch.id", () => {
+    const allowed = corsHeaders(fromOrigin("https://app.sekolah.sch.id"));
+    assert.equal(allowed["Access-Control-Allow-Origin"], "https://app.sekolah.sch.id");
+    assert.equal(allowed["Vary"], "Origin"); // a per-caller answer must not be cached for the next caller
+
+    // An off-list website must not be handed its own name back, or its browser would read the answer.
+    const stranger = corsHeaders(fromOrigin("https://evil.example"));
+    assert.equal(stranger["Access-Control-Allow-Origin"], "https://app.sekolah.sch.id");
+    assert.notEqual(stranger["Access-Control-Allow-Origin"], "https://evil.example");
+
+    // Not a browser (curl, the scheduled job): nothing enforces the value, so it stays as it was.
+    assert.equal(corsHeaders()["Access-Control-Allow-Origin"], "https://app.sekolah.sch.id");
+  });
+});
+
+Deno.test("corsHeaders accepts a comma-separated list, so the live app and a local one can both work", () => {
+  withAllowedOrigin("https://app.sekolah.sch.id, http://localhost:8000", () => {
+    assert.equal(corsHeaders(fromOrigin("https://app.sekolah.sch.id"))["Access-Control-Allow-Origin"], "https://app.sekolah.sch.id");
+    assert.equal(corsHeaders(fromOrigin("http://localhost:8000"))["Access-Control-Allow-Origin"], "http://localhost:8000");
+    assert.equal(corsHeaders(fromOrigin("https://evil.example"))["Access-Control-Allow-Origin"], "https://app.sekolah.sch.id");
+  });
+});
+
+Deno.test("every response handle builds carries the CORS answer, including errors and the preflight", async () => {
+  const previous = Deno.env.get("ALLOWED_ORIGIN");
+  Deno.env.set("ALLOWED_ORIGIN", "https://app.sekolah.sch.id");
+  try {
+    const ok = handle(() => ({ hello: "world" }));
+    const good = await ok(fromOrigin("https://app.sekolah.sch.id"));
+    assert.equal(good.headers.get("access-control-allow-origin"), "https://app.sekolah.sch.id");
+    assert.equal(good.headers.get("vary"), "Origin");
+
+    const broken = handle(() => { throw badRequest("Name is required."); });
+    const refused = await broken(fromOrigin("https://evil.example"));
+    assert.equal(refused.status, 400);
+    assert.equal(refused.headers.get("access-control-allow-origin"), "https://app.sekolah.sch.id");
+
+    const pre = await ok(new Request("http://x/", { method: "OPTIONS", headers: { origin: "https://app.sekolah.sch.id" } }));
+    assert.equal(pre.status, 204);
+    assert.equal(pre.headers.get("access-control-allow-origin"), "https://app.sekolah.sch.id");
+    assert.ok(pre.headers.get("access-control-allow-headers")?.includes("authorization"));
+  } finally {
+    if (previous === undefined) Deno.env.delete("ALLOWED_ORIGIN");
+    else Deno.env.set("ALLOWED_ORIGIN", previous);
+  }
 });
 
 // ---------- staff auth ----------

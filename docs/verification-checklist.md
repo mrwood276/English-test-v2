@@ -7,7 +7,7 @@ Verified remotely with the publishable key only (no login, read-only, 2026-09-22
 - Anon request to `rest/v1/questions` is refused (HTTP 401, `permission denied`) — the zero-policy lockdown really holds.
 - `question-bank` without a token answers 401 "Please sign in." — the in-code auth wall works on the deployed function.
 - The private `question-media` bucket leaks nothing to anon (listing says "Bucket not found").
-- CORS preflight from `http://localhost:8000` is answered with `Access-Control-Allow-Origin: *` (the `ALLOWED_ORIGIN` secret is not set yet — expected until the app has an address; TASK-017).
+- CORS preflight from `http://localhost:8000` is answered with `Access-Control-Allow-Origin: *` (the `ALLOWED_ORIGIN` secret is not set yet — expected until the app has an address; TASK-017). **Since 2026-09-28 the secret also accepts a comma-separated list and echoes a caller's own `Origin` only when it is on it, with `Vary: Origin` (DEC-034)** — so after hosting, set it to the live address (and `http://localhost:8000` too if you test against the live backend); `docs/production-deployment.md` step 2.
 
 ## 1. Disable public sign-up (ISSUE-007) — DONE, and it needed a repair
 
@@ -29,4 +29,4 @@ All 12 live migrations (`v2_01`..`v2_12`) are committed verbatim under `supabase
 
 - Enable leaked-password protection (Authentication → Policies) if the plan allows it (ISSUE-005).
 - Rotate the credentials that have travelled through chats: the admin password, the staff test account's password (`testguru211l@gmail.com`) and the Supabase Management API token.
-- When v2 has a real address: set the `ALLOWED_ORIGIN` function secret and the Auth Site URL / redirect URLs (TASK-017). Until then `*` is intentional.
+- When v2 has a real address: set the `ALLOWED_ORIGIN` function secret (one origin or a comma-separated list, DEC-034) and the Auth Site URL / redirect URLs (TASK-017). Until then `*` is intentional. The step-by-step version is `docs/production-deployment.md`.
