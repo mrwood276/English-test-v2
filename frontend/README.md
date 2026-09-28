@@ -78,8 +78,9 @@ tests/                          browser tests with a mocked server (mock_server.
                                 cleanup_live_monitor.sql removes what it created) and live_browser_check.py
                                 (the same check driven through the real screens in Chromium).
                                 live_media_check.py uploads a real photo and a real MP3 to Storage through
-                                the editor (needs ffmpeg to build the MP3) and deletes its own rows and
-                                objects again; live_exam_delete_check.py walks the exam delete rule
+                                the editor (needs ffmpeg to build the MP3), moves the second answer and the
+                                second file above the first with the reorder grip, and checks the database
+                                came back in that order, then deletes its own rows and objects again; live_exam_delete_check.py walks the exam delete rule
                                 (teacher closes, admin really deletes) with both accounts; add
                                 SUPABASE_ACCESS_TOKEN to also check the database side of the last two.
                                 live_duplicates_check.py is the newest and the easiest to run: with the
@@ -118,10 +119,27 @@ tests/                          browser tests with a mocked server (mock_server.
                                 the ones it took at the start. Needs the dev server for the screen
                                 half (`--api-only` skips it); the owner's own questions are never
                                 modified
+                                live_exam_bulk_check.py is the exam half of it (F-18): put many
+                                questions on one exam, or take many off it, from the exam
+                                editor and from the bank through the deployed `exams`
+                                function. It creates one throwaway draft exam and five
+                                throwaway questions of its own, proves the refusals
+                                (including an archived question offered and left untouched),
+                                proves add/remove counts, order, points and the renumbering
+                                when a question is removed, drives the real exam editor once
+                                (the change is visible before Save and reaches the database
+                                only when Save is pressed, and the new question is moved to the
+                                top of the list with the keyboard before that Save), then
+                                deletes its exam and all
+                                five questions and compares the live counts with the ones it
+                                took at the start. Needs the dev server for its screen half
+                                (`--api-only` skips it)
 ```
 
 ## Notes
 
+- The exam editor's question list is the exam's **order**: every row has a grip that drags it (the row follows the pointer, `Escape` puts the order back, and `touch-action: none` makes the gesture work on a phone) and that is also the keyboard control — Tab reaches it and ↑ ↓ move the row one place, Home/End jump to the ends, with the focus following the row and each move announced. Save writes that order (`save_exam` numbers the list it is given), so nothing is sent before it. F-18 / DEC-036.
+- That grip is **one shared component** (`components/reorderList.js`), used by the three lists that have a stored order: the exam's questions, the **answer options** in the question editor (the A/B/C/D a student sees) and the **files attached** to a question (the picture and the audio in the order they should appear — this is the reordering half of ISSUE-011). The same picker is used for a reading text's own files, so those reorder too. A file that is still uploading has no grip, and a true/false pair is a fixed two labels, so neither can be reordered.
 - Staff accounts are an admin job (`#/accounts`): create one by typing the email and a temporary password and handing it over (no mailer is needed), rename, promote/demote, deactivate/reactivate, and set a new password. An account is **deactivated, never deleted** — the profile is what the audit trail and the rows the person created point at. DEC-031; contract: `docs/sql-accounts.md`.
 - The question bank shows a banner when the whole-bank duplicate scan finds questions that look like copies (mockup 6): the count comes from the server, the scan runs once per visit, and **Review** lists the groups with a link to each question's editor. Contract: `docs/sql-duplicates.md`.
 - The publishable key in `assets/js/core/config.js` is meant to be public. All tables are locked; data only comes through Edge Functions that check who is calling.

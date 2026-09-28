@@ -108,12 +108,28 @@ with sync_playwright() as pw:
     ids = [i.get_attribute("data-media-id") for i in items(page)]
     page.click(".media-item[data-media-id='%s'] button[aria-label^='Remove']" % ids[1])
     check("a file can be removed", len(items(page)) == 3 and page.query_selector(".media-item[data-media-id='%s']" % ids[1]) is None)
+
+    # ---- the order of the files (the same grip the exam editor and the answers use)
+    # This list is what `set_question_media` numbers, so the grip is what decides the order they appear in.
+    check("every attached file has a reorder grip", page.query_selector_all(".media-item[data-media-id] .grip").__len__() == 3)
+    saved_before_order = len(srv.saved)
+    page.focus(".media-item[data-media-id='%s'] .grip" % ids[3])
+    page.keyboard.press("Home")
+    check("Home moves that file to the top of the list",
+          [i.get_attribute("data-media-id") for i in items(page)] == [ids[3], ids[0], ids[2]],
+          str([i.get_attribute("data-media-id") for i in items(page)]))
+    check("the move is announced",
+          "file 1 of 3" in (page.text_content(".media-picker .visually-hidden[role=status]") or ""),
+          page.text_content(".media-picker .visually-hidden[role=status]"))
+    check("reordering a file has not saved anything", len(srv.saved) == saved_before_order)
+
     page.click("button:has-text('Preview')"); page.wait_for_selector("dialog[open] .qtext")
     check("preview shows the pictures and the audio player", page.query_selector_all("dialog img.q-image").__len__() == 2 and page.query_selector("dialog audio.q-audio") is not None)
     page.click("dialog button:has-text('Close')"); page.wait_for_function("document.querySelector('dialog') === null")
     page.click("button:has-text('Save question')"); page.wait_for_selector(".toast:has-text('Question saved.')")
     sent = srv.saved[-1]
-    check("save sends the files in order, without the removed one", [m["id"] for m in sent["media"]] == [ids[0], ids[2], ids[3]])
+    check("save sends the files in the order on screen, without the removed one",
+          [m["id"] for m in sent["media"]] == [ids[3], ids[0], ids[2]], str([m["id"] for m in sent["media"]]))
 
     # ---- failures
     page.click("a:has-text('Add question')"); page.wait_for_selector("#q-media")
@@ -135,6 +151,9 @@ with sync_playwright() as pw:
     check("an upload in progress is shown",
           any(word in row_text for word in ("Uploading", "Saving", "Waiting", "Shrinking")),
           f"the row read {row_text!r}")
+    check("a file that is still uploading has no grip, so it cannot be dragged into a made-up order",
+          page.query_selector(".media-item.uploading .grip") is None
+          and page.query_selector(".media-item[data-media-id] .grip") is not None)
     page.fill("#q-body", "Busy save"); page.fill("[aria-label='Answer A']", "A"); page.fill("[aria-label='Answer B']", "B"); page.click("[aria-label='Mark answer A as the correct one']")
     n = len(srv.saved)
     page.click("button:has-text('Save question')")

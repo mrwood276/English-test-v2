@@ -13,4 +13,9 @@ export const exams = {
   regenerateCode: (id) => call({ action: "regenerate_code", id }).then((r) => r.code),
   checkCode: (code, excludeId) => call({ action: "check_code", code, exclude_id: excludeId }).then((r) => r.available),
   duplicate: (id) => call({ action: "duplicate", id }).then((r) => r.id),
+  /**
+   * Put many questions on one exam, or take many off it, in one request (F-18). `mode` is `add` or
+   * `remove`; returns `{ matched, updated, unchanged, missing }` — only what really changed is counted.
+   */
+  bulkQuestions: (examId, mode, ids) => call({ action: "bulk_questions", exam_id: examId, mode, ids }).then((r) => r.result),
 };

@@ -5,7 +5,7 @@ import { callRpc, type RpcDb } from "../_shared/rpc.ts";
 import { asEnum, asObject, asUuid, optional } from "../_shared/validate.ts";
 import { ACCESS_CODE_PATTERN, generateAccessCode, normalizeAccessCode } from "../_shared/codes.ts";
 import { badRequest } from "../_shared/errors.ts";
-import { asAccessCode, parseExamInput, parseListFilters, EXAM_STATUSES } from "./parse.ts";
+import { asAccessCode, parseBulkQuestions, parseExamInput, parseListFilters, EXAM_STATUSES } from "./parse.ts";
 
 export type Db = StaffDb & RpcDb;
 
@@ -15,6 +15,7 @@ const ACTIONS = [
   "regenerate_code",       // BR-17: new automatic code
   "check_code",            // is this code free among open exams?
   "duplicate",             // copy an exam (or template) as a new draft
+  "bulk_questions",        // put many bank questions on an exam, or take many off it (F-18)
 ] as const;
 
 /** Codes are typed by students on shared keyboards; a stray space must not fail the check. */
@@ -92,6 +93,19 @@ export function createHandler(getDb: () => Db) {
           p_actor: me.userId,
         });
         return { id: newId };
+      }
+
+      // Adding or removing many questions at once is one database act (one transaction, one audit entry)
+      // with its own guards; every refusal comes back as a friendly 400 through callRpc.
+      case "bulk_questions": {
+        const { examId, mode, ids } = parseBulkQuestions(b);
+        const result = await callRpc<Record<string, unknown>>(db, "bulk_exam_questions", {
+          p_exam_id: examId,
+          p_mode: mode,
+          p_ids: ids,
+          p_actor: me.userId,
+        });
+        return { result };
       }
     }
   });

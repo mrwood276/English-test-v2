@@ -343,6 +343,120 @@ with sync_playwright() as pw:
     page.click(".bulkbar button:has-text('Clear')")
     page.select_option("#qb-difficulty", ""); wait_rows(page, 25)
 
+    # --- putting the ticked questions on an exam, and taking them off (F-18)
+    def exam_e(eid, title, **over):
+        e = {"id": eid, "title": title, "description": None, "status": "draft", "duration_minutes": 30,
+             "passing_grade": 60, "availability_mode": "manual", "starts_at": None, "ends_at": None,
+             "late_start_policy": "full_duration", "access_code": title[:4].upper(), "selection_mode": "manual",
+             "is_template": False, "created_at": "2026-09-21T00:00:00Z", "questions": [], "session_count": 0}
+        e.update(over); return e
+    EX = "00000000-0000-4000-8000-0000000000f1"
+    srv.exams = {
+        # deliberately empty: every id the checks below tick is read off the page, so no assumption is made
+        EX: exam_e(EX, "UAS Narrative"),
+        "00000000-0000-4000-8000-0000000000f2": exam_e("00000000-0000-4000-8000-0000000000f2", "Running quiz", status="open"),
+        "00000000-0000-4000-8000-0000000000f3": exam_e("00000000-0000-4000-8000-0000000000f3", "Already taken", session_count=2),
+        "00000000-0000-4000-8000-0000000000f4": exam_e("00000000-0000-4000-8000-0000000000f4", "Drawn by filter", selection_mode="auto"),
+    }
+    # The ids are read off the page rather than assumed, so these checks do not depend on how the mock orders
+    # its rows or on what an earlier section happened to leave archived.
+    rows_now = page.eval_on_selector_all(".qtable tbody tr", "els => els.map(e => e.dataset.id)")
+    check("the page has rows to work with", len(rows_now) >= 8, str(len(rows_now)))
+    THREE = rows_now[:3]
+    FRESH = rows_now[3]
+
+    def tick(question_id): page.check(f"tr[data-id='{question_id}'] input.pick")
+    def settle(): page.wait_for_timeout(250)   # an applied change reloads the list underneath the ticks
+
+    for i in THREE: tick(i)
+    check("the bulk bar offers to put the selection on an exam and take it off",
+          page.is_visible(".bulkbar button:has-text('Add to exam')") and page.is_visible(".bulkbar button:has-text('Remove from exam')"))
+    page.click(".bulkbar button:has-text('Add to exam')")
+    page.wait_for_selector("dialog.exam-questions-dialog[open]")
+    check("the dialog asks which exam and names how many will move",
+          "Add 3 questions to an exam" in page.inner_text("dialog.exam-questions-dialog")
+          and "You selected 3 questions." in page.inner_text("dialog.exam-questions-dialog"))
+    options = page.eval_on_selector_all("#exq-exam option", "els => els.map(e => e.textContent)")
+    check("only an exam that can take the change is offered, and it says how many questions it has",
+          len(options) == 1 and "UAS Narrative" in options[0] and "0 questions" in options[0], str(options))
+    check("nothing is sent while the exam is only being chosen", not srv.exam_bulk_calls)
+    calls_before = len(srv.calls)
+    page.click("dialog.exam-questions-dialog button:has-text('Preview')")
+    preview = page.inner_text("dialog.exam-questions-dialog")
+    check("the preview names the exam and what will happen before it happens",
+          "UAS Narrative" in preview and "3 questions will be added to" in preview, preview[:300])
+    check("the preview can be backed out of", page.is_visible("dialog.exam-questions-dialog button:has-text('Back')"))
+    check("still nothing has been sent", not srv.exam_bulk_calls and len(srv.calls) == calls_before)
+    page.click("dialog.exam-questions-dialog button:has-text('Add to exam')")
+    page.wait_for_selector(".toast:has-text('3 questions added to the exam')")
+    page.wait_for_function("document.querySelector('dialog.exam-questions-dialog') === null")
+    sent = srv.exam_bulk_calls[-1]
+    check("one request names the exam, the mode and every ticked id",
+          sent["action"] == "bulk_questions" and sent["exam_id"] == EX and sent["mode"] == "add"
+          and sorted(sent["ids"]) == sorted(THREE), str(sent))
+    check("the questions really joined that exam, in one act",
+          [q["question_id"] for q in srv.exams[EX]["questions"]] == THREE)
+    check("the bar goes with the applied selection", page.is_hidden(".bulkbar"))
+
+    # removing is the same act the other way round
+    settle()
+    check("the list comes back the same, with the ticks gone",
+          page.eval_on_selector_all(".qtable tbody tr", "els => els.map(e => e.dataset.id)")[:3] == THREE
+          and page.is_hidden(".bulkbar"))
+    for i in THREE[:2]: tick(i)
+    page.click(".bulkbar button:has-text('Remove from exam')")
+    page.wait_for_selector("dialog.exam-questions-dialog[open]")
+    page.click("dialog.exam-questions-dialog button:has-text('Preview')")
+    check("removing says what it will take off",
+          "2 questions will be taken off" in page.inner_text("dialog.exam-questions-dialog"),
+          page.inner_text("dialog.exam-questions-dialog")[:250])
+    page.click("dialog.exam-questions-dialog button:has-text('Remove from exam')")
+    page.wait_for_selector(".toast:has-text('2 questions taken off the exam')")
+    check("the request carries the mode remove", srv.exam_bulk_calls[-1]["mode"] == "remove" and srv.exam_bulk_calls[-1]["exam_id"] == EX)
+    check("and the exam really lost exactly those two",
+          [q["question_id"] for q in srv.exams[EX]["questions"]] == [THREE[2]])
+
+    # a question that is already on the exam is reported, not silently skipped
+    settle()
+    tick(THREE[2])
+    page.click(".bulkbar button:has-text('Add to exam')")
+    page.wait_for_selector("dialog.exam-questions-dialog[open]")
+    page.click("dialog.exam-questions-dialog button:has-text('Preview')")
+    page.click("dialog.exam-questions-dialog button:has-text('Add to exam')")
+    page.wait_for_selector(".toast:has-text('Nothing to do')")
+    check("adding a question the exam already has says so instead of claiming success",
+          "already on the exam" in page.inner_text(".toasts"), page.inner_text(".toasts"))
+
+    # a refusal from the server is explained where the choice is
+    settle()
+    tick(FRESH)
+    page.click(".bulkbar button:has-text('Add to exam')")
+    page.wait_for_selector("dialog.exam-questions-dialog[open]")
+    page.click("dialog.exam-questions-dialog button:has-text('Preview')")
+    srv.fail_bulk_questions = "This exam already has attempts, so its questions stay as they were. Duplicate the exam to change them."
+    page.click("dialog.exam-questions-dialog button:has-text('Add to exam')")
+    page.wait_for_selector("dialog.exam-questions-dialog .notice.error")
+    check("a refused change is explained inside the dialog, which stays open",
+          "already has attempts" in page.inner_text("dialog.exam-questions-dialog .notice.error"))
+    check("the buttons come back so it can be tried again",
+          page.is_enabled("dialog.exam-questions-dialog button:has-text('Add to exam')"))
+    check("the exam was not touched", [q["question_id"] for q in srv.exams[EX]["questions"]] == [THREE[2]])
+    srv.fail_bulk_questions = None
+    page.click("dialog.exam-questions-dialog button:has-text('Add to exam')")
+    page.wait_for_selector(".toast:has-text('1 question added to the exam')")
+    check("trying again after the server recovers works",
+          [q["question_id"] for q in srv.exams[EX]["questions"]] == [THREE[2], FRESH])
+
+    # closing without applying keeps the ticks
+    settle()
+    tick(rows_now[4]); tick(rows_now[5])
+    check("the ticks build up again after an applied change", "2 questions selected" in page.inner_text(".bulkbar"), page.inner_text(".bulkbar"))
+    page.click(".bulkbar button:has-text('Add to exam')")
+    page.wait_for_selector("dialog.exam-questions-dialog[open]")
+    page.keyboard.press("Escape"); page.wait_for_function("document.querySelector('dialog.exam-questions-dialog') === null")
+    check("closing without applying keeps the ticks", "2 questions selected" in page.inner_text(".bulkbar"), page.inner_text(".bulkbar"))
+    page.click(".bulkbar button:has-text('Clear')")
+
     # --- errors
     srv.fail_list = 1; page.select_option("#qb-difficulty", "easy"); page.wait_for_selector(".list-status.error")
     check("a failed load shows a message and a retry button", "Could not load questions" in page.inner_text(".list-status") and page.is_visible(".list-status button:has-text('Try again')"))

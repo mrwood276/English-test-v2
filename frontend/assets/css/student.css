@@ -7,7 +7,7 @@
 .dialog h2 { font-size: 19px; margin-bottom: 8px; }
 .dialog p { color: var(--ink-2); font-size: 14.5px; margin-bottom: 18px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.toasts { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: grid; gap: 8px; z-index: 50; width: min(92vw, 420px); }
+.toasts { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: grid; gap: 8px; z-index: 50; width: min(92vw, 420px); pointer-events: none; }
 .toast { background: var(--ink); color: #fff; border-radius: var(--radius-m); padding: 11px 14px; font-size: 14px; }
 .toast.error { background: #7a1626; }
 .tag { display: inline-block; background: #edf0f6; color: var(--ink-2); border-radius: 6px; padding: 1px 7px; font-size: 12px; margin: 0 4px 3px 0; }

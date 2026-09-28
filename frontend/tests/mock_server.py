@@ -51,6 +51,8 @@ class Server:
         }
         self.import_checks = []; self.imports = []
         self.exam_calls = []; self.exams = {}; self.exam_codes_used = {"TAKEN1"}
+        # F-18: putting questions on an exam from the bank, and a way to make the server refuse.
+        self.exam_bulk_calls = []; self.fail_bulk_questions = None
         self.role = "admin"   # suites switch this to "teacher" to check the role-dependent screens
         # student side (session function)
         self.session_exams = {}; self.sessions = {}; self.taken = set(); self.session_calls = []
@@ -942,6 +944,44 @@ class Server:
             used = self.exam_codes_used | {e["access_code"] for e in self.exams.values() if e["status"] == "open"}
             mine = {e["access_code"] for e in self.exams.values() if e["id"] == body.get("exclude_id")}
             return ok({"available": code not in (used - mine)})
+        if a == "bulk_questions":
+            # The same guards public.bulk_exam_questions makes, said the same way.
+            self.exam_bulk_calls.append(body)
+            if self.fail_bulk_questions: return err(400, self.fail_bulk_questions)
+            e = self.exams.get(body.get("exam_id"))
+            if not e: return err(400, "That exam no longer exists.")
+            mode = body.get("mode")
+            if mode not in ("add", "remove"): return err(400, "Choose whether to add or remove questions.")
+            ids = list(dict.fromkeys(body.get("ids") or []))
+            if not ids: return err(400, "Select at least one question.")
+            if len(ids) > 500: return err(400, "Change at most 500 questions at once.")
+            if e.get("selection_mode") != "manual":
+                return err(400, "This exam draws its questions by a filter, so it has no fixed question list.")
+            if e["status"] == "open": return err(400, "Close the exam before changing its questions.")
+            if e.get("session_count", 0) > 0:
+                return err(400, "This exam already has attempts, so its questions stay as they were. Duplicate the exam to change them.")
+            known = {q["id"]: q for q in self.qs}
+            found = [i for i in ids if i in known]
+            if not found: return err(400, "Those questions no longer exist. Refresh the list and try again.")
+            missing = len(ids) - len(found)
+            have = {q["question_id"] for q in e["questions"]}
+            if mode == "add":
+                if any(known[i]["is_archived"] for i in found):
+                    return err(400, "Some of those questions are archived. Restore them first, or leave them out.")
+                to_add = [i for i in found if i not in have]
+                if len(e["questions"]) + len(to_add) > 200: return err(400, "An exam can hold at most 200 questions.")
+                for n, i in enumerate(to_add):
+                    q = known[i]
+                    e["questions"].append({"question_id": i, "position": len(e["questions"]) + 1, "weight": q["weight"],
+                                           "body": q["body"], "type": q["type"]})
+                return ok({"result": {"matched": len(found), "updated": len(to_add),
+                                      "unchanged": len(found) - len(to_add), "missing": missing}})
+            on = [i for i in found if i in have]
+            gone = set(on)
+            e["questions"] = [q for q in e["questions"] if q["question_id"] not in gone]
+            for n, q in enumerate(e["questions"]): q["position"] = n + 1
+            return ok({"result": {"matched": len(on), "updated": len(on),
+                                  "unchanged": len(found) - len(on), "missing": missing}})
         if a == "duplicate":
             src = self.exams.get(body.get("id"))
             if not src: return err(400, "That exam no longer exists.")

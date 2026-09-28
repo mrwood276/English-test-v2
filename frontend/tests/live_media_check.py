@@ -17,10 +17,12 @@ What it proves, in order:
   2. the one-time upload link the `media` function hands out is an absolute Storage URL;
   3. the app shrinks the large photo, PUTs both files straight to Storage, and the rows that come
      back carry the size and type Storage itself reported (not what the browser claimed);
-  4. saving attaches both files to the question;
-  5. reopening the question shows the picture and the player, and both really load and really play;
-  6. a file put into Storage on purpose that is over the limit is refused and deleted again;
-  7. the function refuses a teacher's admin-only action and a tokenless call.
+  4. the second answer and the second file can each be moved above the first with the shared reorder grip
+     (F-18 / DEC-036), and Save is what writes that order — the database is read back to prove it;
+  5. saving attaches both files to the question and they come back in that order;
+  6. reopening the question shows the picture and the player in that order, and both really load and play;
+  7. a file put into Storage on purpose that is over the limit is refused and deleted again;
+  8. the function refuses a teacher's admin-only action and a tokenless call.
 """
 import base64
 import json
@@ -278,6 +280,21 @@ def main():
         check("the MP3 really decodes and plays",
               heard["error"] is None and round(heard["duration"]) == 3 and heard["currentTime"] > 0.05, json.dumps(heard))
 
+        # ---------- the order of the answers and the files (the shared grip control, F-18 / DEC-036) ----------
+        # Both lists are stored in the order the editor holds them, so this is what decides the A/B a student
+        # sees and which file comes first. Nothing is sent until Save, like the rest of the form.
+        page.focus(".answers .optrow:nth-child(2) .grip")
+        page.keyboard.press("Home")
+        answer_order = [page.input_value(f"[aria-label='Answer {L}']") for L in "AB"]
+        check("the second answer moves above the first, letter and all", answer_order == ["Two", "One"], str(answer_order))
+        check("and the correct answer keeps its bubble",
+              page.get_attribute("[aria-label='Mark answer B as the correct one']", "aria-pressed") == "true"
+              and page.query_selector_all(".answers .bubble.ok").__len__() == 1)
+        page.focus(f".media-item[data-media-id='{media_ids[1]}'] .grip")
+        page.keyboard.press("Home")
+        file_order = [i.get_attribute("data-media-id") for i in page.query_selector_all(".media-item[data-media-id]")]
+        check("the second file moves above the first", file_order == [media_ids[1], media_ids[0]], str(file_order))
+
         # ---------- save, then reopen ----------
         with page.expect_response(lambda r: r.request.method == "POST" and "/functions/v1/question-bank" in r.url) as info:
             page.click("button:has-text('Save question')")
@@ -285,11 +302,33 @@ def main():
         question_id = (info.value.json() or {}).get("id")
         check("saving the question with both files works", bool(question_id), str(info.value.status))
 
+        if ACCESS and question_id:
+            options = sql("select body, position, is_correct from public.question_options "
+                          f"where question_id = '{question_id}' order by position")
+            check("the database keeps the answers in the order they were put in",
+                  [o["body"] for o in options] == ["Two", "One"], json.dumps(options))
+            check("with the numbers 1..n and the right one still marked correct",
+                  [int(o["position"]) for o in options] == list(range(1, len(options) + 1))
+                  and [o["body"] for o in options if o["is_correct"]] == ["One"], json.dumps(options))
+            # `set_question_media` numbers the files from 0, `save_question` numbers the answers from 1 — the
+            # order is what matters here, and both are read back in it.
+            files = sql("select media_id, position from public.question_media "
+                        f"where question_id = '{question_id}' order by position")
+            check("the database keeps the files in the order they were put in",
+                  [f["media_id"] for f in files] == [media_ids[1], media_ids[0]], json.dumps(files))
+            check("with no gap in that order",
+                  [int(f["position"]) for f in files] == list(range(0, len(files))), json.dumps(files))
+
         page.goto(BASE + "#/questions/edit/" + question_id)
         page.wait_for_selector("#q-media", timeout=30000)
         page.wait_for_function("() => document.querySelectorAll('.media-item[data-media-id]').length === 2", timeout=30000)
         again = [i.get_attribute("data-media-id") for i in page.query_selector_all(".media-item[data-media-id]")]
         check("reopening the question lists the same two files", sorted(again) == sorted(media_ids), str(again))
+        check("in the order they were put in, so the screen agrees with the database",
+              again == [media_ids[1], media_ids[0]], str(again))
+        check("and the answers come back in that order too",
+              [page.input_value(f"[aria-label='Answer {L}']") for L in "AB"] == ["Two", "One"],
+              str([page.input_value(f"[aria-label='Answer {L}']") for L in "AB"]))
         shot = photo_plays()
         check("the picture loads again after reopening", shot["w"] > 0, json.dumps(shot))
         heard = audio_plays()

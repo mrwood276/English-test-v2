@@ -5,6 +5,7 @@ import { debounce, toast, confirmDialog, segmented } from "../../shared/ui.js";
 import { questionBank } from "../api/questionBank.js";
 import { questionView, mediaBlock, TYPE_LABEL } from "../components/questionView.js";
 import { mediaPicker } from "../components/mediaPicker.js";
+import { enableReorder } from "../components/reorderList.js";
 import { attachMediaUrls } from "../api/media.js";
 import { richTextarea } from "../components/richTextarea.js";
 import { chipsInput } from "../components/chipsInput.js";
@@ -117,6 +118,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
   explanationField.textarea.addEventListener("input", () => { state.explanation = explanationField.textarea.value; });
 
   const answersBox = h("div", { class: "answers" });
+  const answerNote = h("p", { class: "visually-hidden", id: "q-answer-note", role: "status", "aria-live": "polite" });
   const filesPicker = mediaPicker({ items: state.media, id: "q-media", describedBy: "files-hint", onChange: (list) => { state.media = list; } });
 
   // passage
@@ -224,16 +226,41 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
     return btn;
   }
 
+  // ---------- the order of the answers ----------
+  // A multiple-choice question's options are stored in the order the editor holds them (`save_question`
+  // numbers them from this array), so the row order IS the A/B/C/D a student sees. The grip is the shared
+  // one (`components/reorderList.js`); the rows carry no ids, so a row is tied back to its answer object
+  // here, and everything below goes through the same "nothing is saved until Save" rule as the rest of the
+  // form. A true/false pair is deliberately left alone: those two rows are fixed labels, not a teacher's
+  // list, and the bubble is what says which one is right.
+  const answerOf = new WeakMap();
+  const reorderAnswers = enableReorder(answersBox, {
+    note: answerNote,
+    noun: "answer",
+    describe: (row) => plainText((answerOf.get(row) || {}).body || "", 40),
+    onOrder: (rows) => {
+      state.mc = rows.map((row) => answerOf.get(row)).filter(Boolean);
+      renderAnswers();
+      scheduleDup();
+    },
+  });
+
   function renderAnswers() {
+    reorderAnswers.reset();   // a full rebuild of the rows ends any drag in flight
     answersBox.replaceChildren();
     if (state.type === "multiple_choice") {
       state.mc.forEach((o, i) => {
         const input = h("input", { class: o.correct ? "inp correct" : "inp", type: "text", maxlength: "1000", "aria-label": `Answer ${LETTERS[i]}`, autocomplete: "off" });
         input.value = o.body;
         input.addEventListener("input", () => { o.body = input.value; setError("answers", ""); scheduleDup(); });
+        const grip = h("button", { class: "btn small ghost grip", type: "button", draggable: "false", title: "Drag to reorder, or press ↑ ↓",
+          "aria-label": `Reorder answer ${LETTERS[i]}: drag it, or press the arrow keys` }, icon("grip"));
         const remove = h("button", { class: "icon-btn", type: "button", "aria-label": `Remove answer ${LETTERS[i]}`, disabled: state.mc.length <= MIN_MC }, icon("plus"));
         remove.addEventListener("click", () => { state.mc.splice(i, 1); renderAnswers(); scheduleDup(); });
-        answersBox.append(h("div", { class: "optrow" }, bubbleButton(LETTERS[i], o.correct, `Mark answer ${LETTERS[i]} as the correct one`, () => { state.mc.forEach((x, j) => (x.correct = j === i)); setError("answers", ""); renderAnswers(); }), input, remove));
+        const row = h("div", { class: "optrow" }, grip,
+          bubbleButton(LETTERS[i], o.correct, `Mark answer ${LETTERS[i]} as the correct one`, () => { state.mc.forEach((x, j) => (x.correct = j === i)); setError("answers", ""); renderAnswers(); }), input, remove);
+        answerOf.set(row, o);
+        answersBox.append(row);
       });
       const add = h("button", { class: "btn small ghost", type: "button", disabled: state.mc.length >= MAX_MC }, icon("plus"), "Add an answer");
       add.addEventListener("click", () => { state.mc.push({ body: "", correct: false }); renderAnswers(); answersBox.querySelectorAll("input")[state.mc.length - 1].focus(); });
@@ -369,7 +396,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
           h("section", { class: "card sec", "aria-labelledby": "h-question" },
             h("h2", { id: "h-question" }, "Question and answers"),
             h("label", { class: "lbl", for: "q-body" }, "Question"), bodyField.el, errEls.body,
-            h("div", { class: "lbl spaced" }, "Answers"), answersBox, errEls.answers,
+            h("div", { class: "lbl spaced" }, "Answers"), answersBox, answerNote, errEls.answers,
             h("label", { class: "lbl spaced", for: "q-explanation" }, "Explanation (shown after the test only if you allow it)"), explanationField.el)),
         h("div", { class: "editor-side" },
           h("section", { class: "card sec", "aria-labelledby": "h-labels" }, h("h2", { id: "h-labels" }, "Class labels"), labels.el),

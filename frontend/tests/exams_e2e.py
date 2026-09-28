@@ -200,6 +200,165 @@ with sync_playwright() as pw:
     page.wait_for_selector(".chosen-item")
     check("picker search results appear", page.eval_on_selector_all(".picker-list:not(.chosen) .picker-item", "els => els.length") > 0)
 
+    # --- editor: adding and removing questions in bulk (F-18)
+    # Both halves of the picker are tick-and-act, with a preview between choosing and applying. Nothing
+    # reaches the server until Save: the exam list is the editor's own draft and save_exam writes it whole.
+    def picker_pick(i): return page.check(f".picker-list:not(.chosen) .picker-item[data-id='{srv.qs[i]['id']}'] input.pick")
+    def chosen_pick(i): return page.check(f".picker-list.chosen .picker-item[data-id='{srv.qs[i]['id']}'] input.pick")
+    saves_before = len([c for c in srv.exam_calls if c.get("action") == "save"])
+    chosen_before = len(page.query_selector_all(".chosen-item"))
+    check("the two questions already on the exam are marked and cannot be ticked again",
+          page.is_disabled(f".picker-list:not(.chosen) .picker-item[data-id='{srv.qs[0]['id']}'] input.pick")
+          and "On this exam" in page.inner_text(f".picker-list:not(.chosen) .picker-item[data-id='{srv.qs[0]['id']}']"))
+    check("no bulk bar until something is ticked", page.is_hidden("#ee-add-bar") and page.is_hidden("#ee-remove-bar"))
+    picker_pick(2); picker_pick(3)
+    page.wait_for_selector("#ee-add-bar:not([hidden])")
+    check("ticking bank questions offers to add exactly those",
+          "2 questions selected" in page.inner_text("#ee-add-bar") and page.is_visible("#ee-add-bar button:has-text('Add 2 to this exam')"),
+          page.inner_text("#ee-add-bar"))
+    page.click("#ee-add-bar button:has-text('Add 2 to this exam')")
+    page.wait_for_selector("dialog.exam-questions-dialog[open]")
+    form = page.inner_text("dialog.exam-questions-dialog")
+    check("the dialog names the count and skips straight to the preview for the exam being edited",
+          "Add 2 questions to an exam" in form and "You selected 2 questions." in form, form[:200])
+    check("the preview names the exam and what will happen",
+          "Narrative Text, Daily Test 3" in form and "2 questions will be added to" in form, form[:300])
+    check("nothing is sent to the server before Apply",
+          len([c for c in srv.exam_calls if c.get("action") == "save"]) == saves_before)
+    page.click("dialog.exam-questions-dialog button:has-text('Add to exam')")
+    page.wait_for_function(f"document.querySelectorAll('.chosen-item').length === {chosen_before + 2}")
+    page.wait_for_selector(".toast:has-text('added to the exam')")
+    check("the questions join the exam's list", len(page.query_selector_all(".chosen-item")) == chosen_before + 2)
+    check("adding still has not saved anything",
+          len([c for c in srv.exam_calls if c.get("action") == "save"]) == saves_before)
+    check("the bank list now says those two are on this exam",
+          "On this exam" in page.inner_text(f".picker-list:not(.chosen) .picker-item[data-id='{srv.qs[2]['id']}']")
+          and page.is_disabled(f".picker-list:not(.chosen) .picker-item[data-id='{srv.qs[2]['id']}'] input.pick"))
+
+    check("adding cleared the ticks and closed the bar", page.is_hidden("#ee-add-bar"))
+    chosen_pick(2); chosen_pick(3)
+    page.wait_for_selector("#ee-remove-bar:not([hidden])")
+    check("ticking chosen questions offers to take those off",
+          page.is_visible("#ee-remove-bar button:has-text('Remove 2 from this exam')") and "2 of 4 on this exam" in page.inner_text("#ee-remove-bar"),
+          page.inner_text("#ee-remove-bar"))
+    page.click("#ee-remove-bar button:has-text('Remove 2 from this exam')")
+    page.wait_for_selector("dialog.exam-questions-dialog[open]")
+    check("removing asks for the same look-before-you-leap step",
+          "Remove 2 questions from an exam" in page.inner_text("dialog.exam-questions-dialog")
+          and "2 questions will be taken off" in page.inner_text("dialog.exam-questions-dialog"))
+    page.click("dialog.exam-questions-dialog button:has-text('Remove from exam')")
+    page.wait_for_function(f"document.querySelectorAll('.chosen-item').length === {chosen_before}")
+    page.wait_for_selector(".toast:has-text('taken off the exam')")
+    check("the two questions leave the exam's list", len(page.query_selector_all(".chosen-item")) == chosen_before)
+    check("the remaining questions, their order and their points are untouched",
+          [t.get_attribute("data-id") for t in page.query_selector_all(".chosen-item")] == [srv.qs[0]["id"], srv.qs[1]["id"]])
+    check("the remove bar goes with the applied selection", page.is_hidden("#ee-remove-bar"))
+
+    # --- editor: reordering the exam's questions (drag, and the keyboard)
+    # The order of this list IS the order the exam asks its questions in (save_exam numbers the list from the
+    # payload it is given), so the control that changes it is the control that decides that. A drag moves the
+    # row for real - the list is the preview - and, like every other edit on this screen, nothing is sent
+    # until Save.
+    def chosen_ids(): return [t.get_attribute("data-id") for t in page.query_selector_all(".chosen-item")]
+    def chosen_pos(): return page.eval_on_selector_all(".chosen-item .pos", "els => els.map(e => e.textContent)")
+    def save_calls(): return [c for c in srv.exam_calls if c.get("action") == "save"]
+    def stored_order(): return [q["question_id"] for q in srv.exams[EXAM1]["questions"]]
+    def drag_first_grip_to_bottom():
+        """Press on the first row's grip, drag it past the last row, and stop (the caller releases)."""
+        grips = page.query_selector_all(".chosen-item .grip")
+        grips[0].scroll_into_view_if_needed()   # Saving may have scrolled the page; a mouse drag needs it on screen
+        g0, g1 = grips[0].bounding_box(), grips[-1].bounding_box()
+        page.mouse.move(g0["x"] + g0["width"] / 2, g0["y"] + g0["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(g0["x"] + g0["width"] / 2, g1["y"] + g1["height"], steps=8)
+        return chosen_ids()
+
+    q0, q1 = srv.qs[0]["id"], srv.qs[1]["id"]
+    saves_before_edit = len(save_calls())
+    check("every question on the exam has a reorder grip",
+          page.eval_on_selector_all(".chosen-item .grip", "els => els.length") == chosen_before)
+    check("the grip is a button that says what it does, and each row is numbered where it sits",
+          "Reorder" in (page.get_attribute(".chosen-item .grip", "aria-label") or "")
+          and page.get_attribute(".chosen-item .grip", "title") == "Drag to reorder, or press ↑ ↓"
+          and chosen_pos() == ["1", "2"], str(chosen_pos()))
+    check("the drag hint is on screen", page.is_visible("#ee-reorder-hint"))
+
+    page.focus(f".chosen-item[data-id='{q0}'] .grip")
+    page.keyboard.press("ArrowDown")
+    check("ArrowDown on the focused grip moves that question down one place",
+          chosen_ids() == [q1, q0], str(chosen_ids()))
+    check("the numbers follow the new order", chosen_pos() == ["1", "2"], str(chosen_pos()))
+    check("the focus stays on the grip that moved, so the next press keeps going",
+          page.evaluate("document.activeElement.classList.contains('grip')"))
+    check("and the move is announced to a screen reader",
+          "question 2 of 2" in (page.text_content("#ee-reorder-note") or ""), page.text_content("#ee-reorder-note"))
+    page.keyboard.press("ArrowDown")
+    check("ArrowDown at the bottom does nothing (and does not scroll the page away)", chosen_ids() == [q1, q0])
+    page.keyboard.press("Home")
+    check("Home sends the focused question to the top", chosen_ids() == [q0, q1], str(chosen_ids()))
+    page.keyboard.press("End")
+    check("End sends it to the bottom", chosen_ids() == [q1, q0], str(chosen_ids()))
+    check("reordering has still not saved anything",
+          len(save_calls()) == saves_before_edit, str(len(save_calls())))
+
+    mid = drag_first_grip_to_bottom()
+    check("while the mouse is down the row is marked as being dragged",
+          page.locator(".chosen-item.dragging").count() == 1)
+    check("the row follows the pointer to where it will land", mid == [q0, q1], str(mid))
+    page.mouse.up()
+    check("dropping the row below the other one swaps them", chosen_ids() == [q0, q1], str(chosen_ids()))
+    check("the dragged row keeps the keyboard focus afterwards",
+          page.evaluate("document.activeElement.classList.contains('grip')"))
+    check("a drag still has not saved anything", len(save_calls()) == saves_before_edit)
+
+    drag_first_grip_to_bottom()
+    check("the row really moved before Escape", chosen_ids() == [q1, q0], str(chosen_ids()))
+    check("and it is still marked as being dragged", page.locator(".chosen-item.dragging").count() == 1)
+    page.keyboard.press("Escape")
+    page.mouse.up()
+    check("Escape puts the order back", chosen_ids() == [q0, q1], str(chosen_ids()))
+    check("and says so", "cancelled" in (page.text_content("#ee-reorder-note") or ""), page.text_content("#ee-reorder-note"))
+
+    # Save writes the order on screen; the mock stores the payload order, like save_exam numbers it.
+    def save_now(want_order):
+        n = len(save_calls())
+        page.click("button:has-text('Save changes')")
+        for _ in range(240):
+            if len(save_calls()) > n and stored_order() == want_order: break
+            page.wait_for_timeout(25)
+        page.wait_for_timeout(150)   # let the reply land, so the editor is not left dirty
+
+    save_now([q0, q1])
+    check("Save writes the order the screen showed", stored_order() == [q0, q1], str(stored_order()))
+    check("and the exam's questions are numbered 1..n from it",
+          [q["position"] for q in srv.exams[EXAM1]["questions"]] == [0, 1],
+          str([q["position"] for q in srv.exams[EXAM1]["questions"]]))
+
+    mid = drag_first_grip_to_bottom()
+    check("the second drag picks the row up too", page.locator(".chosen-item.dragging").count() == 1, str(chosen_ids()))
+    check("and it follows the pointer", mid == [q1, q0], str(mid))
+    page.mouse.up()
+    check("the drag swapped them again", chosen_ids() == [q1, q0], str(chosen_ids()))
+    save_now([q1, q0])
+    page.reload(); page.wait_for_selector("#ee-title")
+    page.wait_for_function("document.querySelectorAll('.chosen-item').length === 2")
+    check("the order survives a reload - it is the order the exam really asks", chosen_ids() == [q1, q0], str(chosen_ids()))
+    # The number and the grip are two more controls on a row that already had five; a phone must not end up
+    # with a row that scrolls sideways.
+    page.set_viewport_size({"width": 380, "height": 780})
+    page.wait_for_timeout(120)
+    wide = page.eval_on_selector_all(".chosen-item, .picker-list.chosen", "els => els.filter(e => e.scrollWidth > e.clientWidth + 1).length")
+    check("the extra controls do not make the list scroll sideways on a phone", wide == 0, str(wide))
+    page.set_viewport_size({"width": 1280, "height": 900})
+
+    # One question has nowhere to move to, so the grip goes with the choice.
+    page.click(f".chosen-item[data-id='{q1}'] button[aria-label^='Remove']")
+    page.wait_for_function("document.querySelectorAll('.chosen-item').length === 1")
+    check("with one question left the grip is disabled",
+          page.eval_on_selector_all(".chosen-item .grip[disabled]", "els => els.length") == 1)
+    check("and the hint goes with it", page.is_hidden("#ee-reorder-hint"))
+    check("the question that is left is still number 1", chosen_pos() == ["1"], str(chosen_pos()))
+
     # leave guard on unsaved changes
     page.fill("#ee-title", "Changed but unsaved")
     page.on("dialog", lambda d: d.accept())

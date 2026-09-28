@@ -5,6 +5,8 @@ import { debounce, toast } from "../../shared/ui.js";
 import { exams } from "../api/exams.js";
 import { questionBank } from "../api/questionBank.js";
 import { TYPE_LABEL } from "../components/questionView.js";
+import { examQuestionsDialog } from "../components/examQuestionsDialog.js";
+import { enableReorder } from "../components/reorderList.js";
 import { setLeaveGuard, clearLeaveGuard } from "../guard.js";
 import { SessionExpiredError } from "../../core/auth.js";
 
@@ -116,52 +118,257 @@ export function renderExamEditor(container, ctx, match) {
     [["hide_score", "Hide the score"], ["show_partial", "Show the score so far"]].map(([v, t]) => h("button", { class: "btn ghost", type: "button", "data-essay": v }, t)));
 
   // ---------- question picker (manual selection) ----------
+  // Both halves of the picker are bulk: tick many bank questions and put them on the exam in one act, tick
+  // many chosen ones and take them off in one act — each with a "look before you leap" step shared with the
+  // question bank (`components/examQuestionsDialog.js`). Nothing reaches the database until Save: the exam
+  // list is the editor's own draft, and `save_exam` writes it whole.
+  const SELECT_PAGE = 100;   // the list API's own page-size cap, for "select all matching"
+  const PICKER_PAGE = 25;    // how many bank questions the picker shows at once
+  // The ceiling `parseExamQuestions` and the database both enforce on one exam.
+  const EXAM_MAX = 200;
+
   const pickerSearch = h("input", { class: "input", type: "search", placeholder: "Search the bank…", "aria-label": "Search questions" });
   const pickerList = h("div", { class: "picker-list", role: "listbox", "aria-label": "Questions in the bank" });
   const chosenList = h("div", { class: "picker-list chosen" });
   const chosenSummary = h("p", { class: "sub" }, "No questions selected yet.");
+  // Reordering the chosen list is the one way to choose the order the exam asks its questions in: the list
+  // IS the order `save_exam` writes, so a reorder is an ordinary edit of this draft and nothing is sent
+  // until Save. The grip drags with a pointer or moves with the arrow keys; the note is what a screen reader
+  // hears when a question moves.
+  const reorderHint = h("p", { class: "sub", id: "ee-reorder-hint", hidden: true },
+    "Drag a question by its grip to change the order, or focus the grip and press ↑ ↓ (Home and End jump to the ends). Nothing is saved until you press Save.");
+  const reorderNote = h("p", { class: "visually-hidden", id: "ee-reorder-note", role: "status", "aria-live": "polite" });
+
+  // Ticked bank questions (to add) and ticked exam questions (to remove). Kept as explicit ids, the same
+  // way the question bank does it, so a change of search does not silently drop a tick.
+  const addTicks = new Set();
+  const removeTicks = new Set();
+  const pickerPage = { items: [], byId: new Map(), total: 0 };
+  const onExam = () => new Set(state.questions.map((q) => q.id));
+
+  function bar(id, label) {
+    const count = h("span", { class: "bulk-count", role: "status" });
+    const note = h("span", { class: "hint bulk-note", role: "status" });
+    const actions = h("div", { class: "bulk-actions" });
+    const all = h("div", { class: "bulk-all" });
+    const el = h("div", { class: "bulkbar", id, role: "region", "aria-label": label, hidden: true },
+      h("div", { class: "bulk-summary" }, count, note), actions, all);
+    return { el, count, note, actions, all };
+  }
+  const addBar = bar("ee-add-bar", "Add questions to this exam");
+  const removeBar = bar("ee-remove-bar", "Remove questions from this exam");
+
+  function tick(ticks, id, on) {
+    if (on) ticks.add(id); else ticks.delete(id);
+  }
 
   function chosenRow(q, index) {
-    const up = h("button", { class: "btn small ghost", type: "button", "aria-label": `Move ${plainText(q.body)} up` }, "↑");
-    const down = h("button", { class: "btn small ghost", type: "button", "aria-label": `Move ${plainText(q.body)} down` }, "↓");
+    const body = plainText(q.body);
+    const box = h("input", { type: "checkbox", class: "pick", checked: removeTicks.has(q.id), "aria-label": `Select: ${plainText(q.body, 60)}` });
+    box.addEventListener("change", () => { tick(removeTicks, q.id, box.checked); updateRemoveBar(); });
+    // One grip does both jobs: drag it, or focus it and move the row with ↑ ↓. A list of one has nowhere
+    // to move to, so the grip is disabled until there is something to reorder.
+    const grip = h("button", { class: "btn small ghost grip", type: "button", draggable: "false",
+      disabled: state.questions.length < 2, title: "Drag to reorder, or press ↑ ↓",
+      "aria-label": `Reorder ${body}: drag it, or press the arrow keys` }, icon("grip"));
+    const up = h("button", { class: "btn small ghost", type: "button", "data-move": "up", "aria-label": `Move ${plainText(q.body)} up` }, "↑");
+    const down = h("button", { class: "btn small ghost", type: "button", "data-move": "down", "aria-label": `Move ${plainText(q.body)} down` }, "↓");
     const weight = h("input", { class: "input weight-input", type: "number", min: "0.01", max: "100", step: "0.5", value: String(q.weight ?? 1), "aria-label": `Points for ${plainText(q.body)}` });
     const rm = h("button", { class: "btn small ghost", type: "button", "aria-label": `Remove ${plainText(q.body)}` }, "✕");
-    up.addEventListener("click", () => { if (index > 0) { [state.questions[index - 1], state.questions[index]] = [state.questions[index], state.questions[index - 1]]; markDirty(); renderChosen(); } });
-    down.addEventListener("click", () => { if (index < state.questions.length - 1) { [state.questions[index + 1], state.questions[index]] = [state.questions[index], state.questions[index + 1]]; markDirty(); renderChosen(); } });
     weight.addEventListener("change", () => { q.weight = Number(weight.value) || 1; markDirty(); renderSummary(); });
-    rm.addEventListener("click", () => { state.questions.splice(index, 1); markDirty(); renderChosen(); renderSummary(); });
-    return h("div", { class: "picker-item chosen-item", role: "listitem" },
-      h("span", { class: "grow" }, h("b", {}, plainText(q.body).slice(0, 90)), h("small", {}, ` ${TYPE_LABEL[q.type] ?? q.type}`)),
+    rm.addEventListener("click", () => { state.questions.splice(index, 1); removeTicks.delete(q.id); markDirty(); renderChosen(); renderSummary(); });
+    return h("div", { class: ["picker-item chosen-item", removeTicks.has(q.id) ? "picked" : ""].filter(Boolean).join(" "), role: "listitem", "data-id": q.id },
+      box,
+      h("span", { class: "pos" }, String(index + 1)),
+      grip,
+      h("span", { class: "grow" }, h("b", {}, body.slice(0, 90)), h("small", {}, ` ${TYPE_LABEL[q.type] ?? q.type}`)),
       h("label", { class: "weight" }, "pts", weight), up, down, rm);
   }
 
+  /** The bar for the chosen list: the count, and the two things a teacher can do with a selection. */
+  function updateRemoveBar() {
+    const n = removeTicks.size;
+    removeBar.el.hidden = n === 0;
+    removeBar.actions.replaceChildren();
+    if (n === 0) { removeBar.count.textContent = ""; removeBar.note.textContent = ""; return; }
+    removeBar.count.textContent = `${n} ${n === 1 ? "question" : "questions"} selected`;
+    removeBar.note.textContent = `· ${n} of ${state.questions.length} on this exam`;
+    const remove = h("button", { class: "btn small", type: "button" }, `Remove ${n} from this exam`);
+    remove.addEventListener("click", openRemoveQuestions);
+    const clear = h("button", { class: "btn small ghost", type: "button" }, "Clear");
+    clear.addEventListener("click", () => { removeTicks.clear(); renderChosen(); });
+    removeBar.actions.append(remove, clear);
+  }
+
+  // ---------- reorder ----------
+  // The order of this list is the order the exam asks its questions in (`save_exam` numbers the list from the
+  // payload it is given), so the grip on each row is what chooses it — drag it, or focus it and press the
+  // arrow keys. The control itself is shared (`components/reorderList.js`); here it only has to know how a
+  // row maps back to a question and that a reorder is an ordinary edit of this draft.
+  const questionById = (id) => state.questions.find((q) => q.id === id);
+  const reorder = enableReorder(chosenList, {
+    note: reorderNote,
+    noun: "question",
+    describe: (row) => plainText((questionById(row.dataset.id) || {}).body || "", 40),
+    onOrder: (rows) => {
+      const byId = new Map(state.questions.map((q) => [q.id, q]));
+      state.questions = rows.map((el) => byId.get(el.dataset.id)).filter(Boolean);
+      markDirty();
+      renderChosen();
+    },
+  });
+
   function renderChosen() {
+    reorder.reset();   // a full rebuild of the rows ends any drag in flight
+    paintChosen();
+  }
+
+  function paintChosen() {
     chosenList.replaceChildren(...state.questions.map(chosenRow));
+    reorderHint.hidden = state.questions.length < 2;
     const total = state.questions.reduce((s, q) => s + (Number(q.weight) || 1), 0);
     chosenSummary.textContent = state.questions.length === 0
       ? "No questions selected yet."
       : `${state.questions.length} question${state.questions.length === 1 ? "" : "s"} · ${total} points in total`;
+    updateRemoveBar();
     renderSummary();
+  }
+
+  /** The bar for the bank list: the count, "Add N to this exam", and the offer to take the whole result. */
+  function updateAddBar() {
+    const here = pickerPage.items.map((q) => q.id);
+    const onPage = here.filter((id) => addTicks.has(id)).length;
+    const n = addTicks.size;
+    addBar.el.hidden = n === 0;
+    addBar.actions.replaceChildren();
+    addBar.all.replaceChildren();
+    addBar.all.hidden = true;
+    if (n === 0) { addBar.count.textContent = ""; addBar.note.textContent = ""; return; }
+    addBar.count.textContent = `${n} ${n === 1 ? "question" : "questions"} selected`;
+    const off = n - onPage;
+    addBar.note.textContent = off > 0 ? `· ${off} not on this page` : "";
+    const add = h("button", { class: "btn small", type: "button" }, `Add ${n} to this exam`);
+    add.addEventListener("click", openAddQuestions);
+    const clear = h("button", { class: "btn small ghost", type: "button" }, "Clear");
+    clear.addEventListener("click", () => { addTicks.clear(); renderPicker(); });
+    addBar.actions.append(add, clear);
+
+    if (here.length > 0 && onPage === here.length && n < pickerPage.total) {
+      const all = h("button", { class: "link-btn", type: "button" }, `Select all ${pickerPage.total} matching questions`);
+      all.addEventListener("click", selectAllMatching);
+      addBar.all.append(h("span", {}, `All ${here.length} question${here.length === 1 ? "" : "s"} on this page are selected. `), all);
+      addBar.all.hidden = false;
+    }
+  }
+
+  function renderPicker() {
+    const already = onExam();
+    pickerList.replaceChildren(...pickerPage.items.map((q) => {
+      const on = already.has(q.id);
+      const box = h("input", { type: "checkbox", class: "pick", checked: addTicks.has(q.id), disabled: on, "aria-label": `Select: ${plainText(q.body, 60)}` });
+      box.addEventListener("change", () => { tick(addTicks, q.id, box.checked); updateAddBar(); });
+      return h("div", { class: ["picker-item", on ? "on-exam" : "", addTicks.has(q.id) ? "picked" : ""].filter(Boolean).join(" "), role: "option", "data-id": q.id, "aria-selected": String(addTicks.has(q.id)) },
+        box,
+        h("span", { class: "grow" }, h("b", {}, plainText(q.body).slice(0, 90)), h("small", {}, ` ${TYPE_LABEL[q.type] ?? q.type} · ${q.topic ?? "no topic"}`)),
+        on ? h("small", { class: "hint" }, "On this exam") : null);
+    }));
+    if (pickerPage.items.length === 0) pickerList.replaceChildren(h("p", { class: "sub" }, "Nothing in the bank matches."));
+    updateAddBar();
   }
 
   async function searchBank() {
     try {
-      const res = await questionBank.list({ q: pickerSearch.value || "", page_size: 8 });
-      const chosenIds = new Set(state.questions.map((q) => q.id));
-      pickerList.replaceChildren(...res.items.map((q) => {
-        const picked = chosenIds.has(q.id);
-        const add = h("button", { class: "btn small ghost", type: "button", disabled: picked }, picked ? "Added" : "Add");
-        add.addEventListener("click", () => {
-          state.questions.push({ id: q.id, body: q.body, type: q.type, weight: q.weight ?? 1 });
-          markDirty(); renderChosen(); searchBank();
-        });
-        return h("div", { class: "picker-item", role: "option", "aria-selected": String(picked) },
-          h("span", { class: "grow" }, h("b", {}, plainText(q.body).slice(0, 90)), h("small", {}, ` ${TYPE_LABEL[q.type] ?? q.type} · ${q.topic ?? "no topic"}`)),
-          add);
-      }));
-      if (res.items.length === 0) pickerList.replaceChildren(h("p", { class: "sub" }, "Nothing in the bank matches."));
-    } catch (err) { if (!ignorable(err)) pickerList.replaceChildren(h("p", { class: "sub" }, errorText(err))); }
+      const res = await questionBank.list({ q: pickerSearch.value || "", page_size: PICKER_PAGE });
+      pickerPage.items = res.items;
+      pickerPage.total = res.total;
+      // Remember every question this editor has seen, so a tick that survives a change of search can still
+      // be added with its real body, type and points.
+      for (const q of res.items) pickerPage.byId.set(q.id, q);
+      renderPicker();
+    } catch (err) {
+      if (!ignorable(err)) pickerList.replaceChildren(h("p", { class: "sub" }, errorText(err)));
+    }
   }
+
+  /**
+   * "Select all N matching questions": the ids of the whole search result, not just the page on screen. The
+   * list API caps a page at 100, so this walks the pages the way the bank's own select-all does. When the
+   * result is wider than the exam's ceiling it says so instead of quietly taking the first ones.
+   */
+  async function selectAllMatching() {
+    const room = EXAM_MAX - state.questions.length;
+    if (pickerPage.total > room) {
+      addBar.note.textContent = `These filters match ${pickerPage.total} questions and this exam has room for ${room} more (the most it can hold is ${EXAM_MAX}). Narrow the search, or tick the ones you want.`;
+      return;
+    }
+    addBar.note.textContent = "Selecting…";
+    try {
+      const already = onExam();
+      const pages = Math.max(1, Math.ceil(pickerPage.total / SELECT_PAGE));
+      for (let page = 1; page <= pages; page++) {
+        const res = await questionBank.list({ q: pickerSearch.value || "", page, page_size: SELECT_PAGE });
+        for (const q of res.items) {
+          pickerPage.byId.set(q.id, q);
+          if (!already.has(q.id)) addTicks.add(q.id);
+        }
+        if (res.items.length < SELECT_PAGE) break;
+      }
+      addBar.note.textContent = "";
+      renderPicker();
+    } catch (err) {
+      addBar.note.textContent = ignorable(err) ? "" : errorText(err);
+    }
+  }
+
+  const examTitle = () => state.title.trim() || "this exam";
+
+  /** Add every ticked bank question, after showing exactly what is about to happen. */
+  async function openAddQuestions() {
+    const ids = [...addTicks];
+    if (ids.length === 0) return;
+    const already = onExam();
+    const duplicate = ids.filter((id) => already.has(id)).length;
+    const room = EXAM_MAX - state.questions.length;
+    const notes = [];
+    if (duplicate > 0) notes.push(`${duplicate} ${duplicate === 1 ? "is" : "are"} already on this exam and will not be added twice.`);
+    if (ids.length - duplicate > room) notes.push(`This exam can hold ${EXAM_MAX} questions and has room for ${room} more.`);
+
+    const applied = await examQuestionsDialog({
+      mode: "add", count: ids.length, exam: { id: null, title: examTitle() }, notes,
+      onApply: async () => {
+        if (ids.length - duplicate > room) {
+          throw new Error(`An exam can hold at most ${EXAM_MAX} questions. It has room for ${room} more.`);
+        }
+        for (const id of ids) {
+          if (already.has(id)) continue;
+          const q = pickerPage.byId.get(id);
+          state.questions.push({ id, body: q ? q.body : "Question", type: q ? q.type : "multiple_choice", weight: q ? q.weight ?? 1 : 1 });
+        }
+        markDirty();
+        addTicks.clear();
+        renderChosen();
+        searchBank();
+      },
+    });
+    if (applied) toast(`${ids.length - duplicate} question${ids.length - duplicate === 1 ? "" : "s"} added to the exam. Save to keep the change.`);
+  }
+
+  /** Take every ticked question off the exam, after showing exactly what is about to happen. */
+  async function openRemoveQuestions() {
+    const ids = [...removeTicks];
+    if (ids.length === 0) return;
+    const applied = await examQuestionsDialog({
+      mode: "remove", count: ids.length, exam: { id: null, title: examTitle() },
+      onApply: async () => {
+        state.questions = state.questions.filter((q) => !removeTicks.has(q.id));
+        removeTicks.clear();
+        markDirty();
+        renderChosen();
+      },
+    });
+    if (applied) toast(`${ids.length} question${ids.length === 1 ? "" : "s"} taken off the exam. Save to keep the change.`);
+  }
+
   pickerSearch.addEventListener("input", debounce(searchBank, 250));
 
   // ---------- segmented controls helper ----------
@@ -318,6 +525,7 @@ export function renderExamEditor(container, ctx, match) {
     filterDifficulty.value = state.auto_filter.difficulty ?? ""; poolSize.value = String(state.pool_size ?? 10);
     drawToggle.checked = state.draw_per_student; shuffleQ.checked = state.randomize_questions; shuffleO.checked = state.randomize_options;
     warnLimit.value = String(state.tab_switch_warn_limit); flagLimit.value = String(state.tab_switch_flag_limit); submitLimit.value = String(state.tab_switch_autosubmit_limit);
+    addTicks.clear(); removeTicks.clear();
     syncSchedule(); syncSelection(); renderChosen(); checkCode(); refreshPoolCount();
   }
 
@@ -327,7 +535,7 @@ export function renderExamEditor(container, ctx, match) {
     h("div", {}, h("span", { class: "lbl" }, "If a student starts late"), lateSeg));
   const manualWrap = h("div", { class: "stack" },
     h("div", { class: "picker-head row" }, h("span", { class: "lbl" }, "Pick questions"), pickerSearch),
-    pickerList, chosenSummary, chosenList);
+    addBar.el, pickerList, chosenSummary, removeBar.el, chosenList, reorderHint, reorderNote);
   const autoWrap = h("div", { class: "stack", hidden: true },
     h("div", { class: "form-row three" }, field("Class", filterClass), field("Topic", filterTopic), field("Difficulty", filterDifficulty)),
     h("div", { class: "form-row" }, field("How many questions", poolSize), h("div", {}, h("span", { class: "lbl" }, "Filter"), poolCountText)),

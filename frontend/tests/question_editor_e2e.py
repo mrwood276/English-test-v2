@@ -136,6 +136,35 @@ with sync_playwright() as pw:
     check("cancelling a new text keeps the previous choice", page.input_value("#q-passage") == "pa3")
     page.select_option("#q-passage", "pa1"); page.wait_for_selector(".passage-shown .passage")
 
+    # ---- the order of the answers (the shared grip control, F-18 / DEC-036)
+    # The order of these rows is the A/B/C/D a student sees, and `save_question` numbers the options from
+    # this array, so the control that moves them is what chooses that.
+    def answer_bodies(): return [page.input_value(f"[aria-label='Answer {L}']") for L in "ABCD"]
+    check("every answer has a reorder grip", page.query_selector_all(".answers .optrow .grip").__len__() == 4)
+    check("and the answers read down the list in order", answer_bodies() == ["Same", "Different", "Third", "Fourth"], str(answer_bodies()))
+    saves_before_order = len(srv.saved)
+    page.focus(".answers .optrow:nth-child(4) .grip")
+    page.keyboard.press("ArrowUp")
+    check("ArrowUp on a focused grip moves that answer up one place, letter and all",
+          answer_bodies() == ["Same", "Different", "Fourth", "Third"], str(answer_bodies()))
+    check("the correct answer keeps its bubble when the rows around it move",
+          page.input_value("[aria-label='Answer A']") == "Same"
+          and page.get_attribute("[aria-label='Mark answer A as the correct one']", "aria-pressed") == "true")
+    check("the move is announced to a screen reader",
+          "answer 3 of 4" in (page.text_content("#q-answer-note") or ""), page.text_content("#q-answer-note"))
+    check("reordering an answer has not saved anything", len(srv.saved) == saves_before_order)
+    grips = page.query_selector_all(".answers .optrow .grip")
+    last, first = grips[3].bounding_box(), grips[0].bounding_box()
+    page.mouse.move(last["x"] + last["width"] / 2, last["y"] + last["height"] / 2)
+    page.mouse.down()
+    page.mouse.move(last["x"] + last["width"] / 2, first["y"] + first["height"] / 2 - 6, steps=8)
+    page.mouse.up()
+    check("dragging an answer to the top puts it first",
+          answer_bodies() == ["Third", "Same", "Different", "Fourth"], str(answer_bodies()))
+    check("and the correct answer is still the one that was marked",
+          page.get_attribute("[aria-label='Mark answer B as the correct one']", "aria-pressed") == "true"
+          and page.query_selector_all(".answers .bubble.ok").__len__() == 1)
+
     # ---- preview
     page.click("button:has-text('Preview')"); page.wait_for_selector("dialog[open] .qtext")
     pv = page.inner_text("dialog")
@@ -150,7 +179,10 @@ with sync_playwright() as pw:
     sent = srv.saved[-1]
     check("saved and back to the list", page.url.endswith("#/questions") and "31 questions" in page.inner_text(".head .sub"))
     check("payload: type, text, difficulty, topic, points", sent["type"] == "multiple_choice" and sent["body"] == "What did <u>Dina</u> do first?" and sent["difficulty"] == "hots" and sent["topic"] == "Narrative Text" and sent["weight"] == 2 and "id" not in sent)
-    check("payload: answers with one correct", [o["is_correct"] for o in sent["options"]] == [True, False, False, False] and [o["body"] for o in sent["options"]] == ["Same", "Different", "Third", "Fourth"])
+    check("payload: the answers go in the order they were put in, with the correct one still marked",
+          [o["is_correct"] for o in sent["options"]] == [False, True, False, False]
+          and [o["body"] for o in sent["options"]] == ["Third", "Same", "Different", "Fourth"],
+          str(sent["options"]))
     check("payload: labels and reading text", sent["class_labels"] == ["XII TKJ A", "XII TKJ B"] and sent["passage_id"] == "pa1" and sent["accepted_answers"] == [])
 
     # ---- type switching keeps entered data

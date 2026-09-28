@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { createHandler, type Db } from "../functions/exams/handler.ts";
-import { parseExamInput, parseListFilters, asAccessCode, asTimestamp } from "../functions/exams/parse.ts";
+import { parseBulkQuestions, parseExamInput, parseListFilters, asAccessCode, asTimestamp } from "../functions/exams/parse.ts";
 import { callRpc } from "../functions/_shared/rpc.ts";
 import { ApiError } from "../functions/_shared/errors.ts";
 
 const TEACHER = "11111111-1111-4111-8111-111111111111";
 const EXAM = "22222222-2222-4222-8222-222222222222";
+const QID = "33333333-3333-4333-8333-333333333331";
+const QID2 = "33333333-3333-4333-8333-333333333332";
 
 interface Call { name: string; args: Record<string, unknown> }
 
@@ -197,6 +199,58 @@ Deno.test("validation-hinted SQL errors become friendly 400s", async () => {
   const res = await createHandler(() => db)(post(validExam));
   assert.equal(res.status, 400);
   assert.match((await res.json()).error, /already used/);
+});
+
+// ---------- bulk questions on an exam (F-18) ----------
+Deno.test("parseBulkQuestions dedupes the ticked ids and refuses what it cannot act on", () => {
+  const parsed = parseBulkQuestions({ exam_id: EXAM, mode: "add", ids: [QID, QID2, QID] });
+  assert.equal(parsed.examId, EXAM);
+  assert.equal(parsed.mode, "add");
+  assert.deepEqual(parsed.ids, [QID, QID2], "the same question ticked twice is one question");
+  assert.throws(() => parseBulkQuestions({ exam_id: EXAM, mode: "sideways", ids: [QID] }), /Mode/);
+  assert.throws(() => parseBulkQuestions({ exam_id: EXAM, mode: "add", ids: [] }), /at least one question/);
+  assert.throws(() => parseBulkQuestions({ exam_id: EXAM, mode: "add", ids: ["not-a-uuid"] }), /Question 1/);
+  assert.throws(() => parseBulkQuestions({ exam_id: EXAM, mode: "add", ids: new Array(501).fill(QID) }), /at most 500/);
+  assert.throws(() => parseBulkQuestions({ exam_id: "nope", mode: "add", ids: [QID] }), /Exam/);
+});
+
+Deno.test("bulk_questions puts the ticked questions on the exam in one call, with the actor", async () => {
+  const { db, calls } = fakeDb(() => ({ data: { matched: 2, updated: 2, unchanged: 0, missing: 0 } }));
+  const res = await createHandler(() => db)(post({ action: "bulk_questions", exam_id: EXAM, mode: "add", ids: [QID, QID2] }));
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { result: { matched: 2, updated: 2, unchanged: 0, missing: 0 } });
+  assert.deepEqual(calls, [{
+    name: "bulk_exam_questions",
+    args: { p_exam_id: EXAM, p_mode: "add", p_ids: [QID, QID2], p_actor: TEACHER },
+  }], "one request, one database call");
+});
+
+Deno.test("bulk_questions refuses a request it cannot carry out without touching the database", async () => {
+  const { db, calls } = fakeDb();
+  const h = createHandler(() => db);
+  assert.equal((await h(post({ action: "bulk_questions", exam_id: EXAM, mode: "add", ids: [] }))).status, 400);
+  assert.equal((await h(post({ action: "bulk_questions", exam_id: EXAM, mode: "merge", ids: [QID] }))).status, 400);
+  assert.equal((await h(post({ action: "bulk_questions", exam_id: EXAM, ids: [QID] }))).status, 400, "the mode is required");
+  assert.equal(calls.length, 0);
+});
+
+Deno.test("a database refusal of a bulk exam change comes back as a friendly 400", async () => {
+  const refusal = "This exam already has attempts, so its questions stay as they were. Duplicate the exam to change them.";
+  const { db } = fakeDb(() => ({ error: { message: refusal, hint: "validation" } }));
+  const res = await createHandler(() => db)(post({ action: "bulk_questions", exam_id: EXAM, mode: "remove", ids: [QID] }));
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).error, refusal);
+  const broken = createHandler(() => fakeDb(() => ({ error: { message: "relation does not exist", code: "42P01" } })).db);
+  const hidden = await broken(post({ action: "bulk_questions", exam_id: EXAM, mode: "remove", ids: [QID] }));
+  assert.equal(hidden.status, 500);
+  assert.ok(!JSON.stringify(await hidden.json()).includes("relation"), "a real database failure is not quoted to the browser");
+});
+
+Deno.test("bulk_questions is not reachable without a signed-in teacher or admin", async () => {
+  const { db, calls } = fakeDb();
+  const res = await createHandler(() => db)(post({ action: "bulk_questions", exam_id: EXAM, mode: "add", ids: [QID] }, null));
+  assert.equal(res.status, 401);
+  assert.equal(calls.length, 0, "nothing reaches the database before the staff check");
 });
 
 Deno.test("unexpected SQL errors stay hidden from the person", async () => {

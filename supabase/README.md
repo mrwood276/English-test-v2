@@ -45,7 +45,15 @@ one audit entry, `service_role` only, additive — **applied live 2026-09-28 wit
 row**; its rolled-back test `supabase/tests/bulk_update_test.sql` passed live the same day
 (`BULK UPDATE TESTS PASSED (…)`, after fixing two faults in the test itself), `question-bank` was redeployed
 with the `bulk_update` action, and `frontend/tests/live_bulk_check.py` then passed **65/65** against the
-deployed function — see `docs/sql-bulk-update.md`).
+deployed function — see `docs/sql-bulk-update.md`), and `20260928000002_bulk_exam_questions.sql`
+(F-18 adding or removing many questions on a whole exam, DEC-036: `public.bulk_exam_questions(p_exam_id, p_mode,
+p_ids, p_actor)` — `add` | `remove`, one transaction, one `exam.questions` audit entry per act and never an
+`exam.update`, an exam's list always 1..n with no gaps, `service_role` only, additive — **applied live
+2026-09-28 with its own `schema_migrations` row, applied a second time for the renumber-on-remove fix the
+live check caught (ISSUE-034)**; its rolled-back test `supabase/tests/bulk_exam_questions_test.sql` passed
+live the same day (`BULK EXAM QUESTION TESTS PASSED (…)`, after its first run found a real fault in the
+function), `exams` was redeployed with the `bulk_questions` action, and `frontend/tests/live_exam_bulk_check.py`
+then passed **55/55** against the deployed function — see `docs/sql-exam-questions.md`).
 `v2_01_foundation` through
 `v2_12_import_questions` (schema, question bank, exams/sessions/results tables, lockdown, text rules, media
 storage, import) were pulled from `supabase_migrations.schema_migrations` and committed verbatim on 2026-09-24

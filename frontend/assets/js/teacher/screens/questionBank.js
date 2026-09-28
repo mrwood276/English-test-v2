@@ -3,10 +3,12 @@ import { plainText } from "../../shared/rich.js";
 import { icon } from "../../shared/icons.js";
 import { debounce, toast, confirmDialog } from "../../shared/ui.js";
 import { questionBank } from "../api/questionBank.js";
+import { exams } from "../api/exams.js";
 import { attachMediaUrls } from "../api/media.js";
 import { questionView, TYPE_LABEL, DIFFICULTY_LABEL, usedText } from "../components/questionView.js";
 import { duplicateGroupsDialog } from "../components/duplicateGroupsDialog.js";
 import { bulkEditDialog } from "../components/bulkEditDialog.js";
+import { examQuestionsDialog, examQuestionsResult } from "../components/examQuestionsDialog.js";
 import { SessionExpiredError } from "../../core/auth.js";
 
 const PAGE_SIZE = 25;
@@ -364,9 +366,13 @@ export function renderQuestionBank(container) {
     edit.addEventListener("click", openBulkEdit);
     const toggle = h("button", { class: "btn small ghost", type: "button" }, state.filters.archived ? "Restore" : "Archive");
     toggle.addEventListener("click", () => bulkSetArchived(!state.filters.archived));
+    const toExam = h("button", { class: "btn small ghost", type: "button" }, "Add to exam…");
+    toExam.addEventListener("click", () => openExamQuestions("add"));
+    const offExam = h("button", { class: "btn small ghost", type: "button" }, "Remove from exam…");
+    offExam.addEventListener("click", () => openExamQuestions("remove"));
     const clear = h("button", { class: "btn small ghost", type: "button" }, "Clear");
     clear.addEventListener("click", clearSelection);
-    bulkActions.append(edit, toggle, clear);
+    bulkActions.append(edit, toExam, offExam, toggle, clear);
 
     if (pageIds.length > 0 && onPage === pageIds.length && n < state.total) {
       const all = h("button", { class: "link-btn", type: "button" }, `Select all ${state.total} matching questions`);
@@ -447,6 +453,39 @@ export function renderQuestionBank(container) {
       bulkNote.textContent = errorText(err);
       toast(errorText(err), "error");
     }
+  }
+
+  /**
+   * "Add to exam…" / "Remove from exam…": the ticked questions and one exam, in one act. The exam list is
+   * only fetched when one of these buttons is used (the bulk bar is not the place to load every exam), and
+   * the dialog refuses an exam that cannot take the change before the request is even sent.
+   */
+  async function openExamQuestions(mode) {
+    const ids = [...state.selected];
+    if (ids.length === 0) return;
+    bulkNote.textContent = "Loading exams…";
+    let examList;
+    try {
+      examList = await exams.list({});
+    } catch (err) {
+      bulkNote.textContent = "";
+      if (ignorable(err)) return;
+      bulkNote.textContent = errorText(err);
+      toast(errorText(err), "error");
+      return;
+    }
+    bulkNote.textContent = "";
+    const applied = await examQuestionsDialog({
+      mode,
+      count: ids.length,
+      exams: examList,
+      // A failure travels on, so the dialog shows it where the choice is instead of the toast
+      // disappearing before it can be read.
+      onApply: async (examId) => { toast(examQuestionsResult(mode, await exams.bulkQuestions(examId, mode, ids))); },
+    });
+    if (!applied) return; // closed without applying: the ticks are still there
+    clearSelection();
+    load(); // the Used column changes either way
   }
 
   function openBulkEdit() {

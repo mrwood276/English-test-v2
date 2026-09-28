@@ -2,6 +2,7 @@ import { h } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
 import { prepareImage } from "../../shared/imageCompress.js";
 import { media, uploadToSignedUrl } from "../api/media.js";
+import { enableReorder } from "./reorderList.js";
 import { SessionExpiredError } from "../../core/auth.js";
 
 const AUDIO_MAX = 10 * 1024 * 1024;
@@ -45,24 +46,43 @@ export function mediaPicker({ items = [], max = 4, id, describedBy, onChange }) 
 
   const listEl = h("ul", { class: "media-list", "aria-label": "Attached files" });
   const messages = h("div", { class: "media-messages", role: "status", "aria-live": "polite" });
+  const reorderNote = h("div", { class: "visually-hidden", role: "status", "aria-live": "polite" });
+
+  // The order of this list is the order the files are stored in (`set_question_media` numbers them from it),
+  // so the grip on each attached file is what decides how they appear. A file that is still uploading has no
+  // grip and stays where it is while the others close up around it.
+  enableReorder(listEl, {
+    note: reorderNote,
+    noun: "file",
+    describe: (row) => (list.find((m) => m.id === row.dataset.mediaId) || {}).name || "That file",
+    onOrder: (rows) => {
+      const byId = new Map(list.map((m) => [m.id, m]));
+      list = rows.map((row) => byId.get(row.dataset.mediaId)).filter(Boolean);
+      render();
+      notify();
+    },
+  });
   const input = h("input", { type: "file", id, accept: ACCEPT, multiple: true, class: "visually-hidden", "aria-describedby": describedBy });
   const choose = h("label", { class: "btn small ghost", for: id }, icon("plus"), "Add images or audio");
   const zone = h("div", { class: "drop", "data-dropzone": "" }, icon("image"), h("span", {}, "Drop files here, or "), choose, h("span", { class: "hint" }, "JPG, PNG, WebP (shrunk to about 1 MB), MP3 or M4A (up to 10 MB). At most " + max + " files."));
-  const el = h("div", { class: "media-picker" }, listEl, zone, input, messages);
+  const el = h("div", { class: "media-picker" }, listEl, zone, input, messages, reorderNote);
 
   const notify = () => onChange && onChange(list.map((m) => ({ ...m })));
   const say = (text, kind = "error") => { messages.append(h("div", { class: `media-msg ${kind}` }, text)); };
 
   function render() {
     listEl.replaceChildren(
-      ...list.map((m) => {
+      ...list.map((m, i) => {
         const remove = h("button", { class: "icon-btn", type: "button", "aria-label": `Remove ${m.name || "file"}` }, icon("plus"));
         remove.addEventListener("click", () => { list = list.filter((x) => x.id !== m.id); render(); notify(); });
+        const grip = h("button", { class: "btn small ghost grip", type: "button", draggable: "false", disabled: list.length < 2,
+          title: "Drag to reorder, or press ↑ ↓",
+          "aria-label": `Reorder ${m.name || "file"} (number ${i + 1}): drag it, or press the arrow keys` }, icon("grip"));
         const preview = m.kind === "image"
           ? (m.url ? h("img", { class: "thumb", src: m.url, alt: "" }) : h("span", { class: "thumb ph" }, icon("image")))
           : (m.url ? h("audio", { class: "player", controls: true, preload: "none", src: m.url }) : h("span", { class: "thumb ph" }, icon("audio")));
         const meta = [m.kind === "image" ? "Image" : "Audio", sizeText(m.size_bytes), durationText(m.duration_seconds)].filter(Boolean).join(", ");
-        return h("li", { class: "media-item", "data-media-id": m.id }, preview, h("div", { class: "media-info" }, h("strong", {}, m.name || "File"), h("span", { class: "hint" }, meta)), remove);
+        return h("li", { class: "media-item", "data-media-id": m.id }, grip, preview, h("div", { class: "media-info" }, h("strong", {}, m.name || "File"), h("span", { class: "hint" }, meta)), remove);
       }),
       ...queue.map((q) => h("li", { class: "media-item uploading" }, h("span", { class: "thumb ph" }, icon(q.kind === "audio" ? "audio" : "image")), h("div", { class: "media-info" }, h("strong", {}, q.name), h("span", { class: "hint" }, q.stage)))),
     );

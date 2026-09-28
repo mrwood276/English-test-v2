@@ -97,7 +97,7 @@
 .dialog h2 { font-size: 19px; margin-bottom: 8px; }
 .dialog p { color: var(--ink-2); font-size: 14.5px; margin-bottom: 18px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.toasts { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: grid; gap: 8px; z-index: 50; width: min(92vw, 420px); }
+.toasts { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: grid; gap: 8px; z-index: 50; width: min(92vw, 420px); pointer-events: none; }
 .toast { background: var(--ink); color: #fff; border-radius: var(--radius-m); padding: 11px 14px; font-size: 14px; }
 .toast.error { background: #7a1626; }
 
@@ -251,7 +251,31 @@
 .picker-item:last-child { border-bottom: 0; }
 .picker-item small { color: var(--ink-2); }
 .picker-item .btn[disabled] { opacity: 0.5; cursor: default; }
+/* The exam editor's picker is bulk: a tick per row, and the two bars that act on the ticks. */
+.picker-item .pick { width: 18px; height: 18px; flex: none; cursor: pointer; }
+.picker-item.picked { background: var(--paper); }
+.picker-item.on-exam { color: var(--ink-2); }
+.picker-item.on-exam .pick { cursor: default; }
+.picker-item .hint { margin: 0; }
+.picker-list .bulk-item-pad { padding: 8px 10px; }
 .chosen-item .weight { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink-2); }
+/* One grip, three lists: the exam editor's questions, the question editor's answers, and the files attached
+   to a question. `touch-action: none` is what lets a drag from it move the row on a phone instead of
+   scrolling the list under the finger. */
+.grip { flex: none; padding: 2px 3px; color: var(--ink-2); cursor: grab; touch-action: none; }
+.grip:active, .dragging .grip { cursor: grabbing; }
+.grip[disabled] { opacity: 0.4; cursor: default; }
+.chosen-item .pos { flex: none; min-width: 1.5em; text-align: right; font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.chosen-item.dragging, .optrow.dragging, .media-item.dragging { position: relative; z-index: 2; background: var(--card); box-shadow: 0 6px 18px rgba(22, 35, 59, .18); }
+.picker-list.reordering, .answers.reordering, .media-list.reordering { user-select: none; }
+/* A chosen row now carries seven controls (check, number, grip, question, points, up, down, remove). On a
+   narrow screen they wrap: the question keeps the first line to itself and the controls follow it, rather
+   than the list scrolling sideways. */
+@media (max-width: 900px) {
+  .picker-list.chosen .picker-item { flex-wrap: wrap; row-gap: 6px; }
+  .picker-list.chosen .picker-item .grow { order: -1; flex: 1 1 100%; min-width: 0; }
+  .picker-list.chosen .picker-item .pos { margin-left: 2px; }
+}
 .weight-input { width: 70px; min-height: 0; padding: 4px 8px; }
 .code-input { max-width: 200px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; }
 .field .pill { margin-bottom: 4px; }

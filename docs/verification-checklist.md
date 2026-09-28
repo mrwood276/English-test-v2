@@ -19,7 +19,7 @@ Deployed live as v3 (`--no-verify-jwt`). `import_check` was verified against the
 
 ## 3. Verify one real media upload (TASK-007, ISSUE-002) — DONE 2026-09-25
 
-Run by an agent through the app itself with the staff test account `testguru211l@gmail.com`: a 7.6 MB photo (shrunk by the app to an 813 KB WebP) and a real 3-second MP3 were uploaded to the private bucket, saved on a question, reopened and played back; a 4.5 MB JPEG forced into Storage was refused and deleted again; everything the run created was removed. `frontend/tests/live_media_check.py` reports **32/32**. See `.ai/08_HANDOFF.md` for the full evidence and how to repeat it.
+Run by an agent through the app itself with the staff test account `testguru211l@gmail.com`: a 7.6 MB photo (shrunk by the app to an 813 KB WebP) and a real 3-second MP3 were uploaded to the private bucket, saved on a question, reopened and played back; a 4.5 MB JPEG forced into Storage was refused and deleted again; everything the run created was removed. **Re-run 2026-09-28** (F-18 / DEC-036) with the reorder checks added — the second answer and the second file are moved above the first with the shared grip before saving, and `question_options` / `question_media` are read back in that order. `frontend/tests/live_media_check.py` reports **41/41**. See `.ai/08_HANDOFF.md` for the full evidence and how to repeat it.
 
 ## 4. Export the migrations into git (TASK-008, ISSUE-001) — DONE 2026-09-24
 

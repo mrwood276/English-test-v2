@@ -9,6 +9,8 @@ export const SELECTION_MODES = ["manual", "auto"] as const;
 export const RESULT_VISIBILITIES = ["none", "score", "score_and_review"] as const;
 export const ESSAY_PENDING_DISPLAYS = ["hide_score", "show_partial"] as const;
 export const SORTS = ["newest", "oldest", "status", "title"] as const;
+export const BULK_QUESTION_MODES = ["add", "remove"] as const;
+export const BULK_QUESTIONS_MAX = 500;
 
 const isBlank = (v: unknown) => v === undefined || v === null || (typeof v === "string" && v.trim() === "");
 
@@ -38,6 +40,28 @@ export function parseExamQuestions(v: unknown): { question_id: string; weight: n
       weight: isBlank(q.weight) ? 1 : asNumber(q.weight, `Question ${i + 1} points`, { min: 0.01, max: 100 }),
     };
   });
+}
+
+/**
+ * "Put these questions on this exam" / "take these off it" — the question bank's bulk request. The ids are
+ * deduplicated (the same question ticked twice is one question) and the selection is capped at the same 500
+ * the bank's own bulk change uses and the database enforces again. At least one id is required: an empty
+ * selection is a mistake, not a no-op to be guessed at.
+ */
+export function parseBulkQuestions(b: Record<string, unknown>): { examId: string; mode: "add" | "remove"; ids: string[] } {
+  const examId = asUuid(b.exam_id, "Exam");
+  const mode = asEnum(b.mode, "Mode", BULK_QUESTION_MODES);
+  const raw = asArray(b.ids ?? [], "Questions", { max: BULK_QUESTIONS_MAX });
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  raw.forEach((value, i) => {
+    const id = asUuid(value, `Question ${i + 1} id`);
+    if (seen.has(id)) return;
+    seen.add(id);
+    ids.push(id);
+  });
+  if (ids.length === 0) throw badRequest("Select at least one question.");
+  return { examId, mode, ids };
 }
 
 /** The auto-selection filter: class label, topic, difficulty, plus how many to draw. */
