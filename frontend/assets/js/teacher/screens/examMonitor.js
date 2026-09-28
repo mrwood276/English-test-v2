@@ -69,9 +69,10 @@ function renderActiveExams(container) {
         ? "1 exam has students working right now"
         : `${exams.length} exams have students working right now`;
       tbody.replaceChildren(...exams.map(row));
-      status.replaceChildren(exams.length === 0
-        ? h("p", { class: "sub" }, "No exam has students working right now. Share the code and come back.")
-        : null);
+      // replaceChildren(null) draws the literal text "null": spread an empty list instead.
+      status.replaceChildren(...(exams.length === 0
+        ? [h("p", { class: "sub" }, "No exam has students working right now. Share the code and come back.")]
+        : []));
     } catch (err) {
       if (id !== state.requestId || ignorable(err)) return;
       status.replaceChildren(h("p", { class: "sub" }, errorText(err)));
@@ -174,9 +175,9 @@ function renderExamSessions(container, examId) {
         h("span", {}, h("b", {}, String(summary.in_progress || 0)), " working"),
         h("span", {}, h("b", {}, String(summary.with_result || 0)), " submitted"),
         h("span", {}, h("b", {}, String(rows.length)), " joined so far"),
-        summary.pending_essays > 0
-          ? h("span", { class: "pill warn" }, `${summary.pending_essays} essay`)
-          : null);
+        ...(summary.pending_essays > 0
+          ? [h("span", { class: "pill warn" }, `${summary.pending_essays} essay`)]
+          : []));
       const ordered = [...rows].sort((a, b) => {
         const aw = a.status === "in_progress" || a.status === "reopened" ? 0 : 1;
         const bw = b.status === "in_progress" || b.status === "reopened" ? 0 : 1;
@@ -184,9 +185,9 @@ function renderExamSessions(container, examId) {
         return (a.student_name || "").localeCompare(b.student_name || "");
       });
       tbody.replaceChildren(...ordered.map((r) => row(r, questionCount)));
-      status.replaceChildren(rows.length === 0
-        ? h("p", { class: "sub" }, "Nobody has joined this test yet. Share the code with the class.")
-        : null);
+      status.replaceChildren(...(rows.length === 0
+        ? [h("p", { class: "sub" }, "Nobody has joined this test yet. Share the code with the class.")]
+        : []));
     } catch (err) {
       if (id !== state.requestId || ignorable(err)) return;
       status.replaceChildren(h("p", { class: "sub" }, errorText(err)));

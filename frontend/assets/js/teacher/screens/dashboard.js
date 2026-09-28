@@ -173,8 +173,9 @@ export function renderDashboard(container, { onSignOut }) {
           h("a", { class: "btn small ghost", href: `#/monitor/${exam.exam_id}` }, "Review")));
       }
     }
+    // Always an array: the caller spreads this into replaceChildren (a bare element is not iterable).
     if (items.length === 0) {
-      return h("p", { class: "hint" }, "Nothing needs you right now. New essays and suspicious sessions appear here.");
+      return [h("p", { class: "hint" }, "Nothing needs you right now. New essays and suspicious sessions appear here.")];
     }
     return items;
   }
@@ -185,8 +186,9 @@ export function renderDashboard(container, { onSignOut }) {
       .filter((a) => !a.is_template && a.finished > 0)
       .sort((a, b) => String(b.last_submitted_at ?? "").localeCompare(String(a.last_submitted_at ?? "")))
       .slice(0, 3);
+    // Always an array, for the same reason as attentionRows above.
     if (recent.length === 0) {
-      return h("p", { class: "hint" }, "No exam has been taken yet. Finished tests appear here.");
+      return [h("p", { class: "hint" }, "No exam has been taken yet. Finished tests appear here.")];
     }
     return recent.map((exam) => {
       const decided = (exam.passed || 0) + (exam.failed || 0);
@@ -227,9 +229,10 @@ export function renderDashboard(container, { onSignOut }) {
       for (const ov of loaded) if (ov) overviews.set(ov.exam.id, ov);
 
       status.replaceChildren();
+      // Spread exactly one list: the empty card, or the open exams. Never add a `null` child
+      // (replaceChildren would draw it as the literal text "null" under the title).
       openArea.replaceChildren(
-        ...open.map((exam) => openCard(exam, overviews.get(exam.id))),
-        open.length === 0 ? noOpenCard() : null);
+        ...(open.length === 0 ? [noOpenCard()] : open.map((exam) => openCard(exam, overviews.get(exam.id)))));
       attentionBody.replaceChildren(...attentionRows(activity, overviews));
       recentBody.replaceChildren(...recentRows(activity));
     } catch (err) {

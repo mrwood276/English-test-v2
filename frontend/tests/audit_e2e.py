@@ -94,6 +94,20 @@ with sync_playwright() as pw:
     page.wait_for_function("document.querySelector('.head .sub').textContent === '6 events'")
     check("all time brings the old row back", "retake_grant" in page.inner_text(".qtable tbody"))
 
+    # ---------- an empty log, with no filter set ----------
+    # The empty state has no Clear button, so it must not hand a `null` child to replaceChildren.
+    saved_rows = list(srv.audit_rows)
+    srv.audit_rows = []
+    page.click(".toolbar button:has-text('Clear')")  # reloads against the now-empty log
+    page.wait_for_selector(".list-status:has-text('Nothing recorded yet.')")
+    check("an empty log says so without a stray 'null'",
+          page.inner_text(".list-status") == "Nothing recorded yet."
+          and page.query_selector(".list-status button") is None,
+          repr(page.inner_text(".list-status")))
+    srv.audit_rows = saved_rows
+    page.click(".toolbar button:has-text('Clear')")
+    page.wait_for_function("document.querySelector('.head .sub').textContent === '6 events'")
+
     # ---------- paging ----------
     srv.audit_rows += [{"id": 100 + i, "created_at": f"2026-09-24T0{i // 10}:{i % 60:02d}:00Z", "actor_id": "u1", "actor_name": "Admin",
                         "action": "media.upload", "entity_type": "media", "entity_id": f"m-{i}", "changes": {}}

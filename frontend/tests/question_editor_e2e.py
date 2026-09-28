@@ -236,6 +236,14 @@ with sync_playwright() as pw:
 
     # ---- session ended while saving
     page.fill("#q-body", "Session test"); page.fill("[aria-label='Answer A']", "A1"); page.fill("[aria-label='Answer B']", "B1"); page.click("[aria-label='Mark answer A as the correct one']")
+    # The editor checks for a similar question 700 ms after the last typing (scheduleDup). Let that
+    # background request land before the session is expired on purpose: otherwise it - not the save
+    # click - is what ends the session, the editor is torn down while the click is still in flight,
+    # and Playwright retries against a button that no longer exists (ISSUE-025).
+    deadline = time.time() + 5
+    while time.time() < deadline and not any(c.get("body") == "Session test" for c in srv.dup_calls):
+        page.wait_for_timeout(50)
+    page.wait_for_timeout(800)  # the debounce is 700 ms; after it nothing is left to fire
     srv.status_all = 401; page.click("button:has-text('Save question')"); page.wait_for_selector(".login")
     # the sign-in screen appears before its notice text is filled in, so wait for the words
     page.wait_for_function("document.querySelector('.notice.info') && document.querySelector('.notice.info').textContent.includes('session has expired')")

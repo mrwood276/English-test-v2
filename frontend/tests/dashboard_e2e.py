@@ -106,6 +106,10 @@ with sync_playwright() as pw:
           "No exam is open right now" not in page.inner_text(".main")
           and "Nothing needs you right now" not in attention
           and "No exam has been taken yet" not in recent)
+    # A `null` child handed to replaceChildren is drawn as the literal text "null" (ISSUE-029).
+    check("no stray 'null' text is drawn next to the open exam",
+          "null" not in page.inner_text(".main").lower().split(),
+          page.inner_text(".dash-open")[:200])
 
     # ---------- actions: clipboard works; the dangerous ones ask first and can be cancelled ----------
     page.click(".now button:has-text('Copy code')")

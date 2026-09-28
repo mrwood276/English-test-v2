@@ -41,16 +41,17 @@ export function renderSessionTimeline(container, ctx, { examId, sessionId }) {
   function renderStrip(report) {
     const { session } = report;
     const working = session.status === "in_progress" || session.status === "reopened";
+    // Spread only the pieces that exist: replaceChildren(null) would draw the text "null".
     strip.replaceChildren(
       h("span", {}, h("b", {}, SESSION_LABEL[session.status] || session.status)),
-      working && session.remaining_seconds != null
-        ? h("span", {}, h("b", {}, fmtDuration(session.remaining_seconds)), " left")
-        : null,
+      ...(working && session.remaining_seconds != null
+        ? [h("span", {}, h("b", {}, fmtDuration(session.remaining_seconds)), " left")]
+        : []),
       h("span", {}, h("b", {}, String(session.tab_switch_count || 0)),
         session.tab_switch_count === 1 ? " page leave" : " page leaves"),
-      session.last_heartbeat_at
-        ? h("span", { class: "hint" }, `Last seen ${fmtWhen(session.last_heartbeat_at)}`)
-        : null);
+      ...(session.last_heartbeat_at
+        ? [h("span", { class: "hint" }, `Last seen ${fmtWhen(session.last_heartbeat_at)}`)]
+        : []));
   }
 
   function renderActions(report) {

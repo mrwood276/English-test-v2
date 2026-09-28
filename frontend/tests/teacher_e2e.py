@@ -120,6 +120,13 @@ with sync_playwright() as pw:
     check("the dashboard opens with today's date under the title",
           page.inner_text(".main h1") == "Dashboard" and page.inner_text(".head .sub") != "")
     check("the empty dashboard explains itself", "No exam is open right now" in page.inner_text(".main"))
+    # Every section must render its own empty state, and a section builder that returns a bare
+    # element instead of a list makes replaceChildren throw and leaves the dashboard blank (ISSUE-029).
+    check("the empty dashboard fills both lists and shows no error",
+          "Nothing needs you right now" in page.inner_text("section[aria-label='Needs your attention']")
+          and "No exam has been taken yet" in page.inner_text("section[aria-label='Recent exams']")
+          and page.inner_text(".list-status") == "",
+          page.inner_text(".list-status"))
     check("the dashboard offers a new exam", page.query_selector("a:has-text('New exam')") is not None)
     check("shows the role in the menu", "Admin" in page.inner_text(".me"))
     check("the build label is shown", "Build:" in page.inner_text("[data-build]"))

@@ -91,7 +91,10 @@ export function renderAuditLog(container) {
     if (state.items.length === 0) {
       const clear = filtered ? h("button", { class: "btn small ghost", type: "button" }, "Clear filters") : null;
       if (clear) clear.addEventListener("click", clearFilters);
-      status.replaceChildren(h("span", {}, filtered ? "Nothing matches these filters." : "Nothing recorded yet."), clear);
+      // Spread only the children that exist: replaceChildren(null) would draw the text "null".
+      status.replaceChildren(
+        h("span", {}, filtered ? "Nothing matches these filters." : "Nothing recorded yet."),
+        ...(clear ? [clear] : []));
     } else {
       status.replaceChildren();
     }

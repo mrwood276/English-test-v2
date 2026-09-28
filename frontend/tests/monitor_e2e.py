@@ -66,6 +66,9 @@ with sync_playwright() as pw:
     check("the open exam is listed", CODE in hub_row.inner_text())
     check("the hub counts who is working", "2" in hub_row.inner_text() and "Working" in page.inner_text("thead"))
     check("Watch opens the exam monitor", hub_row.query_selector("a:has-text('Watch')") is not None)
+    # A `null` child handed to replaceChildren is drawn as the literal text "null" (ISSUE-029 family).
+    check("the hub draws no stray 'null' while exams are working",
+          page.inner_text(".list-status") == "", repr(page.inner_text(".list-status")))
 
     hub_row.query_selector("a:has-text('Watch')").click()
     page.wait_for_function(f"location.hash.includes('{EXAM_ID}') && !location.hash.includes('session')")
@@ -73,6 +76,10 @@ with sync_playwright() as pw:
 
     # ---------- per-exam live table (mockup 12) ----------
     check("the exam title is the heading", exam["title"] in page.inner_text("h1"))
+    check("the board and its strip draw no stray 'null'",
+          "null" not in page.inner_text(".strip").lower().split()
+          and "null" not in page.inner_text(".main").lower().split(),
+          page.inner_text(".strip"))
     check("the strip counts working and joined",
           "2" in page.inner_text(".strip") and "3" in page.inner_text(".strip"),
           page.inner_text(".strip"))
@@ -98,6 +105,8 @@ with sync_playwright() as pw:
     page.wait_for_selector("[data-add-time], .events, .monitor-events, .card.sec")
     check("the session screen names the student", "Bima Saputra" in page.inner_text("h1"))
     check("the session shows page leaves in the strip", "page leave" in page.inner_text(".strip"))
+    check("the attempt timeline draws no stray 'null'",
+          "null" not in page.inner_text(".strip").lower().split(), page.inner_text(".strip"))
     check("history lists page-leave events",
           "Left the page" in page.inner_text(".card") or "Left the page" in page.inner_text(".events")
           or "Left the page" in page.inner_text(".pill"),
@@ -112,6 +121,13 @@ with sync_playwright() as pw:
           str(srv.result_calls[-3:]))
     check("full report link is present",
           page.query_selector(f"a[href='#/results/{EXAM_ID}/session/{sid_b}']") is not None)
+
+    # A finished attempt has no remaining time and may have no heartbeat, so its strip must drop
+    # those pieces instead of drawing the literal text "null".
+    page.goto(BASE + f"#/monitor/{EXAM_ID}/session/{sid_a}")
+    page.wait_for_selector(".strip b")
+    check("a finished attempt's timeline draws no stray 'null'",
+          "null" not in page.inner_text(".strip").lower().split(), page.inner_text(".strip"))
 
     # ---------- the exam-wide action: more time for everyone still working ----------
     page.goto(BASE + f"#/monitor/{EXAM_ID}")
