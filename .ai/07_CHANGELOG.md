@@ -1,5 +1,13 @@
 # 07 CHANGELOG
 
+## 2026-09-29 — `bb34dd2` verified locally and pushed (no code change by this session)
+- Agent: Buffy. Task: continue per the handoff — verify the reconciliation commit's claims, push it, then do TASK-026.
+- **Verified `bb34dd2` by running everything, not by reading the numbers:** backend **167/167**, unit **42/42**, and all **fourteen** browser suites green (teacher 37, question_bank 151, question_editor 83, media 34, question_import 43, exams 82, student 61, results 87, monitor 34, dashboard 37, audit 26, backups 42, accounts 46, notifications 28 printed). Every claim in the commit message checks out.
+- **Two intermittent exits, recorded honestly (ISSUE-039):** `notifications_e2e.py` once exited 1 with **0 checks printed** (~31 s), and `exams_e2e.py` once exited 1 **mid-suite without a FAIL line** (73 of 82 printed). Each passed on its immediate re-run and on 3 further runs each; the traceback of neither failing run was captured (output was not tee'd), so both are `NEEDS_VERIFICATION`, not fixed. The dev server itself stayed healthy (HTTP 200 throughout).
+- **Count nuance so nobody panics:** `notifications_e2e.py` has **31 `check()` call sites but prints 28 on the happy path** — 3 are conditional paths the mock does not trigger; the changelog's "31" counted call sites, not printed lines.
+- **Pushed:** `bb34dd2` plus this docs commit to `origin/ai-development` (fast-forward; `origin/main` untouched). That is the push the DEC-037 handoff was waiting on — **the owner's remote branch cleanup is now unblocked** (replace `main` with this tip; delete `backup-ai-development`, `recovery-final-backup`, `backup-old-main`).
+- **Still not done, needs a credential (unchanged): TASK-026** — the RLS migration `20261002000000_notification_reads_rls.sql` is not applied live, the SQL test's new assertion has never run, `live_notifications_check.py` has never run, and the advisors were not re-read. No `SUPABASE_*` env var, no `~/.supabase/access-token`, no `mcp.json` entry in this session (checked, not assumed).
+
 ## 2026-09-29 — The branches are reconciled into one source of truth, and the bell becomes the one notification system (DEC-037; ISSUE-031, ISSUE-036, ISSUE-037; TASK-023, TASK-026)
 - Agent: Buffy. Task: **reconcile `main`, `ai-development`, its remote, `feat-bulk`, `prod-prep`, `audit-reconcile` and the abandoned backup refs into one line, then carry out the owner's three answers** (adopt the server-backed bell; keep every branch's unique work; replace `main`).
 - **What was actually in each ref** (every number measured with `git diff`/`git rev-list`, not read from a doc):

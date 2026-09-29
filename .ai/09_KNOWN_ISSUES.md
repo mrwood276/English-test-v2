@@ -257,5 +257,12 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 - **Required action (owner):** `git push origin --delete backup-ai-development` once the salvage commit is on the remote. Until then treat the ref as read-only history and never as a merge source.
 - Affected: the remote ref `backup-ai-development`; the cleanup list in DEC-037's changelog entry.
 
+## ISSUE-039 — `notifications_e2e.py` and `exams_e2e.py` each exited non-zero once without a FAIL line (NEEDS_VERIFICATION 2026-09-29)
+- Severity: **LOW** (both suites are green on re-run and on every subsequent run; no product defect was found). Status: **NEEDS_VERIFICATION**. Related: ISSUE-025 (the same family: a suite that dies instead of failing a check).
+- **What was observed (2026-09-29, while verifying `bb34dd2`):** `notifications_e2e.py` exited 1 with **0 checks printed** after ~31 s (the suite normally takes ~3 s and prints 28) — the smell of a 30 s Playwright timeout before the first check. `exams_e2e.py` exited 1 after 36 s having printed 73 of its 82 checks, **with no FAIL line and no traceback captured**. Each passed on its immediate re-run and on 3 further runs each; the dev server answered HTTP 200 throughout, and no other suite ever misbehaved.
+- **Why it is not fixed:** the failing runs' output was not captured (the runner did not tee), so the exact step and exception are unknown — and it cannot be reproduced on demand (7+ green runs each since).
+- **What to do when it recurs:** tee the output to a file (`python frontend/tests/<suite>.py 2>&1 | tee /tmp/x.log`) and record the traceback here before touching anything. If `notifications_e2e.py`'s first-load wait is the culprit, its timeout or its wait-for-bell condition may need the same treatment ISSUE-025 gave the editor's debounced duplicate check.
+- Affected: `frontend/tests/notifications_e2e.py`, `frontend/tests/exams_e2e.py`.
+
 ## Legacy v1 issues (outside this repository; not being fixed, DEC-015)
 Summarized from `docs/audit-v1.md`: server does not enforce exam time (H-1); no attempt limit or open/close/code (H-2); teacher password stored plaintext, no login throttling (H-3); token signing secret hard-coded in function code (H-4); no server-side validation of name/class and no rate limit on session creation (H-5); answers only in browser storage until submit (M-1); duplicate result rows possible (M-2). These disappear when v2 replaces v1.
