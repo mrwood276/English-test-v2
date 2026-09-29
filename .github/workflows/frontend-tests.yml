@@ -59,3 +59,5 @@ jobs:
         run: python frontend/tests/backups_e2e.py
       - name: Accounts (admin side)
         run: python frontend/tests/accounts_e2e.py
+      - name: Notifications (bell)
+        run: python frontend/tests/notifications_e2e.py

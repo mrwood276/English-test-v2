@@ -2,8 +2,8 @@
 
 ## Git and live state
 
-- `main`: stable at `9c293fc`; it is materially behind the live system.
-- `ai-development`: active development/reconciliation line at `53baaa1`.
+- `main`: this section was written while `main` sat at `9c293fc`. **It has since been replaced: `main` is now the orphan snapshot `8b7aeba`** — one commit, **no parents**, 216 files, a tree byte-identical to `audit-reconcile`'s merge `4e4b3b8`, i.e. the twenty-fourth session's state. It shares no history with anything and cannot be merged, only replaced; it is materially behind the live system, as both versions were.
+- `ai-development`: active development/reconciliation line — at `53baaa1` when this was written, and at **`e1a7f7b`** (this recovery commit) since. On 2026-09-29 the branch tangle was resolved onto it; see the salvage note at the end.
 - Live Supabase project: `lbhnadqmokloyfarrzfv`, PostgreSQL 17.6.1, ACTIVE_HEALTHY.
 - Live Edge Functions: 10 ACTIVE functions: auth-me v2, question-bank v9, media v4, exams v6, session v2, results v5, audit v2, backups v1, accounts v1, notifications v1.
 - Live migration ledger: 26 applied rows.
@@ -41,3 +41,14 @@ The notification migration added here is explicitly reconstructed from live defi
 1. Reconcile live migration names/ledger against Git without fabricating history.
 2. Decide whether the live server-backed notifications architecture supersedes DEC-032's dashboard-only design.
 3. Decide the intended RLS/grant boundary for `notification_reads`, then apply and test it in a dedicated migration.
+
+## Salvage note — 2026-09-29 (branch reconciliation)
+
+This file, and the six docs-only commits that carried it, lived only on the branch **`backup-ai-development`**, whose tip `ef6b545` is a merge that deletes ~230 files (a 4-file tree). That line was never merged and never will be; **everything fact-bearing in it is folded in above and here**, so the ref can be deleted. The facts recovered from it, all read-only on 2026-09-28:
+
+- Live Supabase runs **10 ACTIVE Edge Functions**, `notifications` v1 among them — so the server-backed notification design was the **deployed** one, and DEC-032's dashboard-only design was never deployed at all. That settled decision 2: the bell was adopted as the one system, and DEC-032's notices were retired (**DEC-037**, 2026-09-29).
+- The live **migration ledger holds 26 applied rows** whose names do not match the files in `supabase/migrations/`, because some SQL was applied by direct `database/query` request. Decision 1 is therefore **open and real** — a fresh environment cannot be reproduced from this repository (ISSUE-036, HIGH for deployment).
+- The notification migration in Git is an **explicitly reconstructed representation** of the live definition, not the original text. It was also **incomplete**: it calls `public._actor_profile(p_actor)` twice and defines it nowhere, so it would have failed on the bell's first call (ISSUE-037, fixed in the working copy that the tree here committed). Whether live has that helper is unanswered from Git — it may come from a ledger row Git does not hold.
+- Live `public.notification_reads` had **RLS disabled** (decision 3). The boundary is not a new policy question: the project's baseline is RLS on with **no policies** and no grant to `anon`/`authenticated` (DEC-002), and the service role bypasses RLS. `supabase/migrations/20261002000000_notification_reads_rls.sql` now applies that baseline; it is **NOT applied live** — TASK-026.
+
+Also measured in that session, and the reason it could be done at all: `origin/ai-development` `e1a7f7b` is the one tip whose history contains every other line (`feat-bulk` is its parent; `prod-prep`, `audit-reconcile` and the local checkout were ancestors with zero commits of their own), `origin/main`'s snapshot had **no unique file**, and the old `main` and the monitor branch held no capability the mainline lacks.

@@ -170,13 +170,16 @@ Depends on TASK-006 completion. Needs a decision on how to generate PDF/Word wit
 - F-13 is now **FULLY LIVE-VERIFIED** in `03_FEATURES.md`.
 - Note for a later session: this is the run the owner may also want to do once by hand — the script is the evidence, the owner's own eyes are the acceptance.
 
-## TASK-023 — Decide the second notification implementation that exists only in one working tree (ISSUE-031)
-- Priority: MEDIUM. Status: **BLOCKED on the owner** (found 2026-09-28, twenty-fourth session). Related: DEC-032, TASK-015, ISSUE-024 (the precedent).
+## TASK-023 — Adopt the server-backed bell as the one notification system (COMPLETE 2026-09-29, DEC-037)
+- Priority: MEDIUM. Status: **COMPLETE (2026-09-29 — the owner answered: adopt; the slice is committed and DEC-032's dashboard notices are retired in the same change).** Related: DEC-032 (superseded), DEC-037, TASK-015, ISSUE-031, ISSUE-037.
 - Context: `origin/ai-development` already has DEC-032's notification feature committed (dashboard notices derived from the existing results payloads; read state in the browser; no SQL and no Edge Function). A separate checkout's working tree additionally carries a **different, code-complete design for the same feature**: a bell in the shell, a `notifications` **Edge Function**, a new `notification_reads` table with `list_notifications`/`mark_notifications_read` (migration `20261001000000_notification_functions.sql`), `backend/tests/notifications.test.ts`, `supabase/tests/notification_functions_test.sql`, `frontend/tests/notifications_e2e.py`, `frontend/tests/live_notifications_check.py`, a `notifications` handler in the mock server, and an extra CI step. Its migration header claims a live apply on 2026-09-26 by a "twenty-third session" this repository does not record.
 - Why it is not done: it is a **second implementation of a feature the repository has already decided** (`.ai/00_AI_RULES.md` §4 — no second Edge Function or table without a documented reason in `06_DECISIONS.md`), and it is another agent's in-flight work — the decision the owner had to make for ISSUE-024. The audit session refused to make it for him and had no Supabase credential to check the live claim.
 - What it needs: **the owner's answer.** Adopt it → retire DEC-032's dashboard notices in the same change so there is exactly one notification system, add `docs/sql-notifications.md`, an F-15 feature row, the live proof and the `.ai/` records, then commit it as one change. Discard it → delete only on the owner's word (and the live function/migration, if they exist, need the same decision in reverse).
 - Evidence gathered read-only this session: backend **152** with the slice (143 without — `notifications.test.ts` is the difference), `frontend/tests/notifications_e2e.py` **31/31** against the mock. Until the decision: **stage only your own files, never `git add -A`.**
-- Full detail: `09_KNOWN_ISSUES.md` ISSUE-031.
+- **Done (2026-09-29):** the bell, its `notifications` Edge Function, its migration (**with the `_actor_profile` definition the recovered file called and never defined — ISSUE-037**), its eight backend tests, its rolled-back SQL test, `notifications_e2e.py`, `live_notifications_check.py` and its CI step are committed on `ai-development`; **DEC-032's dashboard notices were retired in the same change** — the card, its browser-local read state and its "Mark all read" are gone from `dashboard.js` (327 → 242 lines), the CSS those rules lived in was deleted, and `dashboard_e2e.py` now asserts the card is absent and the bell present. `docs/sql-notifications.md` was written, the F-14 row was updated, and the new migration `20261002000000_notification_reads_rls.sql` closes the one security gap the recovery left open (**not applied live** — TASK-026).
+- **Still needs a credential:** re-reading the live function and migration (the file in Git is a reconstruction — ISSUE-036), applying the RLS migration, re-running the SQL test's new assertion, and running `live_notifications_check.py`.
+- Evidence this session: backend **167** (the slice's eight tests among them), unit **42**, **fourteen** browser suites green, **794** checks.
+- Full detail: `09_KNOWN_ISSUES.md` ISSUE-031 (the folded record), `docs/sql-notifications.md`, DEC-037.
 
 ## TASK-024 — Make the bulk question changes real: apply the migration and run its SQL test (COMPLETE 2026-09-28)
 - Priority: HIGH (the feature is code-complete; this is what makes it live). Status: **COMPLETE (2026-09-28, twenty-sixth session, once the owner supplied a Supabase credential)**. Feature: F-17. Related: DEC-035, ISSUE-033, TASK-017.
@@ -197,6 +200,13 @@ Depends on TASK-006 completion. Needs a decision on how to generate PDF/Word wit
 - Full detail: `docs/sql-exam-questions.md` and `09_KNOWN_ISSUES.md` ISSUE-034 / ISSUE-035.
 
 ---
+
+## TASK-026 — Apply the notification RLS migration and re-read the notification SQL against live (ISSUE-036)
+- Priority: HIGH for any future database work; not a release blocker as it stands. Status: **BLOCKED on a Supabase credential** (created 2026-09-29). Related: DEC-037, ISSUE-036, ISSUE-037, TASK-023.
+- Why: the table behind the bell was created **outside the project's RLS-on baseline** — live it has RLS **disabled**, the one table in the schema that does (recorded read-only on 2026-09-28 in `docs/production-reconciliation-2026-09-28.md`, "Security drift"). `supabase/migrations/20261002000000_notification_reads_rls.sql` fixes it in the repository and is **NOT applied live**.
+- Steps: (1) apply the migration as one `POST /v1/projects/<ref>/database/query` request; (2) insert the `schema_migrations` row (`20261002000000` / `notification_reads_rls`) — applying through the Management API writes no tracking row by itself (`docs/sql-jobs.md`); (3) run `supabase/tests/notification_functions_test.sql`, which now asserts the RLS flag, and expect `NOTIFICATION TESTS PASSED (…, everything rolled back)`; (4) re-run the Supabase security advisor and expect 0 findings; (5) `python frontend/tests/live_notifications_check.py` through the deployed function.
+- Also in scope while a credential is in hand: read the live `notifications` function (and whether live defines `_actor_profile` at all) and correct the reconstruction in Git where it differs — the migration file in Git is a reconstruction of what production runs, not historical text, and the live ledger holds 26 rows Git does not (ISSUE-036).
+- Full detail: `docs/sql-notifications.md`.
 
 ## COMPLETED (history)
 

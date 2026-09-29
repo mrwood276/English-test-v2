@@ -61,6 +61,8 @@ class Server:
         self.manual_grades = {}; self.retakes = {}; self.result_calls = []; self.class_aliases = {}
         # admin side (audit function)
         self.audit_rows = []; self.audit_calls = []
+        # the notification bell (every staff role; TASK-015, DEC-017): unread until the bell is opened
+        self.notif_calls = []; self.notif_read = False
         # admin side (backups function): one nightly copy with bytes in it and one made by hand, so the list has both kinds
         self.backup_calls = []
         self.backups = [
@@ -137,6 +139,8 @@ class Server:
             return self.handle_results(route, req)
         if "/functions/v1/audit" in url:
             return self.handle_audit(route, req)
+        if "/functions/v1/notifications" in url:
+            return self.handle_notifications(route, req)
         if "/functions/v1/backups" in url:
             return self.handle_backups(route, req)
         if "/functions/v1/accounts" in url:
@@ -787,6 +791,47 @@ class Server:
                 rows = [r for r in rows if datetime.datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")).timestamp() >= since]
             rows = sorted(rows, key=lambda r: r["created_at"], reverse=True)
             return ok({"logs": {"total": len(rows), "rows": rows[offset:offset + limit]}})
+        return err(400, "Unknown action")
+
+    # ---------- the notification bell (TASK-015, DEC-017) ----------
+
+    def notif_payload(self):
+        """What the bell answers: essays and suspicious events for everybody, backup and new accounts for admins.
+        Everything unread until the bell has been opened (which the real server records per person)."""
+        essays = [{"exam_id": "e-1", "title": "Past Tense Quiz", "access_code": "PAST01",
+                   "waiting": 2, "student_name": "Dina", "student_class": "XII TKJ A",
+                   "session_id": "s-1", "updated_at": iso(time.time() - 40 * 60)}]
+        suspicious = [{"exam_id": "e-2", "title": "Narrative Test", "access_code": "NARR22",
+                       "events": 3, "sessions": 2, "last_at": iso(time.time() - 25 * 60)}]
+        backup = None
+        accounts = []
+        if self.role == "admin":
+            backup = {"kind": "automatic", "created_at": iso(time.time() - 3 * 3600),
+                      "size_bytes": 3412000, "created_by_name": None}
+            accounts = [{"email": "dewi@example.com", "full_name": "Ms. Dewi", "role": "teacher",
+                         "created_at": iso(time.time() - 2 * 86400)}]
+        total = len(essays) + len(suspicious) + len(accounts) + (1 if backup else 0)
+        return {"kinds": {"essays": essays, "suspicious": suspicious, "backup": backup, "accounts": accounts},
+                "essays": sum(e["waiting"] for e in essays), "suspicious": len(suspicious),
+                "account": len(accounts), "backup": 1 if backup else 0,
+                "total": total, "unread": 0 if self.notif_read else total,
+                "read_at": iso(time.time()) if self.notif_read else None}
+
+    def handle_notifications(self, route, req):
+        body = json.loads(req.post_data or "{}"); a = body.get("action")
+        self.notif_calls.append(body)
+        def ok(data): route.fulfill(status=200, content_type="application/json", body=json.dumps(data))
+        def err(status, msg): route.fulfill(status=status, content_type="application/json", body=json.dumps({"error": msg, "code": "bad_request"}))
+
+        # The bell is for every signed-in staff member; only a dead session is refused.
+        if self.status_all:
+            return route.fulfill(status=self.status_all, content_type="application/json",
+                                 body=json.dumps({"error": "Your session has expired. Please sign in again.", "code": "unauthorized"}))
+        if a == "list":
+            return ok({"notifications": self.notif_payload()})
+        if a == "mark_read":
+            self.notif_read = True
+            return ok({"notifications": self.notif_payload()})
         return err(400, "Unknown action")
 
     def handle_backups(self, route, req):

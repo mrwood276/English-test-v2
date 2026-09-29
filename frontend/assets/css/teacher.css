@@ -51,6 +51,37 @@
 .build { margin: 10px 4px 0; font-size: 11.5px; }
 @media (max-width: 760px) { .build { display: none; } }
 
+/* ---------- Notification bell (TASK-015, DEC-017) ---------- */
+/* The bell lives at the end of the brand row, outside the menu, so the menu stays the approved mockup. */
+.brand { position: relative; }
+.bell-wrap { position: absolute; top: -6px; right: 0; z-index: 40; }
+.bell-btn { position: relative; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--card); color: var(--ink-2); cursor: pointer; }
+.bell-btn:hover { color: var(--pen); border-color: var(--pen); }
+.notif-badge { position: absolute; top: -6px; right: -8px; border-radius: 999px; background: var(--red); color: #fff; font-size: 11px; font-weight: 600; padding: 1px 6px; }
+.notif-panel { position: absolute; top: 46px; right: 0; width: 380px; max-width: calc(100vw - 24px); background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius-m); box-shadow: 0 10px 30px rgba(22, 35, 59, .14); overflow: hidden; }
+.notif-head { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px 10px; border-bottom: 1px solid var(--line); }
+.notif-head .hint { margin-left: auto; }
+.notif-body { max-height: 60vh; overflow-y: auto; }
+.notif-kind { padding: 8px 14px 2px; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.notif-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+.notif-row:last-child { border-bottom: 0; }
+.notif-row:hover { background: var(--paper, #f7f9fc); }
+.notif-pill { flex: none; margin-top: 2px; display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 600; }
+.notif-pill-warn { background: var(--mark-tint); color: #6b5400; }
+.notif-pill-bad { background: var(--red-tint); color: var(--red); }
+.notif-pill-ok { background: var(--green-tint); color: var(--green); }
+.notif-pill-neutral { background: var(--pen-tint); color: var(--pen); }
+.notif-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.notif-main strong { font-size: 14px; overflow-wrap: anywhere; }
+.notif-sub { color: var(--ink-2); font-size: 13px; }
+.notif-when { flex: none; margin-left: auto; font-size: 12px; white-space: nowrap; }
+.notif-empty { padding: 18px 14px; color: var(--ink-2); font-size: 14px; }
+.notif-foot { padding: 8px 14px; border-top: 1px solid var(--line); font-size: 12px; }
+@media (max-width: 760px) {
+  .bell-wrap { position: absolute; top: -4px; right: -6px; }
+  .notif-panel { position: fixed; left: 12px; right: 12px; top: 54px; bottom: auto; width: auto; }
+}
+
 /* ---------- Dashboard (mockup 5) ---------- */
 .dash-layout { max-width: 980px; }
 .dash-layout .card { max-width: none; }
@@ -91,9 +122,3 @@
   .bigcode { font-size: 44px; }
 }
 
-.notifications { margin-top: 16px; }
-.dash-section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.dash-section-head h2 { margin-bottom: 2px; }
-.dash-section-head .hint { margin: 0; font-size: 12.5px; }
-.notification.is-read { opacity: .62; }
-.notification strong { font-weight: 650; }

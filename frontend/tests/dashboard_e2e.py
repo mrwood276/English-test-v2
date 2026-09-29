@@ -84,17 +84,12 @@ with sync_playwright() as pw:
           page.query_selector(f".now a[href='#/monitor/{EXAM_ID}']") is not None)
 
     # ---------- Notifications ----------
-    notifications = page.locator('section[aria-label="Notifications"]')
-    check("dashboard notifications are shown", notifications.count() == 1)
-    notification_text = notifications.inner_text()
-    check("notifications surface the essay work", "essay needs grading" in notification_text, notification_text)
-    check("notifications surface the suspicious session", "session needs review" in notification_text, notification_text)
-    check("notifications link to grading", page.query_selector(f'section[aria-label="Notifications"] a[href="#/grading/{EXAM_ID}"]') is not None)
-    check("notifications link to the monitor", page.query_selector(f'section[aria-label="Notifications"] a[href="#/monitor/{EXAM_ID}"]') is not None)
-    check("notifications link to results", page.query_selector(f'section[aria-label="Notifications"] a[href="#/results/{EXAM_ID}"]') is not None)
-    page.click("#mark-notifications-read")
-    check("mark all read removes the new count", "new" not in notifications.locator("h2").inner_text())
-    check("read notifications stay visible", "essay needs grading" in notifications.inner_text())
+    # DEC-032's dashboard notices card was retired when the server-backed bell became the one
+    # notification system (DEC-037). The card must be gone from this screen, and the shell's
+    # bell — covered in depth by notifications_e2e.py — must be the thing that carries them.
+    check("the dashboard no longer carries its own notices card",
+          page.query_selector('section[aria-label="Notifications"]') is None)
+    check("the one notification system is the shell bell", page.query_selector("#notif-bell") is not None)
 
     # ---------- "Needs your attention" ----------
     attention = page.inner_text('section[aria-label="Needs your attention"]')

@@ -6,8 +6,19 @@ import { asEnum, asInt, asObject } from "../_shared/validate.ts";
 
 export type Db = StaffDb & RpcDb;
 
-const ACTIONS = ["list", "mark_read"] as const;
+const ACTIONS = [
+  "list", // the bell: what needs attention, plus the unread count (DEC-017)
+  "mark_read", // marks the bell opened; answers the same shape as `list`
+] as const;
 
+/**
+ * The dashboard bell (TASK-015, DEC-017). One endpoint, POST { action, ... }.
+ *
+ * Notifications are computed at read time from data the other screens already show, so the bell can
+ * never disagree with them; the only stored state is *when a person last opened the bell*. Every
+ * signed-in staff member has a bell — essays and suspicious events are teacher business, backups and
+ * new accounts interest admins — and the database function refuses deactivated accounts itself.
+ */
 export function createHandler(getDb: () => Db) {
   return handle(async (req) => {
     if (req.method !== "POST") throw methodNotAllowed();
