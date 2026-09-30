@@ -56,12 +56,14 @@ QUESTION_BODY = "BACKUP CHECK (safe to delete): write the past of go."
 JOB = "nightly-backup"
 JOB_SCHEDULE = "41 19 * * *"
 AUTOMATIC_KEPT = 7
-checks = []
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import live_harness
 
-
-def check(name, cond, detail=""):
-    checks.append((name, bool(cond), detail))
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
+harness = live_harness.Run("live_backup_check",
+                           sweep="the owner's backup copies - this check refuses unless"
+                                 " BACKUP_CHECK_DELETE_EXISTING=1")
+harness.install()
+check = harness.check
 
 
 def http(method, url, body=None, headers=None, raw=False):
@@ -292,6 +294,7 @@ def main():
                                              "difficulty": "easy", "weight": 1, "accepted_answers": ["went"],
                                              "class_labels": [], "media": [{"id": media_id}]}, token)
     question_id = (created or {}).get("id")
+    harness.context("question id", question_id)
     check("the check can create its throwaway question with the picture attached",
           status == 200 and bool(question_id)
           and sql(f"select count(*)::int n from public.question_media where question_id = '{question_id}'")[0]["n"] == 1,
@@ -449,10 +452,8 @@ def main():
     check("the check's upload is not in Storage either", bucket_names("question-media", folder, name) == [],
           str(bucket_names("question-media", folder, name)))
 
-    failed = [n for n, ok, _ in checks if not ok]
-    print(f"\n{len(checks) - len(failed)}/{len(checks)} checks passed")
-    print("ALL LIVE BACKUP CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
-    return 1 if failed else 0
+    print(f"\n{harness.passed}/{harness.total} checks passed")
+    return harness.finish("ALL LIVE BACKUP CHECKS PASSED")
 
 
 if __name__ == "__main__":

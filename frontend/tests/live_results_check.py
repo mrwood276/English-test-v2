@@ -27,12 +27,14 @@ KEY = "sb_publishable_WewR6gpQy3SdaoBaJxxDyg_l5gt-R7E"
 EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "")
 PASSWORD = os.environ.get("SUPABASE_TEST_PASSWORD", "")
 CODE = "RLC001"
-checks = []
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import live_harness
 
-
-def check(name, cond, detail=""):
-    checks.append((name, bool(cond), detail))
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
+harness = live_harness.Run("live_results_check",
+                           sweep="exam RLC001, its attempts and its two questions - the next run sweeps them,"
+                                 " or docs/sql-results.md")
+harness.install()
+check = harness.check
 
 
 def http(method, url, body=None, headers=None):
@@ -100,6 +102,7 @@ def main():
                               "questions": [{"question_id": mc_id, "weight": 2}, {"question_id": sa_id, "weight": 1},
                                             {"question_id": es_id, "weight": 3}]}, staff)
     exam_id = saved["id"]
+    harness.context("exam id", exam_id)
     check("an exam with an essay can be created", bool(exam_id), str(saved))
     _, opened = call("exams", {"action": "set_status", "id": exam_id, "status": "open"}, staff)
     check("the exam is open", opened == {"ok": True}, str(opened))
@@ -238,9 +241,7 @@ def main():
         print("      still live — see docs/sql-results.md for the cleanup block, or re-run with the token")
         print("ids to clean up:")
         print(json.dumps({"exam_id": exam_id, "sessions": session_ids, "questions": [sa_id, es_id]}))
-    failed = [n for n, ok, _ in checks if not ok]
-    print("ALL LIVE CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
-    return 1 if failed else 0
+    return harness.finish("ALL LIVE CHECKS PASSED")
 
 
 if __name__ == "__main__":

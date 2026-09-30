@@ -36,12 +36,14 @@ PASSWORD = os.environ.get("SUPABASE_TEST_PASSWORD", "")
 CODE = "MON001"
 # Deliberately not the built-in defaults (1 / 3 / 5): the monitor must read the exam's own limits.
 WARN, FLAG = 2, 4
-checks = []
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import live_harness
 
-
-def check(name, cond, detail=""):
-    checks.append((name, bool(cond), detail))
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
+harness = live_harness.Run("live_monitor_check",
+                           sweep="exam MON001 with its four attempts - the next run sweeps it by code,"
+                                 " or frontend/tests/cleanup_live_monitor.sql")
+harness.install()
+check = harness.check
 
 
 def http(method, url, body=None, headers=None):
@@ -134,6 +136,7 @@ def main():
     check("the check can create its exam", bool(exam_id), str(saved))
     if not exam_id:
         return 1
+    harness.context("exam id", exam_id)
     _, opened = call("exams", {"action": "set_status", "id": exam_id, "status": "open"}, staff)
     check("the exam is open", opened == {"ok": True}, str(opened))
 
@@ -270,9 +273,7 @@ def main():
         print("      remove them with frontend/tests/cleanup_live_monitor.sql, or re-run with the token")
         print("ids to clean up:")
         print(json.dumps({"exam_id": exam_id, "code": CODE, "sessions": session_ids}))
-    failed = [n for n, ok, _ in checks if not ok]
-    print("ALL LIVE MONITOR CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
-    return 1 if failed else 0
+    return harness.finish("ALL LIVE MONITOR CHECKS PASSED")
 
 
 if __name__ == "__main__":

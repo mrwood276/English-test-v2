@@ -44,12 +44,14 @@ ADMIN_PASSWORD = os.environ.get("SUPABASE_ADMIN_PASSWORD", "")
 TEACHER_EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "testguru211l@gmail.com")
 NAME = "Live Accounts Check"
 NAME_AFTER = "Live Accounts Check Renamed"
-checks = []
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import live_harness
 
-
-def check(name, cond, detail=""):
-    checks.append((name, bool(cond), detail))
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
+harness = live_harness.Run("live_accounts_check",
+                           sweep="the throwaway account and its history - the next run's wipe_check"
+                                 " deletes them")
+harness.install()
+check = harness.check
 
 
 def http(method, url, body=None, headers=None):
@@ -181,6 +183,7 @@ def main():
           f"{status} {json.dumps(made)[:250]}")
     if status != 200:
         return 1
+    harness.context("account id", account.get("id"))
     check("the new account is active and has never signed in",
           account.get("is_active") is True and account.get("id"), json.dumps(account)[:200])
     check("the same address cannot be created twice",
@@ -285,10 +288,8 @@ def main():
           after["accounts"] == before["accounts"] and after["rows"] == before["rows"],
           f"{json.dumps(after['rows'])} vs {json.dumps(before['rows'])}")
 
-    failed = [n for n, ok, _ in checks if not ok]
-    print(f"\n{len(checks) - len(failed)}/{len(checks)} checks passed")
-    print("ALL LIVE ACCOUNT CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
-    return 1 if failed else 0
+    print(f"\n{harness.passed}/{harness.total} checks passed")
+    return harness.finish("ALL LIVE ACCOUNT CHECKS PASSED")
 
 
 if __name__ == "__main__":

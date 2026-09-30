@@ -52,12 +52,14 @@ JOBS = {
     "purge-rate-limits": "19 19 * * *",
     "purge-orphan-media": "29 19 * * *",
 }
-checks = []
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import live_harness
 
-
-def check(name, cond, detail=""):
-    checks.append((name, bool(cond), detail))
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
+harness = live_harness.Run("live_housekeeping_check",
+                           sweep="exam HSKEEP, its media and rate rows and the borrowed job schedules -"
+                                 " the next run sweeps and puts back all of it")
+harness.install()
+check = harness.check
 
 
 def http(method, url, body=None, headers=None, raw=False):
@@ -297,6 +299,7 @@ def main():
     check("the check can create its throwaway exam", bool(exam_id), json.dumps(created)[:200])
     if not exam_id:
         return 1
+    harness.context("exam id", exam_id)
     call("exams", {"action": "set_status", "id": exam_id, "status": "open"}, token)
     _, joined = call("session", {"action": "join", "code": CODE, "name": "Live Housekeeping", "class": "XII TKJ Z"}, token)
     session_id = (joined.get("session") or {}).get("id")
@@ -370,10 +373,8 @@ def main():
     check("the check's own Storage object is not there either", storage_names(upload["path"]) == [])
     print(f"live state after cleanup: {after}")
 
-    failed = [n for n, ok, _ in checks if not ok]
-    print(f"\n{len(checks) - len(failed)}/{len(checks)} checks passed")
-    print("ALL LIVE HOUSEKEEPING CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
-    return 1 if failed else 0
+    print(f"\n{harness.passed}/{harness.total} checks passed")
+    return harness.finish("ALL LIVE HOUSEKEEPING CHECKS PASSED")
 
 
 if __name__ == "__main__":

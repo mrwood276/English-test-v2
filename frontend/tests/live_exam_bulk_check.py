@@ -68,17 +68,20 @@ EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "testguru211l@gmail.com")
 PASSWORD = os.environ.get("SUPABASE_TEST_PASSWORD", "")
 ACCESS = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
 BASE = "http://127.0.0.1:8123/teacher/index.html"
-checks = []
-
 STAMP = time.strftime("%Y%m%d-%H%M%S")
 MARKER = f"LIVE EXAM BULK {STAMP}"
 TITLE = f"Live exam bulk check (safe to delete) {STAMP}"
 BOGUS = "00000000-0000-4000-8000-000000000000"
 
 
-def check(name, cond, detail=""):
-    checks.append((name, bool(cond), detail))
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import live_harness
+
+harness = live_harness.Run("live_exam_bulk_check",
+                           sweep="the Live exam bulk check draft exam and its LIVE EXAM BULK questions -"
+                                 " the next run sweeps them by marker")
+harness.install()
+check = harness.check
 
 
 def http(method, url, body=None, headers=None):
@@ -224,6 +227,7 @@ def main(api_only=False):
         for i in created:
             call("question-bank", {"action": "remove", "id": i}, token)
         return 1
+    harness.context("exam id", exam_id)
 
     def exam_rows():
         """The exam's question list straight from the database, in the order the exam will use it."""
@@ -474,10 +478,8 @@ def main(api_only=False):
               all(int(row[k]) == before[k] for k in ("exams", "questions", "archived")), f"{row} vs {before}")
     print(f"note: {acts} exam.questions audit rows remain — that history is the feature, not litter")
 
-    failed = [n for n, ok, _ in checks if not ok]
-    print(f"\n{len(checks) - len(failed)}/{len(checks)} checks passed")
-    print("ALL LIVE EXAM BULK CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
-    return 1 if failed else 0
+    print(f"\n{harness.passed}/{harness.total} checks passed")
+    return harness.finish("ALL LIVE EXAM BULK CHECKS PASSED")
 
 
 if __name__ == "__main__":

@@ -35,12 +35,14 @@ PASSWORD = os.environ.get("SUPABASE_TEST_PASSWORD", "")
 BASE = "http://127.0.0.1:8123/teacher/index.html"
 CODE = "MON001"
 WARN, FLAG = 2, 4
-checks = []
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import live_harness
 
-
-def check(name, cond, detail=""):
-    checks.append((name, bool(cond), detail))
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
+harness = live_harness.Run("live_browser_check",
+                           sweep="exam MON001 with its attempts - the next run sweeps it by code,"
+                                 " or frontend/tests/cleanup_live_monitor.sql")
+harness.install()
+check = harness.check
 
 
 def http(method, url, body=None, headers=None):
@@ -101,6 +103,7 @@ def main():
     if not exam_id:
         print(f"could not create the exam: {saved}")
         return 1
+    harness.context("exam id", exam_id)
     call("exams", {"action": "set_status", "id": exam_id, "status": "open"}, staff)
     _, mc = call("question-bank", {"action": "get", "id": mc_ids[0]}, staff)
     right = next(o["body"] for o in mc["question"]["options"] if o["is_correct"])
@@ -229,9 +232,7 @@ def main():
         print("      remove them with frontend/tests/cleanup_live_monitor.sql, or re-run with the token")
         print("ids to clean up:")
         print(json.dumps({"exam_id": exam_id, "code": CODE, "sessions": list(sid.values())}))
-    failed = [n for n, ok, _ in checks if not ok]
-    print("ALL LIVE BROWSER CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
-    return 1 if failed else 0
+    return harness.finish("ALL LIVE BROWSER CHECKS PASSED")
 
 
 if __name__ == "__main__":

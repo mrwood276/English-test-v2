@@ -31,12 +31,13 @@ import urllib.request
 PROJECT = "lbhnadqmokloyfarrzfv"
 ACCESS = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
 MIGRATIONS = pathlib.Path(__file__).resolve().parents[2] / "supabase" / "migrations"
-checks = []
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import live_harness
 
-
-def check(name, cond, detail=""):
-    checks.append((name, bool(cond), detail))
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
+harness = live_harness.Run("live_ledger_check",
+                           sweep="nothing - this check only reads the live ledger")
+harness.install()
+check = harness.check
 
 
 def sql(query):
@@ -164,10 +165,8 @@ def main():
     check("the files with no ledger row are the known hand-applied set from the reconciliation",
           orphans == HAND_APPLIED, f"unexpected: {sorted(set(orphans) ^ set(HAND_APPLIED))}")
 
-    failed = [n for n, ok, _ in checks if not ok]
     print()
-    print("ALL LIVE LEDGER CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
-    return 1 if failed else 0
+    return harness.finish("ALL LIVE LEDGER CHECKS PASSED")
 
 
 # Live ledger rows whose SQL is committed under another version name (measured 2026-09-30): the row

@@ -46,12 +46,14 @@ ADMIN_EMAIL = os.environ.get("SUPABASE_ADMIN_EMAIL", "jonathan10g7@gmail.com")
 TEACHER_EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "testguru211l@gmail.com")
 CODE = "BELL01"
 NAME = "Live Bell Check"
-checks = []
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import live_harness
 
-
-def check(name, cond, detail=""):
-    checks.append((name, bool(cond), detail))
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
+harness = live_harness.Run("live_notifications_check",
+                           sweep="exam BELL01, its question and read marks - the next run's wipe_check"
+                                 " sweeps them")
+harness.install()
+check = harness.check
 
 
 def http(method, url, body=None, headers=None):
@@ -242,6 +244,7 @@ def main():
     check("the check can create its exam", bool(exam_id), str(saved)[:200])
     if not exam_id:
         return 1
+    harness.context("exam id", exam_id)
     call("exams", {"action": "set_status", "id": exam_id, "status": "open"}, teacher)
 
     a = join(CODE, "Live Bell Student", "XII TKJ Z", teacher)
@@ -355,10 +358,8 @@ def main():
     check("the project's own accounts, questions and their history are untouched",
           after == before, f"{json.dumps(before)} -> {json.dumps(after)}")
 
-    failed = [n for n, ok, _ in checks if not ok]
     print()
-    print("ALL LIVE NOTIFICATION CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
-    return 1 if failed else 0
+    return harness.finish("ALL LIVE NOTIFICATION CHECKS PASSED")
 
 
 if __name__ == "__main__":

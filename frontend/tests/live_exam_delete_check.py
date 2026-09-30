@@ -39,12 +39,13 @@ ADMIN_PASSWORD = os.environ.get("SUPABASE_ADMIN_PASSWORD", "")
 ACCESS = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
 CODE = "DELCHK"
 TITLE = "Delete-rule live check (safe to delete)"
-checks = []
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import live_harness
 
-
-def check(name, cond, detail=""):
-    checks.append((name, bool(cond), detail))
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
+harness = live_harness.Run("live_exam_delete_check",
+                           sweep="exam DELCHK with its attempt - the next run sweeps it by access code")
+harness.install()
+check = harness.check
 
 
 def http(method, url, body=None, headers=None):
@@ -145,6 +146,7 @@ def main():
                                   "result_visibility": "score_and_review", "essay_pending_display": "show_partial",
                                   "questions": [{"question_id": q, "weight": 1} for q in mc]}, admin)
         exam_id = saved.get("id")
+        harness.context("exam id", exam_id)
         check("the throwaway exam is created", bool(exam_id), json.dumps(saved)[:200])
         call("exams", {"action": "set_status", "id": exam_id, "status": "open"}, admin)
         _, joined = call("session", {"action": "join", "code": CODE, "name": "Live Delete Check", "class": "XII TKJ Z"}, admin)
@@ -216,10 +218,8 @@ def main():
                   json.dumps(sql("select count(*)::int as n from public.rate_limits")))
 
     print()
-    failed = [n for n, ok, _ in checks if not ok]
-    print(f"{len(checks) - len(failed)}/{len(checks)} checks passed")
-    print("ALL LIVE DELETE-RULE CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
-    return 1 if failed else 0
+    print(f"{harness.passed}/{harness.total} checks passed")
+    return harness.finish("ALL LIVE DELETE-RULE CHECKS PASSED")
 
 
 if __name__ == "__main__":

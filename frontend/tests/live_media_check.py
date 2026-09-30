@@ -49,12 +49,14 @@ ACCESS = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
 KEEP = "--keep" in sys.argv
 BASE = "http://127.0.0.1:8123/teacher/index.html"
 TITLE = "Live media check (safe to delete)"
-checks = []
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import live_harness
 
-
-def check(name, cond, detail=""):
-    checks.append((name, bool(cond), detail))
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
+harness = live_harness.Run("live_media_check",
+                           sweep="the media check's question, rows and Storage bytes - the next run"
+                                 " sweeps them by body and file names")
+harness.install()
+check = harness.check
 
 
 def http(method, url, body=None, headers=None, raw=False):
@@ -327,6 +329,7 @@ def main():
             page.click("button:has-text('Save question')")
         page.wait_for_selector(".toast:has-text('Question saved.')", timeout=30000)
         question_id = (info.value.json() or {}).get("id")
+        harness.context("question id", question_id)
         check("saving the question with both files works", bool(question_id), str(info.value.status))
 
         if ACCESS and question_id:
@@ -447,10 +450,8 @@ def main():
     print()
     print("ids:")
     print(json.dumps({"question_id": question_id, "media_ids": media_ids, "paths": paths}))
-    failed = [n for n, ok, _ in checks if not ok]
-    print(f"{len(checks) - len(failed)}/{len(checks)} checks passed")
-    print("ALL LIVE MEDIA CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
-    return 1 if failed else 0
+    print(f"{harness.passed}/{harness.total} checks passed")
+    return harness.finish("ALL LIVE MEDIA CHECKS PASSED")
 
 
 if __name__ == "__main__":

@@ -66,8 +66,6 @@ EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "testguru211l@gmail.com")
 PASSWORD = os.environ.get("SUPABASE_TEST_PASSWORD", "")
 ACCESS = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
 BASE = "http://127.0.0.1:8123/teacher/index.html"
-checks = []
-
 MARKER = f"LIVE BULK CHECK {time.strftime('%Y%m%d-%H%M%S')}"
 TOPIC_A = f"Live bulk {time.strftime('%H%M%S')}"
 TOPIC_B = f"{TOPIC_A} browser"
@@ -76,9 +74,14 @@ LABEL_B = "LIVE CHECK B"
 BOGUS = "00000000-0000-4000-8000-000000000000"
 
 
-def check(name, cond, detail=""):
-    checks.append((name, bool(cond), detail))
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import live_harness
+
+harness = live_harness.Run("live_bulk_check",
+                           sweep="the LIVE BULK CHECK questions and their test topics - the next run"
+                                 " sweeps them by marker")
+harness.install()
+check = harness.check
 
 
 def http(method, url, body=None, headers=None):
@@ -395,10 +398,8 @@ def main(api_only=False):
               f"public.topics, and the database's own counts could not be compared")
     print(f"note: {calls + screen_acts} question.bulk_update audit rows remain — that history is the feature, not litter")
 
-    failed = [n for n, ok, _ in checks if not ok]
-    print(f"\n{len(checks) - len(failed)}/{len(checks)} checks passed")
-    print("ALL LIVE BULK CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
-    return 1 if failed else 0
+    print(f"\n{harness.passed}/{harness.total} checks passed")
+    return harness.finish("ALL LIVE BULK CHECKS PASSED")
 
 
 if __name__ == "__main__":
