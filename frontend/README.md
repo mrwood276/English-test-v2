@@ -88,14 +88,18 @@ tests/                          browser tests with a mocked server (mock_server.
                                 pass and to sweep every one of them — monitor, browser, results,
                                 housekeeping, notifications and accounts — while live_backup_check.py
                                 (the guard case) must refuse to run while the project holds copies.
-                                The four checks with no cross-run sweep (media, bulk, exam_bulk,
-                                exam_delete) are deliberately not covered: their cleanup only runs
-                                when a run completes (ISSUE-043).
+                                All ten writable checks are covered now; the four that once had no
+                                cross-run sweep — media, bulk, exam_bulk, exam_delete — sweep their
+                                own leftovers too (ISSUE-043, closed the same day).
                                 live_media_check.py uploads a real photo and a real MP3 to Storage through
                                 the editor (needs ffmpeg to build the MP3), moves the second answer and the
                                 second file above the first with the reorder grip, and checks the database
-                                came back in that order, then deletes its own rows and objects again; live_exam_delete_check.py walks the exam delete rule
-                                (teacher closes, admin really deletes) with both accounts; add
+                                came back in that order, then deletes its own rows and objects again (and a
+                                killed run's leftovers first — its question by its fixed body, its files
+                                by their sample names — ISSUE-043); live_exam_delete_check.py walks the
+                                exam delete rule (teacher closes, admin really deletes) with both
+                                accounts, sweeps a leftover DELCHK exam before it starts, and mints the
+                                admin a one-time login link when only SUPABASE_ACCESS_TOKEN is set; add
                                 SUPABASE_ACCESS_TOKEN to also check the database side of the last two.
                                 live_duplicates_check.py is the newest and the easiest to run: with the
                                 token alone it signs in as the staff test account (a one-time login
@@ -136,8 +140,11 @@ tests/                          browser tests with a mocked server (mock_server.
                                 prove nothing else moved. It drives the real screen once (filter,
                                 select the page, new topic, preview, apply), then deletes its three
                                 questions and its two test topics and compares the live counts with
-                                the ones it took at the start. Needs the dev server for the screen
-                                half (`--api-only` skips it); the owner's own questions are never
+                                the ones it took at the start. A killed run is not left behind: the
+                                next one sweeps its three questions (by their `LIVE BULK CHECK`
+                                marker) and any of its test topics (by name pattern) before it
+                                starts (ISSUE-043). Needs the dev server for the screen half
+                                (`--api-only` skips it); the owner's own questions are never
                                 modified
                                 live_exam_bulk_check.py is the exam half of it (F-18): put many
                                 questions on one exam, or take many off it, from the exam
@@ -152,7 +159,9 @@ tests/                          browser tests with a mocked server (mock_server.
                                 top of the list with the keyboard before that Save), then
                                 deletes its exam and all
                                 five questions and compares the live counts with the ones it
-                                took at the start. Needs the dev server for its screen half
+                                took at the start, sweeping a killed run's exam (by its title) and
+                                its questions (by their `LIVE EXAM BULK` marker) before it starts
+                                (ISSUE-043). Needs the dev server for its screen half
                                 (`--api-only` skips it)
                                 live_notifications_check.py also needs no dev server and no browser
                                 (36 checks): it signs the admin and the staff test account in with
