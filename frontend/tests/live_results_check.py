@@ -5,15 +5,20 @@ from the environment and are never stored here. Run it by hand:
 
     SUPABASE_TEST_EMAIL='...' SUPABASE_TEST_PASSWORD='...' python frontend/tests/live_results_check.py
 
-It creates one exam, two students join and send it in, the teacher grades both essays, corrects a
-grade by hand, reopens an attempt, and allows a retake. Everything it creates is listed at the end so
-the rows can be deleted (see docs/sql-results.md for the cleanup block).
+It creates one exam and the two question kinds the bank lacks, two students join and send it in, the
+teacher grades both essays, corrects a grade by hand, reopens an attempt, and allows a retake. With
+`SUPABASE_ACCESS_TOKEN` set it also **removes everything it created and proves the rows are gone**
+(ISSUE-041); without the token it prints the ids and `docs/sql-results.md` keeps the by-hand block.
 """
 import json
 import os
 import sys
 import urllib.error
 import urllib.request
+
+sys.path.insert(0, "frontend/tests")
+
+import live_cleanup
 
 URL = "https://lbhnadqmokloyfarrzfv.supabase.co"
 KEY = "sb_publishable_WewR6gpQy3SdaoBaJxxDyg_l5gt-R7E"
@@ -52,6 +57,14 @@ def main():
         print(f"sign-in failed: {status} {data}")
         return 1
     staff = data["access_token"]
+
+    sql = live_cleanup.management_sql(os.environ.get("SUPABASE_ACCESS_TOKEN", ""))
+    if sql:
+        # a run that died mid-way must not block this one — its leftovers are this check's own, and the
+        # access code is taken, so an old exam would make this run's `save` fail
+        swept = live_cleanup.wipe_leftover_exam(sql, CODE)
+        if swept:
+            check(f"an earlier run's leftover exam ({swept}) was swept before this one started", True)
 
     # ---------- one exam with a question of each kind ----------
     # The live bank holds only multiple choice (migrated from v1), so the short-answer and the essay
@@ -203,10 +216,22 @@ def main():
     status, _ = call("results", {"action": "pending"}, "not-a-token")
     check("the results function refuses a stranger", status == 401, str(status))
 
+    # ---------- put it back, and prove it (ISSUE-041) ----------
     print()
-    print("ids to clean up:")
-    print(json.dumps({"exam_id": exam_id, "sessions": [sid_a, sid_b, join_again["session"]["id"]],
-                      "questions": [sa_id, es_id]}))
+    session_ids = [sid_a, sid_b, join_again["session"]["id"]]
+    if sql:
+        live_cleanup.wipe_exam(sql, exam_id)
+        live_cleanup.wipe_question(sql, sa_id)
+        live_cleanup.wipe_question(sql, es_id)
+        live_cleanup.sweep_rate_limits(sql)
+        left = live_cleanup.footprint(sql, exam_id, [sa_id, es_id])
+        check("everything this run created is gone again",
+              all(v == 0 for v in left.values()), json.dumps(left))
+    else:
+        print("note: no SUPABASE_ACCESS_TOKEN, so this run's exam, its attempts and its two questions are")
+        print("      still live — see docs/sql-results.md for the cleanup block, or re-run with the token")
+        print("ids to clean up:")
+        print(json.dumps({"exam_id": exam_id, "sessions": session_ids, "questions": [sa_id, es_id]}))
     failed = [n for n, ok, _ in checks if not ok]
     print("ALL LIVE CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
     return 1 if failed else 0

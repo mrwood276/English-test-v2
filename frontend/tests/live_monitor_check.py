@@ -11,7 +11,10 @@ render. Four students join one exam with **non-default** tab limits, and the scr
 exact same status rule `liveStatusPill` uses, checks the progress/clock/heartbeat fields, gives the
 whole exam five more minutes, and confirms the finished attempt was left alone.
 
-Everything it creates is printed at the end; remove it with:
+With `SUPABASE_ACCESS_TOKEN` set it also **removes everything it created and proves the rows are gone**
+(ISSUE-041: a check that writes has to count its own footprint afterwards, or it can leave a test exam
+behind on every run without anyone noticing). Without the token it prints the ids; the by-hand path
+still works and a run that died mid-way is swept by the next one:
 
     npx supabase db query --linked --file frontend/tests/cleanup_live_monitor.sql
 """
@@ -21,6 +24,10 @@ import sys
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
+
+sys.path.insert(0, "frontend/tests")
+
+import live_cleanup
 
 URL = "https://lbhnadqmokloyfarrzfv.supabase.co"
 KEY = "sb_publishable_WewR6gpQy3SdaoBaJxxDyg_l5gt-R7E"
@@ -103,6 +110,12 @@ def main():
         print(f"sign-in failed: {status} {data}")
         return 1
     staff = data["access_token"]
+    sql = live_cleanup.management_sql(os.environ.get("SUPABASE_ACCESS_TOKEN", ""))
+    if sql:
+        # a run that died mid-way must not block this one — its leftovers are this check's own
+        swept = live_cleanup.wipe_leftover_exam(sql, CODE)
+        if swept:
+            check(f"an earlier run's leftover exam ({swept}) was swept before this one started", True)
 
     # ---------- one open exam with two questions from the live bank and its own tab limits ----------
     _, bank = call("question-bank", {"action": "list", "page_size": 100}, staff)
@@ -243,10 +256,20 @@ def main():
     check("an exam with nobody working is refused with a friendly message",
           isinstance(nobody, dict) and "no one to give time to" in str(nobody.get("error", "")), str(nobody))
 
+    # ---------- put it back, and prove it (ISSUE-041) ----------
     print()
-    print("ids to clean up:")
-    print(json.dumps({"exam_id": exam_id, "code": CODE,
-                      "sessions": [x["session"]["id"] for x in (a, b, c, d)]}))
+    session_ids = [x["session"]["id"] for x in (a, b, c, d)]
+    if sql:
+        live_cleanup.wipe_exam(sql, exam_id)
+        live_cleanup.sweep_rate_limits(sql)
+        left = live_cleanup.footprint(sql, exam_id)
+        check("everything this run created is gone again",
+              all(v == 0 for v in left.values()), json.dumps(left))
+    else:
+        print("note: no SUPABASE_ACCESS_TOKEN, so this run's exam and its four attempts are still live —")
+        print("      remove them with frontend/tests/cleanup_live_monitor.sql, or re-run with the token")
+        print("ids to clean up:")
+        print(json.dumps({"exam_id": exam_id, "code": CODE, "sessions": session_ids}))
     failed = [n for n, ok, _ in checks if not ok]
     print("ALL LIVE MONITOR CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
     return 1 if failed else 0

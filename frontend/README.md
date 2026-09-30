@@ -74,9 +74,14 @@ tests/                          browser tests with a mocked server (mock_server.
                                 and Deno unit tests (tests/unit/). Three one-off
                                 scripts talk to the real backend by hand (owner's account, password from the
                                 environment): live_results_check.py (the grading loop),
-                                live_monitor_check.py (the monitor payload + exam-wide add time;
-                                cleanup_live_monitor.sql removes what it created) and live_browser_check.py
-                                (the same check driven through the real screens in Chromium).
+                                live_monitor_check.py (the monitor payload + exam-wide add time) and
+                                live_browser_check.py (the same check driven through the real screens in
+                                Chromium). All three build a real exam with real attempts and, with
+                                SUPABASE_ACCESS_TOKEN set, remove it again and assert the rows are
+                                gone through tests/live_cleanup.py (ISSUE-041); without the token they
+                                print the ids and cleanup_live_monitor.sql (or the block in
+                                docs/sql-results.md) remains the by-hand path — and a run that died
+                                mid-way is swept by the next one.
                                 live_media_check.py uploads a real photo and a real MP3 to Storage through
                                 the editor (needs ffmpeg to build the MP3), moves the second answer and the
                                 second file above the first with the reorder grip, and checks the database
@@ -94,7 +99,13 @@ tests/                          browser tests with a mocked server (mock_server.
                                 file's bytes are gone from Storage) before deleting everything it
                                 created
                                 live_backup_check.py also needs no dev server and no browser (63
-                                checks): it takes a real manual backup, downloads the archive
+                                checks), but it needs a project with no copies to start from: it
+                                deletes every row in public.backups (row and file) to assert its
+                                counts, so since 2026-09-30 it refuses to run when the project holds
+                                any, prints them, and names the opt-in
+                                `BACKUP_CHECK_DELETE_EXISTING=1` (ISSUE-041 — the live project's
+                                nightly copies are not this check's to destroy). It takes a real
+                                manual backup, downloads the archive
                                 through its signed link and opens it with zipfile (the media bytes
                                 and every table's count compared with the live database), proves
                                 the eighth nightly copy prunes the oldest row AND its file, lets

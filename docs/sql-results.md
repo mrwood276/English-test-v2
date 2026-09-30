@@ -76,4 +76,7 @@ comment and guide; a hand-corrected short answer survived a reopen + second subm
 was told to reopen instead of taking time; a granted retake produced attempt 2 and could no longer be
 taken back; the tokenless call was refused with 401 — **38/38 checks**. Everything was deleted
 afterwards (`frontend/tests/cleanup_live_results.sql`): live state 0 exams, 0 sessions, 0 rate-limit
-rows, 40 questions.
+rows, 40 questions. **Since 2026-09-30 the check does that itself** when `SUPABASE_ACCESS_TOKEN` is set —
+`frontend/tests/live_cleanup.py` removes its exam and the two questions it created and then asserts every
+counter is back to zero (ISSUE-041) — and the same file remains the recovery path for a run that died
+before that step; without the token the check prints the ids and says plainly what stays.

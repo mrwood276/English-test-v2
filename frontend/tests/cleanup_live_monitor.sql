@@ -1,5 +1,9 @@
 -- Removes everything frontend/tests/live_monitor_check.py created on the live project.
--- Run it after that script:  npx supabase db query --linked --file frontend/tests/cleanup_live_monitor.sql
+--
+-- Since 2026-09-30 the check cleans up after **itself** when SUPABASE_ACCESS_TOKEN is set, and asserts
+-- the rows are gone (`frontend/tests/live_cleanup.py`, ISSUE-041). This file is the **recovery path**
+-- for a run that died before that step (the check also sweeps an old MON001 exam at its own start):
+--   npx supabase db query --linked --file frontend/tests/cleanup_live_monitor.sql
 -- NOTE: unlike supabase/tests/*.sql, this block must NOT end with a deliberate exception — that would
 -- roll the deletes back. It stays silent; check the counts afterwards with a select.
 --

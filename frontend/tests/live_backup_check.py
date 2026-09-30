@@ -24,6 +24,12 @@ What it proves, in order:
   7. nothing this run created is left: no backup rows, an empty bucket, no check question or upload, and
      the table counts are back to their starting numbers.
 
+**It needs a project with no copies to start from** (its assertions are about its own copies and it
+deletes every row in `public.backups` to make them, then fires the nightly job, whose retention sweep
+prunes the oldest automatic copy). Since 2026-09-30 the check refuses to run when the project already
+holds copies, instead of destroying them — ISSUE-041. Override deliberately with
+`BACKUP_CHECK_DELETE_EXISTING=1`, or point it at a fresh/staging project.
+
 The migration's own configuration is also asserted by supabase/tests/scheduled_jobs_test.sql (runnable
 with no browser and no login); this script is the end-to-end half.
 """
@@ -202,6 +208,19 @@ def wait_for(what, marker, want, timeout=240):
 def main():
     if not ACCESS:
         print("set SUPABASE_ACCESS_TOKEN first: this check reads the live job list, Vault, Storage and its own rows")
+        return 1
+    # This check takes copies and then deletes EVERY row in `public.backups` (with its file) to assert
+    # its counts, and it fires the nightly job, whose retention sweep prunes the oldest automatic copy.
+    # That is fine on a project with no copies — the state its assertions describe — and destructive on
+    # one that has any (ISSUE-041). Dry-run against a project that holds real copies: refuse.
+    existing = sql("select id, kind, created_at, size_bytes from public.backups order by created_at")
+    if existing and not os.environ.get("BACKUP_CHECK_DELETE_EXISTING"):
+        print(f"refusing to run: this project already holds {len(existing)} backup(s), and this check")
+        print("deletes every copy in `public.backups` — rows AND files — and fires the nightly job.")
+        print(json.dumps(existing, default=str)[:600])
+        print()
+        print("It therefore needs a project with no copies, or your explicit consent:")
+        print("    BACKUP_CHECK_DELETE_EXISTING=1 python frontend/tests/live_backup_check.py")
         return 1
     image = png_bytes()
     # A run that died halfway must not block this one; its leftovers are the check's own, nothing else.

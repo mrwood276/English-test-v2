@@ -12,7 +12,9 @@ warning, one over the flag limit, one finished), then opens `#/monitor` and `#/m
 Chromium and checks what a teacher would see. Finally it gives the whole exam five more minutes through
 the button itself and confirms the students' clocks moved.
 
-Clean up afterwards with frontend/tests/cleanup_live_monitor.sql.
+With `SUPABASE_ACCESS_TOKEN` set it also **removes everything it created and proves the rows are gone**
+(ISSUE-041); without the token it prints the ids and `frontend/tests/cleanup_live_monitor.sql` remains
+the by-hand path. A run that died mid-way is swept by the next one.
 """
 import json
 import os
@@ -22,6 +24,8 @@ import urllib.error
 import urllib.request
 
 sys.path.insert(0, "frontend/tests")
+
+import live_cleanup
 from playwright.sync_api import sync_playwright
 
 URL = "https://lbhnadqmokloyfarrzfv.supabase.co"
@@ -73,6 +77,12 @@ def main():
         print(f"sign-in failed: {status} {data}")
         return 1
     staff = data["access_token"]
+    sql = live_cleanup.management_sql(os.environ.get("SUPABASE_ACCESS_TOKEN", ""))
+    if sql:
+        # a run that died mid-way must not block this one — its leftovers are this check's own
+        swept = live_cleanup.wipe_leftover_exam(sql, CODE)
+        if swept:
+            check(f"an earlier run's leftover exam ({swept}) was swept before this one started", True)
 
     # ---------- the exam and the four students, through the real API ----------
     _, bank = call("question-bank", {"action": "list", "page_size": 100}, staff)
@@ -206,9 +216,19 @@ def main():
         check("no page errors", errors == [], "; ".join(errors[:3]))
         browser.close()
 
+    # ---------- put it back, and prove it (ISSUE-041) ----------
     print()
-    print("ids to clean up:")
-    print(json.dumps({"exam_id": exam_id, "code": CODE, "sessions": list(sid.values())}))
+    if sql:
+        live_cleanup.wipe_exam(sql, exam_id)
+        live_cleanup.sweep_rate_limits(sql)
+        left = live_cleanup.footprint(sql, exam_id)
+        check("everything this run created is gone again",
+              all(v == 0 for v in left.values()), json.dumps(left))
+    else:
+        print("note: no SUPABASE_ACCESS_TOKEN, so this run's exam and its four attempts are still live —")
+        print("      remove them with frontend/tests/cleanup_live_monitor.sql, or re-run with the token")
+        print("ids to clean up:")
+        print(json.dumps({"exam_id": exam_id, "code": CODE, "sessions": list(sid.values())}))
     failed = [n for n, ok, _ in checks if not ok]
     print("ALL LIVE BROWSER CHECKS PASSED" if not failed else f"{len(failed)} FAILED: {failed}")
     return 1 if failed else 0
