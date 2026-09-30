@@ -56,6 +56,7 @@ import urllib.request
 import uuid
 
 sys.path.insert(0, "frontend/tests")
+import live_cleanup
 from playwright.sync_api import sync_playwright
 
 URL = "https://lbhnadqmokloyfarrzfv.supabase.co"
@@ -154,6 +155,23 @@ def main(api_only=False):
     check("the staff gate accepts it as a teacher or an admin", status == 200 and role in ("teacher", "admin"),
           f"{status} {json.dumps(me)[:200]}")
     print(f"signed in as {EMAIL} ({role})")
+
+    # A run that died mid-way must not block this one: its three questions and their two topics are this
+    # check's own (ISSUE-043). The questions go through the same `remove` action the end of this check
+    # uses, so their history is written the same way; a question the function will not remove is removed
+    # by hand (children first, its audit rows kept — that history is the feature). The topics follow, once
+    # nothing points at them.
+    if ACCESS:
+        stale = sql("select id from public.questions where body like 'LIVE BULK CHECK %'")
+        for row in stale:
+            status, body = call("question-bank", {"action": "remove", "id": row["id"]}, token)
+            if (body or {}).get("result") != "deleted":
+                live_cleanup.wipe_question(sql, row["id"], keep_audit=True)
+        stale_topics = sql("delete from public.topics t where public.normalize_text(t.name) like 'live bulk %' "
+                           "and not exists (select 1 from public.questions q where q.topic_id = t.id) returning t.name")
+        if stale or stale_topics:
+            check(f"an earlier run's leftovers ({len(stale)} questions, {len(stale_topics)} topics) "
+                  f"were swept before this one started", True)
 
     calls = 0  # how many bulk_update calls reached the database, for the audit count at the end
 

@@ -1,7 +1,7 @@
 """Proof of the crash path: a dead live check's leftovers are swept by the next run (ISSUE-041 follow-up).
 
-Six live checks write to the real project and promise that a run which died mid-way does not block or
-pollute the next one. This script makes that promise a measured fact instead of a comment. For each
+Every live check that writes to the real project promises that a run which died mid-way does not block
+or pollute the next one. This script makes that promise a measured fact instead of a comment. For each
 check it:
 
   1. starts the check and **kills it on purpose** (taskkill /F /T on Windows, SIGKILL to the whole
@@ -16,16 +16,19 @@ What each case exercises:
   monitor       exam MON001 with live attempts   next run sweeps by access code
   browser       exam MON001 with live attempts   next run sweeps by access code (needs 8123)
   results       exam RLC001 + its two questions  next run sweeps the code and the question marker
-  housekeeping  exam HSKEEP + media row + rates  next run sweeps by access code
+  housekeeping  exam HSKEEP + media + schedules  next run sweeps by code, restores borrowed schedules
   notifications exam BELL01 + question + rows    next run's wipe_check() at startup
   accounts      throwaway account + login        next run's wipe_check() at startup
+  bulk          LIVE BULK CHECK questions/topics next run sweeps them by marker
+  exam_bulk     LIVE EXAM BULK exam + questions  next run sweeps them by marker
+  media         media-check question, files, bytes  next run sweeps by body and sample-file names
+  exam_delete   exam DELCHK with one attempt     next run sweeps by access code
 
 `live_backup_check.py` gets the opposite experiment, because it is destructive by design: run for
 real, it must **refuse** to touch a project that already holds the owner's copies.
 
-Not covered here, because they have no cross-run recovery promise to test (their cleanup runs only
-when a run completes): `live_media_check.py`, `live_bulk_check.py`, `live_exam_bulk_check.py` and
-`live_exam_delete_check.py`. `live_duplicates_check.py` and `live_ledger_check.py` are read-only.
+Every writable live check is covered; `live_duplicates_check.py` and `live_ledger_check.py` are
+read-only by design and are not killed.
 
     SUPABASE_TEST_EMAIL='...' SUPABASE_TEST_PASSWORD='...' SUPABASE_ACCESS_TOKEN='...' \
         python frontend/tests/live_crash_recovery_check.py [--only monitor,browser]
@@ -67,7 +70,8 @@ FINGERPRINT = """select
     (select count(*)::int from public.profiles) as profiles,
     (select count(*)::int from public.topics) as topics,
     (select count(*)::int from public.notification_reads) as read_marks,
-    (select count(*)::int from public.rate_limits where bucket like 'session\\_%') as session_rates"""
+    (select count(*)::int from public.rate_limits where bucket like 'session\\_%') as session_rates,
+    (select count(*)::int from storage.objects where bucket_id = 'question-media') as media_objects"""
 
 
 def sql(query):
@@ -158,6 +162,36 @@ def probe_backup():
     return sql("select (select count(*)::int from public.backups) as backups")[0]
 
 
+def probe_bulk():
+    return sql("""select
+        (select count(*)::int from public.questions where body like 'LIVE BULK CHECK %') as questions,
+        (select count(*)::int from public.topics where public.normalize_text(name) like 'live bulk %') as topics""")[0]
+
+
+def probe_exam_bulk():
+    return sql("""select
+        (select count(*)::int from public.exams
+          where title like 'Live exam bulk check (safe to delete)%') as exams,
+        (select count(*)::int from public.questions where body like 'LIVE EXAM BULK %') as questions""")[0]
+
+
+def probe_media():
+    return sql("""select
+        (select count(*)::int from public.questions
+          where body = 'Live media check: listen and answer. (safe to delete)') as questions,
+        (select count(*)::int from public.media_files
+          where original_name like 'live-photo.%' or original_name like 'live-tone.%') as files,
+        (select count(*)::int from public.question_media qm join public.questions q on q.id = qm.question_id
+          where q.body = 'Live media check: listen and answer. (safe to delete)') as attachments""")[0]
+
+
+def probe_exam_delete():
+    return sql("""select
+        (select count(*)::int from public.exams where access_code = 'DELCHK') as exams,
+        (select count(*)::int from public.exam_sessions s join public.exams e on e.id = s.exam_id
+          where e.access_code = 'DELCHK') as sessions""")[0]
+
+
 # ---------- sweeps: what this script does if a recovery run fails, so nothing is left behind ----------
 
 def clean_monitor():
@@ -209,6 +243,42 @@ def clean_housekeeping():
 
 # ---------- the cases ----------
 
+def clean_bulk():
+    live_cleanup.wipe_leftover_questions(sql, "LIVE BULK CHECK %", keep_audit=True)
+    sql("delete from public.topics t where public.normalize_text(t.name) like 'live bulk %' "
+        "and not exists (select 1 from public.questions q where q.topic_id = t.id)")
+
+
+def clean_exam_bulk():
+    for row in sql("select id from public.exams "
+                   "where title like 'Live exam bulk check (safe to delete)%'"):
+        live_cleanup.wipe_exam(sql, row["id"])
+    live_cleanup.wipe_leftover_questions(sql, "LIVE EXAM BULK %", keep_audit=True)
+
+
+def clean_media():
+    qids = [r["id"] for r in sql("select id from public.questions "
+                                 "where body = 'Live media check: listen and answer. (safe to delete)'")]
+    mids = [r["id"] for r in sql("select id from public.media_files "
+                                 "where original_name like 'live-photo.%' or original_name like 'live-tone.%'")]
+    if qids:
+        mids += [r["media_id"] for r in sql(f"select media_id from public.question_media "
+                                           f"where question_id = any('{{{','.join(qids)}}}'::uuid[])")]
+    mids = list(dict.fromkeys(mids))
+    if mids:
+        rows = sql(f"select storage_path from public.media_files "
+                   f"where id = any('{{{','.join(mids)}}}'::uuid[])")
+        delete_objects([r["storage_path"] for r in rows])
+        sql(f"delete from public.question_media where media_id = any('{{{','.join(mids)}}}'::uuid[])")
+        sql(f"delete from public.media_files where id = any('{{{','.join(mids)}}}'::uuid[])")
+    for qid in qids:
+        live_cleanup.wipe_question(sql, qid, keep_audit=True)
+
+
+def clean_exam_delete():
+    live_cleanup.wipe_leftover_exam(sql, "DELCHK")
+
+
 def cases():
     return [
         {
@@ -248,6 +318,45 @@ def cases():
             "required_text": ["PASS the starting point has the two real accounts and no account history",
                               "ALL LIVE ACCOUNT CHECKS PASSED"],
             "kill_deadline": 180, "timeout": 300, "clean": clean_accounts,
+        },
+        {
+            "key": "bulk",
+            "script": "frontend/tests/live_bulk_check.py",
+            "about": ("three LIVE BULK CHECK questions and their two test topics; the next run sweeps"
+                      " them by marker and by the topic name pattern"),
+            "probe": probe_bulk,
+            "ready": lambda s: s["questions"] >= 3 and s["topics"] >= 1,
+            "required_text": ["swept before this one started", "ALL LIVE BULK CHECKS PASSED"],
+            "kill_deadline": 180, "timeout": 420, "clean": clean_bulk, "needs_server": True,
+        },
+        {
+            "key": "exam_bulk",
+            "script": "frontend/tests/live_exam_bulk_check.py",
+            "about": ("one Live exam bulk check draft exam and its five LIVE EXAM BULK questions;"
+                      " the next run sweeps them by marker"),
+            "probe": probe_exam_bulk,
+            "ready": lambda s: s["exams"] >= 1 and s["questions"] >= 5,
+            "required_text": ["swept before this one started", "ALL LIVE EXAM BULK CHECKS PASSED"],
+            "kill_deadline": 180, "timeout": 420, "clean": clean_exam_bulk, "needs_server": True,
+        },
+        {
+            "key": "media",
+            "script": "frontend/tests/live_media_check.py",
+            "about": ("the media check's question, its two media rows and their Storage bytes;"
+                      " the next run sweeps by body text and sample-file names"),
+            "probe": probe_media,
+            "ready": lambda s: s["questions"] >= 1 and s["files"] >= 2,
+            "required_text": ["swept before this one started", "ALL LIVE MEDIA CHECKS PASSED"],
+            "kill_deadline": 240, "timeout": 480, "clean": clean_media, "needs_server": True,
+        },
+        {
+            "key": "exam_delete",
+            "script": "frontend/tests/live_exam_delete_check.py",
+            "about": "one DELCHK exam with an attempt; the next run sweeps it by access code",
+            "probe": probe_exam_delete,
+            "ready": lambda s: s["exams"] >= 1 and s["sessions"] >= 1,
+            "required_text": ["swept before this one started", "ALL LIVE DELETE-RULE CHECKS PASSED"],
+            "kill_deadline": 120, "timeout": 300, "clean": clean_exam_delete,
         },
         {
             "key": "housekeeping",
@@ -500,9 +609,8 @@ def main():
     print("\nproof of the crash path:")
     for key in selected:
         print(f"  {'PROVED ' if results[key] else 'FAILED '}{key}")
-    print("\nnot covered (no cross-run recovery promise to test -- their cleanup runs only when a run"
-          "\ncompletes): live_media_check.py, live_bulk_check.py, live_exam_bulk_check.py,"
-          "\nlive_exam_delete_check.py. live_duplicates_check.py and live_ledger_check.py are read-only.")
+    print("\nevery writable live check now has a crash case; live_duplicates_check.py and"
+          "\nlive_ledger_check.py are read-only by design and are not killed.")
 
     failed = [k for k in selected if not results[k]]
     print()

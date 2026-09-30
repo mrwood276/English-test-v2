@@ -34,6 +34,7 @@ import urllib.error
 import urllib.request
 
 sys.path.insert(0, "frontend/tests")
+import live_cleanup
 from playwright.sync_api import sync_playwright
 
 from fixtures_dir import fixtures_dir
@@ -180,6 +181,32 @@ def main():
 
     status, _ = call("media", {"action": "purge_unused"}, staff)
     check("an admin-only action is refused for a teacher", status == 403, str(status))
+
+    # A run that died mid-way must not block this one: its question, its media rows and its Storage
+    # objects are this check's own (ISSUE-043). They are found the way this check's end cleanup knows
+    # them — the fixed question body and the two sample files' names — and removed in the same order:
+    # bytes first, then the rows, then the question (whose audit history stays, as its own cleanup leaves it).
+    if ACCESS:
+        stale_q = [r["id"] for r in sql("select id from public.questions "
+                                        "where body = 'Live media check: listen and answer. (safe to delete)'")]
+        stale_m = [r["id"] for r in sql("select id from public.media_files where original_name like 'live-photo.%' "
+                                        "or original_name like 'live-tone.%'")]
+        if stale_q:
+            stale_m += [r["media_id"] for r in sql(f"select media_id from public.question_media "
+                                                   f"where question_id = any('{{{','.join(stale_q)}}}'::uuid[])")]
+        stale_m = list(dict.fromkeys(stale_m))
+        if stale_m:
+            stale_paths = [r["storage_path"] for r in sql(f"select storage_path from public.media_files "
+                                                          f"where id = any('{{{','.join(stale_m)}}}'::uuid[])")]
+            if stale_paths:
+                storage_remove(stale_paths)
+            sql(f"delete from public.question_media where media_id = any('{{{','.join(stale_m)}}}'::uuid[])")
+            sql(f"delete from public.media_files where id = any('{{{','.join(stale_m)}}}'::uuid[])")
+        for qid in stale_q:
+            live_cleanup.wipe_question(sql, qid, keep_audit=True)
+        if stale_q or stale_m:
+            check(f"an earlier run's leftovers ({len(stale_q)} question, {len(stale_m)} files) "
+                  f"were swept before this one started", True)
 
     # ---------- 3./4./5. the real app, the real Storage ----------
     photo, tone, oversized = make_files()

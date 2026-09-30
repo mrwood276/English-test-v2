@@ -6,14 +6,18 @@ that five times on 2026-09-25). The rule now is explicit: a teacher only ever cl
 only the admin may ask for a permanent delete that takes the attempts with it.
 
     SUPABASE_TEST_EMAIL='...' SUPABASE_TEST_PASSWORD='...' \\
-    SUPABASE_ADMIN_EMAIL='...' SUPABASE_ADMIN_PASSWORD='...' \\
+    [SUPABASE_ADMIN_EMAIL='...' SUPABASE_ADMIN_PASSWORD='...'] \\
     [SUPABASE_ACCESS_TOKEN='...'] python frontend/tests/live_exam_delete_check.py
+
+The admin signs in with a one-time login link when `SUPABASE_ACCESS_TOKEN` is set and no admin password
+is given — the same fallback the housekeeping and bulk checks have.
 
 It builds one throwaway exam through the real API, lets one student join it, then walks the whole rule:
 the attempt count the list reports, the teacher's 403 on a permanent delete, the teacher's close-instead-
 of-delete, the admin's permanent delete, and that the exam with its attempts is really gone from every
 table. Everything it creates is removed again (the permanent delete is the cleanup; a leftover exam is
-swept up at the end if an earlier step failed).
+swept up at the end if an earlier step failed, and a run that died mid-way is swept by the next one
+before it starts — ISSUE-043).
 """
 import json
 import os
@@ -22,12 +26,15 @@ import time
 import urllib.error
 import urllib.request
 
+sys.path.insert(0, "frontend/tests")
+import live_cleanup
+
 URL = "https://lbhnadqmokloyfarrzfv.supabase.co"
 KEY = "sb_publishable_WewR6gpQy3SdaoBaJxxDyg_l5gt-R7E"
 PROJECT = "lbhnadqmokloyfarrzfv"
 TEACHER_EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "")
 TEACHER_PASSWORD = os.environ.get("SUPABASE_TEST_PASSWORD", "")
-ADMIN_EMAIL = os.environ.get("SUPABASE_ADMIN_EMAIL", "")
+ADMIN_EMAIL = os.environ.get("SUPABASE_ADMIN_EMAIL", "jonathan10g7@gmail.com")
 ADMIN_PASSWORD = os.environ.get("SUPABASE_ADMIN_PASSWORD", "")
 ACCESS = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
 CODE = "DELCHK"
@@ -67,8 +74,26 @@ def sql(query):
         return json.loads(res.read().decode() or "null")
 
 
+def service_key():
+    """The service_role key through the Management API, for the one-time login links below."""
+    req = urllib.request.Request(f"https://api.supabase.com/v1/projects/{PROJECT}/api-keys",
+                                 headers={"Authorization": f"Bearer {ACCESS}"})
+    with urllib.request.urlopen(req, timeout=90) as res:
+        return next(k["api_key"] for k in json.loads(res.read().decode()) if k["name"] == "service_role")
+
+
 def sign_in(email, password, label):
-    status, data = http("POST", f"{URL}/auth/v1/token?grant_type=password", {"email": email, "password": password})
+    """A real session: the password when given, otherwise a one-time login link (needs ACCESS)."""
+    if password:
+        status, data = http("POST", f"{URL}/auth/v1/token?grant_type=password", {"email": email, "password": password})
+    else:
+        service = service_key()
+        status, link = http("POST", f"{URL}/auth/v1/admin/generate_link", {"type": "magiclink", "email": email},
+                            {"Authorization": f"Bearer {service}", "apikey": service})
+        if status != 200:
+            data = link
+        else:
+            status, data = http("POST", f"{URL}/auth/v1/verify", {"type": "magiclink", "token_hash": link["hashed_token"]})
     check(f"the {label} signs in", status == 200, f"{status} {json.dumps(data)[:160]}")
     return data.get("access_token") if status == 200 else None
 
@@ -78,8 +103,9 @@ def me(token):
 
 
 def main():
-    if not TEACHER_EMAIL or not TEACHER_PASSWORD or not ADMIN_EMAIL or not ADMIN_PASSWORD:
-        print("set SUPABASE_TEST_EMAIL/PASSWORD (teacher) and SUPABASE_ADMIN_EMAIL/PASSWORD in the environment first")
+    if not TEACHER_EMAIL or not TEACHER_PASSWORD or not ADMIN_EMAIL or (not ADMIN_PASSWORD and not ACCESS):
+        print("set SUPABASE_TEST_EMAIL/PASSWORD (teacher) and SUPABASE_ADMIN_EMAIL, plus either")
+        print("SUPABASE_ADMIN_PASSWORD or SUPABASE_ACCESS_TOKEN (which mints the admin a login link)")
         return 1
     if not ACCESS:
         print("note: SUPABASE_ACCESS_TOKEN is not set — the database checks and the sweep-up are skipped\n")
@@ -92,6 +118,18 @@ def main():
           (me(teacher) or {}).get("user", {}).get("role") == "teacher"
           and (me(admin) or {}).get("user", {}).get("role") == "admin",
           f"{json.dumps(me(teacher))[:120]} | {json.dumps(me(admin))[:120]}")
+
+    # A run that died mid-way must not block this one: its exam and attempt are this check's own. The
+    # old exam would also make the `check_code` below fail, so it goes before anything else. The admin's
+    # own permanent delete is the cleanup this check tests, so the sweep uses it too (ISSUE-043).
+    if ACCESS:
+        stale = sql("select id from public.exams where access_code = 'DELCHK'")
+        for row in stale:
+            status, body = call("exams", {"action": "remove", "id": row["id"], "hard": True}, admin)
+            if (body or {}).get("result") != "deleted":
+                live_cleanup.wipe_exam(sql, row["id"])
+        if stale:
+            check(f"an earlier run's leftover exam ({len(stale)}) was swept before this one started", True)
 
     exam_id = session_id = None
     # rate_limits rows are bucketed by the minute, so look back a little further than "now"

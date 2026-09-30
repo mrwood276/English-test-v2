@@ -67,10 +67,15 @@ def wipe_exam(sql, exam_id):
       end $$;""")
 
 
-def wipe_question(sql, question_id):
-    """Child rows first, then the question. Same order `live_notifications_check.py` uses (ISSUE-040)."""
-    sql(f"""delete from public.audit_logs where entity_id = '{question_id}';
-            delete from public.question_options where question_id = '{question_id}';
+def wipe_question(sql, question_id, keep_audit=False):
+    """Child rows first, then the question. Same order `live_notifications_check.py` uses (ISSUE-040).
+
+    `keep_audit=True` leaves the question's audit entries alone, for the checks whose own cleanup never
+    deletes them and whose promise is that that history stays (the two bulk checks, the media check).
+    """
+    if not keep_audit:
+        sql(f"delete from public.audit_logs where entity_id = '{question_id}'")
+    sql(f"""delete from public.question_options where question_id = '{question_id}';
             delete from public.question_class_labels where question_id = '{question_id}';
             delete from public.question_media where question_id = '{question_id}';
             delete from public.accepted_answers where question_id = '{question_id}';
@@ -111,16 +116,17 @@ def wipe_leftover_exam(sql, access_code):
     return removed
 
 
-def wipe_leftover_questions(sql, body_like):
+def wipe_leftover_questions(sql, body_like, keep_audit=False):
     """The other half of a dead run: `wipe_leftover_exam` removes the exam, not the questions.
 
     The results check makes two questions of its own each run. Killing it mid-run proved (2026-09-30)
     that the exam sweep alone left them behind — the next run passed and printed *everything this run
     created is gone again* while the dead run's two questions stayed live (the ISSUE-040 class one
-    level down). They carry a marker in their body, so only that check's own questions go.
+    level down). They carry a marker in their body, so only that check's own questions go. The bulk
+    and media checks pass `keep_audit=True`: their history is the feature, so only the rows go.
     """
     removed = 0
     for row in sql(f"select id from public.questions where body like '{body_like}'"):
-        wipe_question(sql, row["id"])
+        wipe_question(sql, row["id"], keep_audit=keep_audit)
         removed += 1
     return removed

@@ -58,6 +58,7 @@ import urllib.request
 import uuid
 
 sys.path.insert(0, "frontend/tests")
+import live_cleanup
 from playwright.sync_api import sync_playwright
 
 URL = "https://lbhnadqmokloyfarrzfv.supabase.co"
@@ -154,6 +155,26 @@ def main(api_only=False):
     if status != 200 or role not in ("teacher", "admin"):
         return 1
     print(f"signed in as {EMAIL} ({role})")
+
+    # A run that died mid-way must not block this one: its draft exam and its five questions are this
+    # check's own (ISSUE-043). Both go through the same `remove` actions the end of this check uses (the
+    # exam first — it points at the seed question); anything the functions will not remove is removed by
+    # hand, bulk-style: the questions' audit rows are kept, that history is the feature.
+    if ACCESS:
+        stale_exams = sql("select id, title from public.exams "
+                          "where title like 'Live exam bulk check (safe to delete)%'")
+        for row in stale_exams:
+            status, body = call("exams", {"action": "remove", "id": row["id"]}, token)
+            if (body or {}).get("result") != "deleted":
+                live_cleanup.wipe_exam(sql, row["id"])
+        stale_q = sql("select id from public.questions where body like 'LIVE EXAM BULK %'")
+        for row in stale_q:
+            status, body = call("question-bank", {"action": "remove", "id": row["id"]}, token)
+            if (body or {}).get("result") != "deleted":
+                live_cleanup.wipe_question(sql, row["id"], keep_audit=True)
+        if stale_exams or stale_q:
+            check(f"an earlier run's leftovers ({len(stale_exams)} exams, {len(stale_q)} questions) "
+                  f"were swept before this one started", True)
 
     # ---------- 2. a tokenless call, before anything exists ----------
     status, body = call("exams", {"action": "bulk_questions", "exam_id": BOGUS, "mode": "add", "ids": [BOGUS]})
