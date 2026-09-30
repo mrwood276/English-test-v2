@@ -82,6 +82,15 @@ tests/                          browser tests with a mocked server (mock_server.
                                 print the ids and cleanup_live_monitor.sql (or the block in
                                 docs/sql-results.md) remains the by-hand path — and a run that died
                                 mid-way is swept by the next one.
+                                live_crash_recovery_check.py is the proof of that last sentence
+                                (ISSUE-042): it kills each self-cleaning check mid-run on purpose,
+                                shows what the dead run left behind, and requires the next run to
+                                pass and to sweep every one of them — monitor, browser, results,
+                                housekeeping, notifications and accounts — while live_backup_check.py
+                                (the guard case) must refuse to run while the project holds copies.
+                                The four checks with no cross-run sweep (media, bulk, exam_bulk,
+                                exam_delete) are deliberately not covered: their cleanup only runs
+                                when a run completes (ISSUE-043).
                                 live_media_check.py uploads a real photo and a real MP3 to Storage through
                                 the editor (needs ffmpeg to build the MP3), moves the second answer and the
                                 second file above the first with the reorder grip, and checks the database
