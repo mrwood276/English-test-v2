@@ -9,3 +9,6 @@ supabase/functions/
 
 # crash reports written by frontend/tests/e2e_harness.py (ISSUE-039)
 frontend/tests/.last-crash/
+
+# crash reports written by frontend/tests/live_harness.py (ISSUE-039)
+frontend/tests/.last-live-crash/

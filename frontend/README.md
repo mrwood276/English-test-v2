@@ -76,7 +76,11 @@ tests/                          browser tests with a mocked server (mock_server.
                                 block (checks run, the last few with their source lines, the page, the
                                 console errors, the traceback) and exits 2, never 1 — a crash cannot be
                                 mistaken for a failed check (ISSUE-039). The same text is kept in
-                                git-ignored tests/.last-crash/.
+                                git-ignored tests/.last-crash/. live_harness.py does the same for the
+                                live_*.py checks below: each ends through it, so a crash also names
+                                the live rows the check may have left (its sweep hint plus any id it
+                                registered) and exits 2, never 1; its logs go to git-ignored
+                                tests/.last-live-crash/.
                                 Three one-off
                                 scripts talk to the real backend by hand (owner's account, password from the
                                 environment): live_results_check.py (the grading loop),
@@ -224,3 +228,5 @@ python tests/notifications_e2e.py  # the notification bell (TASK-015, DEC-037)
 ```
 
 A suite that dies unexpectedly reports itself. Each one ends through **`tests/e2e_harness.py`**, which catches an uncaught exception and prints a `CRASH` block — how many checks ran, the last five of them with their source lines, the page it was on, the console errors it had collected and the full traceback — then exits **2** instead of 1, so a crash can never be read as a failed check. The same text is written to `tests/.last-crash/` (git-ignored; `E2E_CRASH_DIR` moves the folder). A normal run ends with one line, `ALL CHECKS PASSED (82 checks)`. `python tests/e2e_harness.py --self-test` proves the three endings (green → 0, failed check → 1, crash → 2) without a browser.
+
+The hand-run `live_*.py` checks below report a crash the same way through **`tests/live_harness.py`**: a `CRASH` block (checks run, the last five with their source lines, the live rows this check is known to leave behind, the full traceback) written to `tests/.last-live-crash/` (git-ignored; `LIVE_CRASH_DIR` moves the folder) and exit **2**, while a normal run still ends with the check's own `ALL LIVE … PASSED` line. `python tests/live_harness.py --self-test` proves its four endings (green → 0, failed check → 1, a plain `sys.exit(1)` → 1, crash → 2) without a browser.
