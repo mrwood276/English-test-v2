@@ -9,6 +9,8 @@ It creates one exam and the two question kinds the bank lacks, two students join
 teacher grades both essays, corrects a grade by hand, reopens an attempt, and allows a retake. With
 `SUPABASE_ACCESS_TOKEN` set it also **removes everything it created and proves the rows are gone**
 (ISSUE-041); without the token it prints the ids and `docs/sql-results.md` keeps the by-hand block.
+A run that died mid-way is swept by the next one — its exam **and** the two questions it makes, which
+is a second sweep the crash-path proof required (killing this check left them, 2026-09-30).
 """
 import json
 import os
@@ -61,10 +63,14 @@ def main():
     sql = live_cleanup.management_sql(os.environ.get("SUPABASE_ACCESS_TOKEN", ""))
     if sql:
         # a run that died mid-way must not block this one — its leftovers are this check's own, and the
-        # access code is taken, so an old exam would make this run's `save` fail
+        # access code is taken, so an old exam would make this run's `save` fail. Its two questions are
+        # swept too: the exam sweep alone left them (proved by killing this check mid-run, 2026-09-30).
         swept = live_cleanup.wipe_leftover_exam(sql, CODE)
         if swept:
             check(f"an earlier run's leftover exam ({swept}) was swept before this one started", True)
+        swept_q = live_cleanup.wipe_leftover_questions(sql, "%(live results check)")
+        if swept_q:
+            check(f"an earlier run's leftover questions ({swept_q}) were swept before this one started", True)
 
     # ---------- one exam with a question of each kind ----------
     # The live bank holds only multiple choice (migrated from v1), so the short-answer and the essay

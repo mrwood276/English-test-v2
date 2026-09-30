@@ -109,3 +109,18 @@ def wipe_leftover_exam(sql, access_code):
         wipe_exam(sql, row["id"])
         removed += 1
     return removed
+
+
+def wipe_leftover_questions(sql, body_like):
+    """The other half of a dead run: `wipe_leftover_exam` removes the exam, not the questions.
+
+    The results check makes two questions of its own each run. Killing it mid-run proved (2026-09-30)
+    that the exam sweep alone left them behind — the next run passed and printed *everything this run
+    created is gone again* while the dead run's two questions stayed live (the ISSUE-040 class one
+    level down). They carry a marker in their body, so only that check's own questions go.
+    """
+    removed = 0
+    for row in sql(f"select id from public.questions where body like '{body_like}'"):
+        wipe_question(sql, row["id"])
+        removed += 1
+    return removed

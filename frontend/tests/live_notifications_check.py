@@ -153,9 +153,13 @@ def delete_question(question_id):
 
 
 def wipe_check():
-    """Removes whatever a previous (or half-finished) run of *this check* left behind, and nothing else."""
-    for row in sql(f"select id from public.questions where body = '{NAME} essay (safe to delete)'"):
-        delete_question(row["id"])
+    """Removes whatever a previous (or half-finished) run of *this check* left behind, and nothing else.
+
+    The exam goes first, on purpose: it still references this check's essay question, so deleting the
+    question before the exam fails on `exam_questions_question_id_fkey` and takes the next run's own
+    startup down with it (found by killing this check mid-run on 2026-09-30). The end-of-run cleanup
+    makes the same rule.
+    """
     for row in sql("select id from public.exams where access_code = 'BELL01'"):
         sessions = sessions_array(row["id"])
         sql(f"""delete from public.session_events where session_id = any('{sessions}'::uuid[]);
@@ -167,6 +171,8 @@ def wipe_check():
                 delete from public.audit_logs where entity_id = '{row['id']}' or entity_id = any('{sessions}'::text[]);
                 delete from public.exam_questions where exam_id = '{row['id']}';
                 delete from public.exams where id = '{row['id']}';""")
+    for row in sql(f"select id from public.questions where body = '{NAME} essay (safe to delete)'"):
+        delete_question(row["id"])
     for row in sql(f"select id from public.profiles where full_name like '{NAME}%'"):
         sql(f"delete from public.audit_logs where action like 'account.%' and entity_id = '{row['id']}'")
         delete_user(row["id"])

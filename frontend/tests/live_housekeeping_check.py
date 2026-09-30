@@ -191,6 +191,17 @@ def main():
     for row in sql("select storage_path from public.media_files where original_name = 'housekeeping-check.png'"):
         delete_objects([row["storage_path"]])
     wipe_exam(f"access_code = '{CODE}'")
+    # A run that died while the schedules were borrowed (section 5) left the jobs on the every-minute
+    # schedules it sets to make pg_cron fire; the next run puts them back first, the way its own end
+    # does (found by killing this check mid-run on 2026-09-30).
+    borrowed = 0
+    for name, schedule in JOBS.items():
+        rows = sql(f"select jobid, schedule from cron.job where jobname = '{name}'")
+        if rows and rows[0]["schedule"] != schedule:
+            sql(f"select cron.alter_job({rows[0]['jobid']}, '{schedule}')")
+            borrowed += 1
+    if borrowed:
+        check(f"an earlier run died while the schedules were borrowed: put {borrowed} back first", True)
 
     # ---------- 1. a real admin session and the live job list ----------
     status, data = sign_in(ADMIN_EMAIL, ADMIN_PASSWORD)
@@ -302,8 +313,12 @@ def main():
     ids = {name: jobs[name]["jobid"] for name in JOBS}
     for name in ("expire-sessions", "purge-rate-limits", "purge-orphan-media"):
         sql(f"select cron.alter_job({ids[name]}, '* * * * *')")
-    check("every job is pointed at the next minute for the run (schedules are put back below)",
-          all(j["schedule"] == "* * * * *" for j in sql("select schedule from cron.job")), "")
+    # cron.job holds a fourth job this check does not manage (nightly-backup, the backup slice's); the
+    # two comparisons below are scoped to the three jobs it actually borrows. The old "every row in
+    # cron.job" form made both fail on every run since 2026-09-26 (found by the crash-path proof).
+    check("each of the three jobs is pointed at the next minute for the run (schedules are put back below)",
+          all(j["schedule"] == "* * * * *" for j in sql("select jobname, schedule from cron.job")
+              if j["jobname"] in JOBS), "")
 
     print("waiting for the scheduler (up to four minutes) ...")
     rows = wait_for("runs", run_marker, lambda r: {x["jobname"] for x in r if x["status"] == "succeeded"} >= set(JOBS))
@@ -337,7 +352,8 @@ def main():
     # ---------- 7. put the schedules back and clean up ----------
     for name, schedule in JOBS.items():
         sql(f"select cron.alter_job({ids[name]}, '{schedule}')")
-    restored = {j["jobname"]: j["schedule"] for j in sql("select jobname, schedule from cron.job")}
+    restored = {j["jobname"]: j["schedule"] for j in sql("select jobname, schedule from cron.job")
+                if j["jobname"] in JOBS}
     check("every schedule is back to the documented one", restored == JOBS, json.dumps(restored))
 
     wipe_exam(f"id = '{exam_id}'")
