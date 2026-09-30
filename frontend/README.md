@@ -71,7 +71,13 @@ tests/                          browser tests with a mocked server (mock_server.
                                 question_editor_e2e.py, media_e2e.py, question_import_e2e.py, exams_e2e.py, student_e2e.py,
                                 results_e2e.py, monitor_e2e.py, dashboard_e2e.py, audit_e2e.py, backups_e2e.py,
                                 accounts_e2e.py, notifications_e2e.py)
-                                and Deno unit tests (tests/unit/). Three one-off
+                                and Deno unit tests (tests/unit/). e2e_harness.py is shared: every suite
+                                above ends through it, so a suite that dies unexpectedly prints a CRASH
+                                block (checks run, the last few with their source lines, the page, the
+                                console errors, the traceback) and exits 2, never 1 — a crash cannot be
+                                mistaken for a failed check (ISSUE-039). The same text is kept in
+                                git-ignored tests/.last-crash/.
+                                Three one-off
                                 scripts talk to the real backend by hand (owner's account, password from the
                                 environment): live_results_check.py (the grading loop),
                                 live_monitor_check.py (the monitor payload + exam-wide add time) and
@@ -216,3 +222,5 @@ python tests/backups_e2e.py   # admin backups: make one, download it, delete it
 python tests/accounts_e2e.py  # admin user management: create, rename, promote, deactivate, password
 python tests/notifications_e2e.py  # the notification bell (TASK-015, DEC-037)
 ```
+
+A suite that dies unexpectedly reports itself. Each one ends through **`tests/e2e_harness.py`**, which catches an uncaught exception and prints a `CRASH` block — how many checks ran, the last five of them with their source lines, the page it was on, the console errors it had collected and the full traceback — then exits **2** instead of 1, so a crash can never be read as a failed check. The same text is written to `tests/.last-crash/` (git-ignored; `E2E_CRASH_DIR` moves the folder). A normal run ends with one line, `ALL CHECKS PASSED (82 checks)`. `python tests/e2e_harness.py --self-test` proves the three endings (green → 0, failed check → 1, crash → 2) without a browser.

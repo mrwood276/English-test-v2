@@ -6,3 +6,6 @@ node_modules/
 .env.*
 supabase/.temp/
 supabase/functions/
+
+# crash reports written by frontend/tests/e2e_harness.py (ISSUE-039)
+frontend/tests/.last-crash/

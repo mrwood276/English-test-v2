@@ -12,12 +12,11 @@ BASE = "http://127.0.0.1:8123/teacher/index.html"
 FIX = fixtures_dir()
 if not os.path.exists(os.path.join(FIX, "small.png")):
     raise SystemExit(f"Sample files are missing in {FIX}. Run once:  python frontend/tests/make_fixtures.py")
-failures = []
+from e2e_harness import Suite
 
-def check(name, cond, detail=""):
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
-    if not cond:
-        failures.append(name)
+suite = Suite("media_e2e", base=BASE)
+suite.install()          # a crash reports itself (CRASH block + log, exit 2) - ISSUE-039
+check = suite.check      # the suite's own check(), now counted and located
 
 class Storage:
     """Pretend Supabase Storage: records uploads, can fail or be slow."""
@@ -53,6 +52,7 @@ with sync_playwright() as pw:
     ctx = browser.new_context(viewport={"width": 1280, "height": 900})
     page = ctx.new_page()
     errors = []
+    suite.watch(page, errors)
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" and "Failed to load resource" not in m.text else None)
     srv = Server(); store = Storage(srv)
@@ -211,5 +211,4 @@ with sync_playwright() as pw:
     check("no JavaScript errors in the console", not errors, "; ".join(errors[:3]))
     browser.close()
 
-print("\nFAILED: " + ", ".join(failures) if failures else "\nALL CHECKS PASSED")
-sys.exit(1 if failures else 0)
+suite.finish()

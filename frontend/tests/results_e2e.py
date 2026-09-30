@@ -10,13 +10,11 @@ from mock_server import Server
 
 BASE = "http://127.0.0.1:8123/teacher/index.html"
 CODE = "NARR01"
-failures = []
+from e2e_harness import Suite
 
-
-def check(name, cond, detail=""):
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
-    if not cond:
-        failures.append(name)
+suite = Suite("results_e2e", base=BASE)
+suite.install()          # a crash reports itself (CRASH block + log, exit 2) - ISSUE-039
+check = suite.check      # the suite's own check(), now counted and located
 
 
 def qtable_text(page):
@@ -50,6 +48,7 @@ with sync_playwright() as pw:
     ctx = browser.new_context(viewport={"width": 1440, "height": 950})
     page = ctx.new_page()
     errors = []
+    suite.watch(page, errors)
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" and "Failed to load resource" not in m.text else None)
     page.route("**/fonts.googleapis.com/**", lambda r: r.fulfill(status=200, body="", content_type="text/css"))
@@ -292,6 +291,4 @@ with sync_playwright() as pw:
 
     check("no page errors", errors == [], "; ".join(errors[:3]))
 
-print()
-print("ALL CHECKS PASSED" if not failures else f"{len(failures)} FAILED: {failures}")
-sys.exit(1 if failures else 0)
+suite.finish()

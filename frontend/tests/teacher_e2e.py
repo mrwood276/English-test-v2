@@ -6,12 +6,11 @@ from playwright.sync_api import sync_playwright
 
 BASE = "http://127.0.0.1:8123/teacher/index.html"
 ADMIN = {"id": "7b0a389c-0000-0000-0000-000000000001", "email": "admin@example.com"}
-failures = []
+from e2e_harness import Suite
 
-def check(name, cond, detail=""):
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
-    if not cond:
-        failures.append(name)
+suite = Suite("teacher_e2e", base=BASE)
+suite.install()          # a crash reports itself (CRASH block + log, exit 2) - ISSUE-039
+check = suite.check      # the suite's own check(), now counted and located
 
 def token_response():
     return {"access_token": "AT1", "refresh_token": "RT1", "expires_in": 3600, "expires_at": int(time.time()) + 3600, "user": ADMIN}
@@ -76,6 +75,7 @@ with sync_playwright() as pw:
     ctx = browser.new_context(viewport={"width": 1200, "height": 800})
     page = ctx.new_page()
     errors = []
+    suite.watch(page, errors)
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" and "Failed to load resource" not in m.text else None)
     net = Net(); net.install(page)
@@ -182,5 +182,4 @@ with sync_playwright() as pw:
     check("no JavaScript errors in the console", not errors, "; ".join(errors[:3]))
     browser.close()
 
-print("\nFAILED: " + ", ".join(failures) if failures else "\nALL CHECKS PASSED")
-sys.exit(1 if failures else 0)
+suite.finish()

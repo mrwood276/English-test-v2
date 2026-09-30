@@ -11,13 +11,11 @@ from mock_server import Server
 
 BASE = "http://127.0.0.1:8123/index.html"
 CODE = "K7M2QX"
-failures = []
+from e2e_harness import Suite
 
-
-def check(name, cond, detail=""):
-    print(("PASS " if cond else "FAIL ") + name + (f"  [{detail}]" if detail and not cond else ""))
-    if not cond:
-        failures.append(name)
+suite = Suite("student_e2e", base=BASE)
+suite.install()          # a crash reports itself (CRASH block + log, exit 2) - ISSUE-039
+check = suite.check      # the suite's own check(), now counted and located
 
 
 def cls(page, selector, index=0):
@@ -64,6 +62,7 @@ with sync_playwright() as pw:
     ctx = browser.new_context(viewport={"width": 390, "height": 844})
     page = ctx.new_page()
     errors = []
+    suite.watch(page, errors)
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" and "Failed to load resource" not in m.text else None)
     block(page)
@@ -212,6 +211,7 @@ with sync_playwright() as pw:
     ctx2 = browser.new_context(viewport={"width": 390, "height": 844})
     page2 = ctx2.new_page()
     errors2 = []
+    suite.watch(page2, errors2)
     page2.on("pageerror", lambda e: errors2.append(str(e)))
     block(page2)
     join(page2, "Citra Dewi", "XI TKJ A")
@@ -234,6 +234,4 @@ with sync_playwright() as pw:
     page2.route("**/functions/v1/**", SRV.handle)
     check("no page errors on the second device", errors2 == [], "; ".join(errors2[:3]))
 
-print()
-print("ALL CHECKS PASSED" if not failures else f"{len(failures)} FAILED: {failures}")
-sys.exit(1 if failures else 0)
+suite.finish()
