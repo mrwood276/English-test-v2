@@ -249,6 +249,34 @@ superseded import implementation, so resolve the files listed in DEC-021 in favo
 
 ---
 
+## Appendix — building a fresh database from this repository (ISSUE-036)
+
+The live project was built by hand, apply by apply, over two weeks; that history is reconciled file by
+file in `docs/migration-ledger-reconciliation.md`. To build a **new** project the same way:
+
+1. Create the project and `supabase link --project-ref <new-ref>`.
+2. Run every file in `supabase/migrations/` **in filename order** (the filenames are versions). CLI
+   2.117.0 has no `supabase db query` subcommand, so send each file as one
+   `POST /v1/projects/<new-ref>/database/query` request (`{"query": "<file text>"}`) or paste it into
+   the dashboard SQL editor. The files create what they need themselves: `pg_trgm` (`v2_08`),
+   `pg_cron` and `pg_net` (the housekeeping migration, which also mints the Vault `housekeeping_key`),
+   both storage buckets, and every table with RLS on and no policies.
+3. After each file, insert its ledger row: `insert into supabase_migrations.schema_migrations
+   (version, name, statements) values ('<version>', '<name>', array[<the file text>]);`. Applying
+   through the API or the dashboard writes **no** row, so this line is what stops a later
+   `supabase db push` from re-running the file — the pattern every apply since 2026-09-26 used.
+4. Deploy the ten Edge Functions (`python backend/sync_functions.py`, then
+   `npx supabase functions deploy <name> --no-verify-jwt --use-api` each) and set the secrets:
+   `ALLOWED_ORIGIN`, `SESSION_TOKEN_SECRET` (before the first exam day), and `HOUSEKEEPING_KEY` to the
+   Vault secret's value.
+5. Steps 4–6 of this guide: the Auth Site URL, the real accounts (the first admin is made by hand
+   through the Auth Admin API or the dashboard, since `#/accounts` needs an existing admin), and one
+   exam end to end.
+6. Prove it: `python frontend/tests/live_ledger_check.py` must pass against the new project too, and
+   the live checks listed in `frontend/README.md` are the rest of the acceptance.
+
+---
+
 ## Deliberately deferred (not blockers)
 
 | Item | Why it is fine to leave |
@@ -289,8 +317,12 @@ Checked by reading the source and running the test suites; the runs are listed i
 
 ## What still cannot be claimed
 
-- No live Supabase call was made in this session (**no credential**), so RLS, the security/performance
-  advisors and the deployed function versions were **not** re-verified. Easiest way to see the whole
-  live state: run the live checks listed in `frontend/README.md` with `SUPABASE_ACCESS_TOKEN` set.
+- Nothing live was re-verified **in that session** (it had no credential). Since then a credentialed
+  session (2026-09-30) re-read the parts that matter and they hold: `notification_reads` is on the
+  RLS-on baseline, the security advisor reports **0 ERROR-level findings** (its INFO items are the
+  design, its one WARN is ISSUE-005), the ten deployed functions are ACTIVE at the versions recorded
+  in `docs/production-reconciliation-2026-09-28.md`, and the notification path passed its live check
+  **35/35**. Easiest way to see the whole live state yourself: run the live checks listed in
+  `frontend/README.md` with `SUPABASE_ACCESS_TOKEN` set.
 - No CI run for this push was observed (no GitHub credential); check both workflows in the Actions tab.
 - The hosted address has never been visited by a person (step 6).

@@ -57,11 +57,22 @@ then passed **55/55** against the deployed function — see `docs/sql-exam-quest
 `v2_01_foundation` through
 `v2_12_import_questions` (schema, question bank, exams/sessions/results tables, lockdown, text rules, media
 storage, import) were pulled from `supabase_migrations.schema_migrations` and committed verbatim on 2026-09-24
-— see ISSUE-001. **Known drift, the other direction**: `20260922000000`/`20260923000000`/`20260924000000`
-(the exams/session/results function files) were applied via direct DB access rather than `supabase db push`, so
-`supabase_migrations.schema_migrations` has no matching rows for them — `supabase migration list` will call
-them "not applied remotely" even though their content is live. Low risk (all three are `create or replace
-function`, nothing `create table`), but if you get a real DB connection, reconciling that table is worth doing.
+— see ISSUE-001. Three more were committed verbatim out of the live ledger on 2026-09-30 so that **every live
+row has a file**: `20260923050326_v2_13_revoke_public_function_execute.sql`,
+`20260923050351_v2_14_fix_exam_is_open_search_path.sql` and
+`20260923050413_v2_13_lockdown_exam_session_results_functions.sql` — the three rows the
+`20260926000000_security_lockdown_function_execute.sql` narrative already described. Also here:
+`20261001000000_notification_functions.sql` (the bell's four read functions and `notification_reads`) and
+`20261002000000_notification_reads_rls.sql` (the RLS line TASK-026 applied live on 2026-09-30).
+
+**The ledger question is settled (measured 2026-09-30, ISSUE-036 closed):** the live
+`supabase_migrations.schema_migrations` holds **27 rows**, every one of them explained by a file in this
+directory, and all **81 live public functions** match the newest file that defines them once comments and
+whitespace are ignored. Nine files were applied by direct `database/query` calls and have no ledger row — each
+is listed with its reason in **`docs/migration-ledger-reconciliation.md`** — so `supabase migration list` will
+keep calling them "not applied remotely" even though their content is live (they are `create or replace` or
+idempotent revokes, and in version order the last file wins, which is the state live is in). Re-run the whole
+reconciliation read-only with `python frontend/tests/live_ledger_check.py` (needs `SUPABASE_ACCESS_TOKEN`).
 
 Deploying a function from this repository (backend/functions is the source of truth;
 supabase/functions/ is a generated deploy artifact):

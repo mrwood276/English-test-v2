@@ -6,7 +6,7 @@
 - `ai-development`: active development/reconciliation line — at `53baaa1` when this was written, and at **`e1a7f7b`** (this recovery commit) since. On 2026-09-29 the branch tangle was resolved onto it; see the salvage note at the end.
 - Live Supabase project: `lbhnadqmokloyfarrzfv`, PostgreSQL 17.6.1, ACTIVE_HEALTHY.
 - Live Edge Functions: 10 ACTIVE functions: auth-me v2, question-bank v9, media v4, exams v6, session v2, results v5, audit v2, backups v1, accounts v1, notifications v1.
-- Live migration ledger: 26 applied rows.
+- Live migration ledger: 26 applied rows when this was written; **27 since 2026-09-30** (`notification_reads_rls`), and all of them reconciled against the files — see below.
 - This reconciliation made no production writes.
 
 ## Edge Function source inventory
@@ -30,17 +30,33 @@ The live hash is recorded for every function. Exact bundle-to-Git parity is not 
 
 Git `ai-development` contains the original core `v2_01`–`v2_12` migration files plus later development migrations. The live ledger contains additional/differently named rows, including lockdown/search-path fixes, audit, housekeeping, backups, accounts, and notifications.
 
-The notification migration added here is explicitly reconstructed from live definitions because the original historical SQL was not retrievable through the available management API. It should not be described as byte-for-byte historical recovery.
+The notification migration added here is explicitly reconstructed from live definitions because the original historical SQL was not retrievable through the available management API. It should not be described as byte-for-byte historical recovery — **re-checked against live on 2026-09-30 and it matches, `_actor_profile` included.**
+
+**Resolved 2026-09-30 (TASK-026's credentialed session).** The ledger was read row by row (version, name and the
+`statements` each apply ran) and compared with `supabase/migrations/`: 27 rows, every one explained by a file
+(same-named, captured verbatim, or the same SQL under another version name), and every live public function
+matching the newest file that defines it. Nine files have no ledger row — applied by direct `database/query`
+long ago — and each is listed with its reason. Full mapping, method and the re-runnable check:
+**`docs/migration-ledger-reconciliation.md`** and `frontend/tests/live_ledger_check.py`.
 
 ## Security drift
 
 `public.notification_reads` currently has RLS disabled. Read-only privilege checks show `anon` and `authenticated` have no table privileges, but the table is outside the project's otherwise consistent RLS-on baseline. No RLS change was made because the intended policy boundary must be decided first.
 
-## Next decisions
+**Fixed 2026-09-30:** the boundary needed no new decision — the project's baseline is RLS on with **no
+policies** and no grant to `anon`/`authenticated` (DEC-002), and the service role bypasses RLS.
+`supabase/migrations/20261002000000_notification_reads_rls.sql` was applied live as one Management API request
+with its `schema_migrations` row (`20261002000000` / `notification_reads_rls`); the table now reads
+`relrowsecurity = true`, 0 policies, grants only to `postgres` and `service_role`, the rolled-back
+`supabase/tests/notification_functions_test.sql` passed live (`NOTIFICATION TESTS PASSED (…)`), the security
+advisor reports **no ERROR-level finding** (23 INFO `rls_enabled_no_policy` notes, one WARN = ISSUE-005), and
+`frontend/tests/live_notifications_check.py` passed **35/35** (`ALL LIVE NOTIFICATION CHECKS PASSED`).
 
-1. Reconcile live migration names/ledger against Git without fabricating history.
-2. Decide whether the live server-backed notifications architecture supersedes DEC-032's dashboard-only design.
-3. Decide the intended RLS/grant boundary for `notification_reads`, then apply and test it in a dedicated migration.
+## Next decisions — all three resolved
+
+1. **Ledger reconciled** (2026-09-30): see `docs/migration-ledger-reconciliation.md`.
+2. **Decided 2026-09-29** (DEC-037): the server-backed bell is the one system; DEC-032's dashboard notices were retired.
+3. **Applied 2026-09-30**: `20261002000000_notification_reads_rls.sql` is live, tested and on the advisors' clean side (see "Security drift" above).
 
 ## Salvage note — 2026-09-29 (branch reconciliation)
 

@@ -23,8 +23,9 @@ What it proves, in order:
   6. a real manual backup announces itself to the admin's bell (and only to the admin's);
   7. a real created account announces itself with the typed password still working for its first
      sign-in — and stops being news when the account is gone;
-  8. everything this run created is gone: the exam, the backup (row + file), the throwaway account,
-     its audit rows and the read-mark rows, with the project's own two accounts untouched.
+  8. everything this run created is gone: the exam, the essay question (deleted, not archived —
+     ISSUE-040), the backup (row + file), the throwaway account, its audit rows and the read-mark
+     rows, with the project's own two accounts and its question count untouched.
 
 The screen half of this slice is frontend/tests/notifications_e2e.py; the SQL guards are also
 asserted by supabase/tests/notification_functions_test.sql (runnable with no browser and no login).
@@ -127,7 +128,9 @@ def live_state():
                           (select count(*)::int from public.audit_logs where action like 'account.%') as account_history,
                           (select count(*)::int from public.backups) as backups,
                           (select count(*)::int from public.exams where access_code = 'BELL01') as bell_exams,
-                          (select count(*)::int from public.notification_reads) as read_marks
+                          (select count(*)::int from public.notification_reads) as read_marks,
+                          (select count(*)::int from public.questions) as questions,
+                          (select count(*)::int from public.questions where is_archived) as archived
                    """)[0]
 
 
@@ -137,8 +140,22 @@ def sessions_array(exam_id):
     return "{" + row["a"] + "}"
 
 
+def delete_question(question_id):
+    """Removes one question of this check's own making, children first. Not the `remove` action: that
+    one deliberately ARCHIVES a question anything still references (remove_question's rule), which is
+    exactly how the first runs of this check left three archived essays behind (ISSUE-040)."""
+    sql(f"""delete from public.audit_logs where entity_id = '{question_id}';
+            delete from public.question_options where question_id = '{question_id}';
+            delete from public.question_class_labels where question_id = '{question_id}';
+            delete from public.question_media where question_id = '{question_id}';
+            delete from public.accepted_answers where question_id = '{question_id}';
+            delete from public.questions where id = '{question_id}';""")
+
+
 def wipe_check():
     """Removes whatever a previous (or half-finished) run of *this check* left behind, and nothing else."""
+    for row in sql(f"select id from public.questions where body = '{NAME} essay (safe to delete)'"):
+        delete_question(row["id"])
     for row in sql("select id from public.exams where access_code = 'BELL01'"):
         sessions = sessions_array(row["id"])
         sql(f"""delete from public.session_events where session_id = any('{sessions}'::uuid[]);
@@ -307,8 +324,6 @@ def main():
     # ---------- 9. cleanup, and the project is as it was ----------
     _, bkmade = call("backups", {"action": "delete", "id": backup["id"]}, admin)
     check("the backup row and file are removed", isinstance(bkmade, dict) and bkmade.get("removed") == 1, str(bkmade)[:160])
-    sql(f"delete from public.audit_logs where entity_id = '{backup['id']}' or entity_id = '{essay_id}'")
-    call("question-bank", {"action": "remove", "id": essay_id}, teacher)
     sessions = sessions_array(exam_id)
     sql(f"""delete from public.session_events where session_id = any('{sessions}'::uuid[]);
             delete from public.session_answers where session_id = any('{sessions}'::uuid[]);
@@ -321,8 +336,18 @@ def main():
             delete from public.exams where id = '{exam_id}';
             delete from public.rate_limits where bucket like 'session\\_%' and window_start > now() - interval '2 hours';
             delete from public.notification_reads;""")
+    # The real remove action is exercised last, on purpose: it archives a question that anything still
+    # references, so it only deletes once the exam, the attempts and their answers are gone (ISSUE-040).
+    _, removed = call("question-bank", {"action": "remove", "id": essay_id}, teacher)
+    check("the check's own essay question is deleted, not archived",
+          (removed or {}).get("result") == "deleted", str(removed)[:160])
+    for row in sql(f"select id from public.questions where body = '{NAME} essay (safe to delete)'"):
+        # belt and braces: if a half-finished run left one behind, it does not stay
+        delete_question(row["id"])
+    sql(f"delete from public.audit_logs where entity_id = '{backup['id']}'")
     after = live_state()
-    check("the project's own accounts and their history are untouched", after == before, f"{json.dumps(before)} -> {json.dumps(after)}")
+    check("the project's own accounts, questions and their history are untouched",
+          after == before, f"{json.dumps(before)} -> {json.dumps(after)}")
 
     failed = [n for n, ok, _ in checks if not ok]
     print()

@@ -70,7 +70,7 @@ assets/js/student/components/   question (one question rendered for answering)
 tests/                          browser tests with a mocked server (mock_server.py, teacher_e2e.py, question_bank_e2e.py,
                                 question_editor_e2e.py, media_e2e.py, question_import_e2e.py, exams_e2e.py, student_e2e.py,
                                 results_e2e.py, monitor_e2e.py, dashboard_e2e.py, audit_e2e.py, backups_e2e.py,
-                                accounts_e2e.py)
+                                accounts_e2e.py, notifications_e2e.py)
                                 and Deno unit tests (tests/unit/). Three one-off
                                 scripts talk to the real backend by hand (owner's account, password from the
                                 environment): live_results_check.py (the grading loop),
@@ -134,6 +134,25 @@ tests/                          browser tests with a mocked server (mock_server.
                                 five questions and compares the live counts with the ones it
                                 took at the start. Needs the dev server for its screen half
                                 (`--api-only` skips it)
+                                live_notifications_check.py also needs no dev server and no browser
+                                (36 checks): it signs the admin and the staff test account in with
+                                one-time links, builds a real exam with an essay waiting and a
+                                suspicious attempt, a real backup and a real created account
+                                through the deployed functions, and reads the bell they produce —
+                                the door (401/200), the teacher-vs-admin split, per-person read
+                                marks, a card per real thing, and both refusals — then deletes
+                                everything it made and compares **accounts, questions, archived
+                                questions, backups, exams and read marks** before and after. It
+                                learned that last part the hard way (ISSUE-040): its cleanup used
+                                the question-bank `remove` action before the exam was gone, and
+                                `remove_question` archives anything still referenced, so it had
+                                been leaving its own essay behind since 2026-09-26
+                                live_ledger_check.py needs only SUPABASE_ACCESS_TOKEN and writes
+                                nothing (3 checks): it reconciles the live migration ledger
+                                against `supabase/migrations/` (every row has a file or is the
+                                same SQL under another name) and checks that every live public
+                                function matches the newest file that defines it. Contract:
+                                `docs/migration-ledger-reconciliation.md`
 ```
 
 ## Notes
@@ -166,4 +185,5 @@ python tests/dashboard_e2e.py
 python tests/audit_e2e.py     # admin audit-log viewer
 python tests/backups_e2e.py   # admin backups: make one, download it, delete it
 python tests/accounts_e2e.py  # admin user management: create, rename, promote, deactivate, password
+python tests/notifications_e2e.py  # the notification bell (TASK-015, DEC-037)
 ```
