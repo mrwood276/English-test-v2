@@ -1,4 +1,17 @@
-"""A pretend server for the browser tests: answers the question-bank, exams, session and auth-me endpoints from memory."""
+"""A pretend server for the browser tests: answers the question-bank, exams, session and auth-me endpoints from memory.
+
+The student session endpoints mirror the rules that decide what a student's browser sees. The authority is
+`supabase/migrations/20260923000000_session_functions.sql` (`save_session_answers`, `log_session_event`,
+`exam_join`) with `backend/functions/session/parse.ts` in front of it; when those change, change this too.
+Deliberate simplifications, so that no test passes for the wrong reason:
+
+  * no rate limits, no trigram similarity, no clock skew, no storage signing;
+  * one attempt per code+name+class, like `exam_join`, but retakes and manual grades live in memory;
+  * `save` refuses the whole batch on one bad answer, exactly as the real edge parser and
+    `save_session_answers` do (a `reopened` session still accepts answers, like the live function);
+  * an answer is checked here only for the 1,000/20,000 character caps and the 200-answers-per-call
+    limit; the essay/non-essay rules the question bank owns are not re-derived.
+"""
 import datetime
 import json
 import time
@@ -441,19 +454,30 @@ class Server:
         if a == "get":
             return ok(self.session_payload(sid))
         if a == "save":
-            if s["status"] != "in_progress":
+            # A finished attempt refuses answers; a `reopened` one accepts them again, like save_session_answers.
+            if s["status"] not in ("in_progress", "reopened"):
                 return ok({"accepted": False, "saved": 0, "reason": "already_submitted", "status": s["status"], "server_time": iso(now), "ends_at": iso(s["ends_at"])})
             if now > s["ends_at"] + 120:
                 self.session_grade(sid, "auto_submitted")
                 return ok({"accepted": False, "saved": 0, "reason": "time_up", "status": "auto_submitted", "server_time": iso(now), "ends_at": iso(s["ends_at"])})
-            known = {q["question_id"] for q in exam["questions"]}
-            for item in body.get("answers", []):
+            items = body.get("answers", [])
+            if len(items) > 200:
+                return err(400, "Answers can have at most 200 items.")
+            by_id = {q["question_id"]: q for q in exam["questions"]}
+            for item in items:
                 qid = item.get("question_id")
-                if qid not in known: return err(400, "That question is not part of this test.")
+                if qid not in by_id: return err(400, "That question is not part of this test.")
+                text = (item.get("answer") or {}).get("text", "")
+                # The live caps: an essay may hold 20,000 characters, everything else 1,000. One bad
+                # answer refuses the whole batch (save_session_answers raises and rolls it back).
+                if len(text) > (20000 if by_id[qid]["type"] == "essay" else 1000):
+                    return err(400, "That answer is too long.")
+            for item in items:
+                qid = item.get("question_id")
                 s["answers"][qid] = {"text": (item.get("answer") or {}).get("text", ""),
                                      "is_flagged": bool(item.get("is_flagged")),
                                      "client_saved_at": item.get("client_saved_at")}
-            return ok({"accepted": True, "saved": len(body.get("answers", [])), "status": s["status"],
+            return ok({"accepted": True, "saved": len(items), "status": s["status"],
                        "server_time": iso(now), "ends_at": iso(s["ends_at"]), "remaining_seconds": max(0, int(s["ends_at"] - now))})
         if a == "heartbeat":
             if s["status"] == "in_progress" and now > s["ends_at"] + 120: self.session_grade(sid, "auto_submitted")

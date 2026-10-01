@@ -1,6 +1,7 @@
 """Browser test of the student page: join, take the test, send it, see the result.
 Run: python3 frontend/tests/student_e2e.py  (expects the dev-server on 8123, like the other suites)
 """
+import json
 import sys
 import time
 
@@ -31,6 +32,16 @@ def wait_for(page, action, predicate=lambda call: True, timeout=8.0):
     end = time.time() + timeout
     while time.time() < end:
         if any(c["action"] == action and predicate(c) for c in SRV.session_calls):
+            return True
+        page.wait_for_timeout(200)
+    return False
+
+
+def wait_until(page, predicate, timeout=8.0):
+    """Waits for a fact (usually the mock server's own state), keeping the page's message loop pumping."""
+    end = time.time() + timeout
+    while time.time() < end:
+        if predicate():
             return True
         page.wait_for_timeout(200)
     return False
@@ -233,5 +244,29 @@ with sync_playwright() as pw:
     page2.unroute("**/functions/v1/**")
     page2.route("**/functions/v1/**", SRV.handle)
     check("no page errors on the second device", errors2 == [], "; ".join(errors2[:3]))
+
+    # ---------- the teacher reopens a collected attempt and the student keeps answering (BR-11) ----------
+    # The mock used to refuse every save outside `in_progress`, which hid this path from the whole suite
+    # (INS-10). The token in this mock is the session id, so writing it into localStorage is the same
+    # thing the student's phone already holds.
+    SRV.session_exam("REOPEN1")
+    rid = SRV.results_seed("REOPEN1", "Fitri Handayani", "XI TKJ A", {}, status="submitted")
+    SRV.sessions[rid]["status"] = "reopened"     # what the teacher's "Reopen" action does on the server
+    ctx3 = browser.new_context(viewport={"width": 390, "height": 844})
+    page3 = ctx3.new_page()
+    errors3 = []
+    suite.watch(page3, errors3)
+    page3.on("pageerror", lambda e: errors3.append(str(e)))
+    block(page3)
+    page3.evaluate("(session) => localStorage.setItem('ENGLISH_TEST_V2_STUDENT_SESSION', session)", json.dumps({"token": rid}))
+    page3.reload()
+    page3.wait_for_selector(".qbody")
+    check("a reopened attempt opens the exam again", page3.inner_text(".qtop .q") == "Question 1 of 4")
+    page3.query_selector_all(".qbody .opt")[1].click()
+    check("an answer saved into a reopened attempt reaches the server",
+          wait_until(page3, lambda: any((a.get("text") or "") != "" for a in SRV.sessions[rid]["answers"].values())))
+    check("the reopened attempt is still open after that save", SRV.sessions[rid]["status"] == "reopened")
+    check("the student stays on the exam screen", page3.query_selector(".qbody") is not None and page3.query_selector(".result") is None)
+    check("no page errors on the reopened device", errors3 == [], "; ".join(errors3[:3]))
 
 suite.finish()
