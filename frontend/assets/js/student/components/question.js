@@ -1,6 +1,7 @@
 import { h } from "../../shared/dom.js";
 import { richFragment } from "../../shared/rich.js";
 import { icon } from "../../shared/icons.js";
+import { answerLimit } from "../limits.js";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
@@ -75,16 +76,18 @@ export function questionBlock(question, urls, handlers) {
     parts.push(...buttons);
     sync();
   } else if (question.type === "short_answer") {
+    // `maxlength` is the first of the two guard rails: the browser itself will not let an answer grow
+    // past what `save_session_answers` accepts (INS-02). The screen also checks before it queues one.
     const input = h("input", {
-      class: "input", type: "text", autocomplete: "off", autocapitalize: "sentences",
-      spellcheck: "false", value: handlers.value(id) || "", placeholder: "Type your answer",
+      class: "input", type: "text", autocomplete: "off", autocapitalize: "sentences", spellcheck: "false",
+      value: handlers.value(id) || "", placeholder: "Type your answer", maxlength: String(answerLimit(question.type)),
     });
     input.addEventListener("input", () => handlers.onAnswer(id, input.value));
     sync = () => { input.value = handlers.value(id) || ""; };
     parts.push(h("div", { class: "answer-area" },
       h("p", { class: "hint" }, "Spelling matters. Write your answer in the box."), input));
   } else {
-    const area = h("textarea", { spellcheck: "true", placeholder: "Write your answer" });
+    const area = h("textarea", { spellcheck: "true", placeholder: "Write your answer", maxlength: String(answerLimit(question.type)) });
     area.value = handlers.value(id) || "";
     area.addEventListener("input", () => handlers.onAnswer(id, area.value));
     sync = () => { area.value = handlers.value(id) || ""; };

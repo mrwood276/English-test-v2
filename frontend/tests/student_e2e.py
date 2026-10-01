@@ -52,6 +52,11 @@ def saved_text(text):
     return any(a.get("answer", {}).get("text") == text for c in SRV.session_calls if c["action"] == "save" for a in c.get("answers", []))
 
 
+def answer_stored(exam_code, text):
+    """True when the mock server's own state holds this text — what the teacher's report would read."""
+    return any((a.get("text") or "") == text for s in SRV.sessions.values() if s["exam"] == exam_code for a in s["answers"].values())
+
+
 def join(page, name, klass, code=CODE):
     page.fill("#student-name", name)
     page.fill("#student-class", klass)
@@ -296,5 +301,82 @@ with sync_playwright() as pw:
           any((a.get("text") or "") == typed for a in auto[0]["answers"].values()))
     check("the exam screen gives way to the result", page4.query_selector(".result") is not None and page4.query_selector(".qbody") is None)
     check("no page errors on the tab-limit device", errors4 == [], "; ".join(errors4[:3]))
+
+    # ---------- the phone's own cap: it names the question and never queues the answer (INS-02) ----------
+    SRV.session_exam("LONG01")
+    ctx5 = browser.new_context(viewport={"width": 390, "height": 844})
+    page5 = ctx5.new_page()
+    errors5 = []
+    suite.watch(page5, errors5)
+    page5.on("pageerror", lambda e: errors5.append(str(e)))
+    block(page5)
+    join(page5, "Hadi Pratama", "X TKJ A", "LONG01")
+    page5.wait_for_selector(".qbody")
+    page5.click(".qnav .icobtn[aria-label='Answer sheet']")
+    page5.wait_for_selector(".sheetgrid")
+    page5.query_selector_all(".sheetgrid button")[2].click()          # question 3: the short answer
+    check("a short answer cannot grow past the live cap", page5.get_attribute(".qbody input.input", "maxlength") == "1000")
+    # Setting the value directly (text restored from an older visit, or a browser that pastes oddly) is the
+    # one way past `maxlength`; the screen must still refuse to queue it, and say which question it is.
+    too_long = "y" * 1500
+    page5.evaluate("(text) => { const el = document.querySelector('.qbody input.input'); el.value = text; el.dispatchEvent(new Event('input')); }", too_long)
+    check("an over-long answer is named on screen", "Question 3 is too long to save" in page5.inner_text(".saved"), page5.inner_text(".saved"))
+    check("the over-long answer stays on the phone", page5.input_value(".qbody input.input") == too_long)
+    page5.click(".qnav .icobtn[aria-label='Answer sheet']")
+    page5.wait_for_selector(".sheetgrid")
+    page5.query_selector_all(".sheetgrid button")[3].click()          # question 4: the essay
+    check("an essay may grow to the essay cap", page5.get_attribute(".qbody textarea", "maxlength") == "20000")
+    page5.fill(".qbody textarea", "A later answer that must still be saved.")
+    check("a later valid answer still reaches the server", wait_until(page5, lambda: answer_stored("LONG01", "A later answer that must still be saved.")))
+    check("the over-long answer was never sent", not saved_text(too_long))
+    page5.click(".qnav .icobtn[aria-label='Answer sheet']")
+    page5.wait_for_selector(".sheetgrid")
+    page5.query_selector_all(".sheetgrid button")[2].click()
+    page5.fill(".qbody input.input", "recovered")
+    check("a shortened answer saves again", wait_until(page5, lambda: answer_stored("LONG01", "recovered")))
+    check("the warning clears once it is short enough", "too long" not in page5.inner_text(".saved"), page5.inner_text(".saved"))
+    check("no page errors on the capped device", errors5 == [], "; ".join(errors5[:3]))
+
+    # ---------- a batch the server refuses still saves everything else (INS-02) ----------
+    # The phone holds two answers: one the live cap refuses and one that is fine. The batch is refused
+    # atomically, so the screen has to take it apart — the good answer is saved and the bad one is named.
+    SRV.session_exam("QUEUE1")
+    ctx6 = browser.new_context(viewport={"width": 390, "height": 844})
+    page6 = ctx6.new_page()
+    errors6 = []
+    suite.watch(page6, errors6)
+    page6.on("pageerror", lambda e: errors6.append(str(e)))
+    block(page6)
+    join(page6, "Indah Permata", "XI TKJ B", "QUEUE1")
+    page6.wait_for_selector(".qbody")
+    qids = [q["question_id"] for q in SRV.session_exams["QUEUE1"]["questions"]]
+    refused_text = "z" * 1200
+    good_essay = "The essay that must survive the refused batch."
+    stored = page6.evaluate("() => JSON.parse(localStorage.getItem('ENGLISH_TEST_V2_STUDENT_SESSION'))")
+    stored["answers"] = {
+        qids[2]: {"text": refused_text, "is_flagged": False, "pending": True},
+        qids[3]: {"text": good_essay, "is_flagged": False, "pending": True},
+    }
+    page6.evaluate("(data) => localStorage.setItem('ENGLISH_TEST_V2_STUDENT_SESSION', JSON.stringify(data))", stored)
+    page6.reload()
+    page6.wait_for_selector(".qbody")
+    check("the good answer is saved out of a refused batch", wait_until(page6, lambda: answer_stored("QUEUE1", good_essay)))
+    check("the refused answer is named on screen",
+          wait_until(page6, lambda: "could not be saved" in page6.inner_text(".saved")))
+
+    def attempts_with_the_refused_answer():
+        return len([c for c in SRV.session_calls if c["action"] == "save"
+                    and any(a.get("answer", {}).get("text") == refused_text for a in c.get("answers", []))])
+
+    attempts = attempts_with_the_refused_answer()
+    page6.wait_for_timeout(3000)   # longer than nothing: the 5 s retry timer must not be carrying it
+    check("the refused answer is not retried forever", 1 <= attempts <= 2 and attempts_with_the_refused_answer() == attempts, str(attempts))
+    page6.click(".qnav .icobtn[aria-label='Answer sheet']")
+    page6.wait_for_selector(".sheetgrid")
+    page6.query_selector_all(".sheetgrid button")[2].click()
+    page6.fill(".qbody input.input", "fixed")
+    check("the student can fix the refused answer and it saves", wait_until(page6, lambda: answer_stored("QUEUE1", "fixed")))
+    check("the warning clears after the fix", "could not be saved" not in page6.inner_text(".saved"), page6.inner_text(".saved"))
+    check("no page errors on the rejected-batch device", errors6 == [], "; ".join(errors6[:3]))
 
 suite.finish()

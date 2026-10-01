@@ -86,6 +86,21 @@ Deno.test("parseAnswers treats a missing answer as an empty one and refuses junk
   assert.throws(() => parseAnswers({ answers: "nope" }), (e: unknown) => e instanceof ApiError && /must be a list/.test(e.message));
 });
 
+// The parser is a body guard, not the answer-length rule: save_session_answers owns the per-type cap
+// (1,000 characters, 20,000 for an essay). It must never refuse an answer the database would accept.
+Deno.test("parseAnswers admits the biggest answer the database accepts, and refuses more", () => {
+  const longest = "x".repeat(20_000);
+  assert.deepEqual(parseAnswers({ answers: [{ question_id: QUESTION, answer: { text: longest } }] })[0].answer, { text: longest });
+  assert.throws(
+    () => parseAnswers({ answers: [{ question_id: QUESTION, answer: { text: longest + "x" } }] }),
+    (e: unknown) => e instanceof ApiError && /at most 20000 characters/.test(e.message),
+  );
+  assert.throws(
+    () => parseAnswers({ answers: Array.from({ length: 201 }, () => ({ question_id: QUESTION })) }),
+    (e: unknown) => e instanceof ApiError && /at most 200/.test(e.message),
+  );
+});
+
 Deno.test("parseEventMeta keeps small, known-shaped details", () => {
   assert.deepEqual(parseEventMeta(undefined), {});
   assert.deepEqual(parseEventMeta({ hidden_seconds: 12, online: false, note: "lost" }), { hidden_seconds: 12, online: false, note: "lost" });

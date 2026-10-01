@@ -30,7 +30,9 @@ export function reset() {
   clearStored();
 }
 
-const emptyAnswer = () => ({ text: "", is_flagged: false, pending: false });
+// `problem` is set on an answer the server (or the phone) refused: it stays on screen and out of the
+// save queue until the student changes it, so one bad answer can never block the others (INS-02).
+const emptyAnswer = () => ({ text: "", is_flagged: false, pending: false, problem: null });
 
 export function answerOf(questionId) {
   return state.answers[questionId] || (state.answers[questionId] = emptyAnswer());
@@ -45,6 +47,7 @@ export function setText(questionId, text) {
   if (answer.text === text) return false;
   answer.text = text;
   answer.pending = true;
+  answer.problem = null; // the student changed it: give it another chance
   persist();
   return true;
 }
@@ -61,17 +64,40 @@ export function isAnswered(questionId) {
   return String(textOf(questionId)).trim() !== "";
 }
 
-/** The answers that still need to reach the server, shaped for the session function. */
-export function pendingAnswers() {
+/**
+ * The answers that still need to reach the server, shaped for the session function, in one small batch:
+ * at most `maxAnswers` of them and about `maxChars` characters, so a save can never run into the
+ * endpoint's 2 MB body limit. An answer with a `problem` is left out — it is the one the server refused,
+ * and resending it would refuse every later batch with it (INS-02).
+ */
+export function pendingAnswers({ maxAnswers = 40, maxChars = 200_000 } = {}) {
   const now = new Date().toISOString();
+  const out = [];
+  let chars = 0;
+  for (const [questionId, answer] of Object.entries(state.answers)) {
+    if (!answer.pending || answer.problem) continue;
+    const text = answer.text ?? "";
+    if (out.length >= maxAnswers) break;
+    if (out.length > 0 && chars + text.length > maxChars) break; // the first answer always gets through
+    out.push({ question_id: questionId, answer: { text }, is_flagged: !!answer.is_flagged, client_saved_at: now });
+    chars += text.length;
+  }
+  return out;
+}
+
+/** Remembers that the server (or the phone) refused this answer, with the sentence the student sees. */
+export function setProblem(questionId, message) {
+  const answer = answerOf(questionId);
+  answer.problem = message;
+  answer.pending = true; // it is still not on the server
+  persist();
+}
+
+/** Every answer the server would not take, in question order: [{ questionId, message }]. */
+export function problems() {
   return Object.entries(state.answers)
-    .filter(([, answer]) => answer.pending)
-    .map(([questionId, answer]) => ({
-      question_id: questionId,
-      answer: { text: answer.text ?? "" },
-      is_flagged: !!answer.is_flagged,
-      client_saved_at: now,
-    }));
+    .filter(([, answer]) => answer.problem)
+    .map(([questionId, answer]) => ({ questionId, message: answer.problem }));
 }
 
 /** Called after a successful save: those answers are on the server now. */

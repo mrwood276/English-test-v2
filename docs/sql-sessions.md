@@ -25,6 +25,21 @@ canonical SQL source from now on. Keep changes there.
 | `expire_sessions(p_tolerance interval)` | BR-21 cleanup: sessions nobody submitted become `auto_submitted` (if they have answers) or `timed_out`. For a scheduled job later (TASK-015). |
 | `_session_grade`, `_session_public_result`, `_session_question_block`, `_session_key_entry` | Internal helpers (prefixed `_`), not part of the public contract. |
 
+### Answer size limits (save)
+
+`save_session_answers` accepts **1,000 characters** for any answer except an essay, and **20,000** for an
+essay (`case when v_type = 'essay' then 20000 else 1000 end`). One answer over its limit raises
+`'That answer is too long.'` with `hint = 'validation'`, which refuses the **whole batch** — the phone's
+batch is one transaction, so a single oversized answer would otherwise block every answer after it.
+
+Those two numbers are the authority and are copied in exactly two places, both checked against this file:
+`backend/functions/session/parse.ts` allows the biggest answer the database accepts as a request-body
+ceiling (it cannot know a question's type, so it leaves the per-type rule to SQL), and
+`frontend/assets/js/student/limits.js` holds the rule the screen applies before it queues an answer.
+`frontend/tests/unit/student_limits.test.ts` fails if any of the three drift apart. A session that is
+`reopened` accepts answers again; a finished one (`submitted`, `auto_submitted`, `timed_out`) refuses them
+with `{accepted: false, reason: 'already_submitted'}`.
+
 ## Live schema facts (discovered while applying this SQL)
 
 - `exam_sessions.student_name_normalized` and `student_class_normalized` are **GENERATED** columns

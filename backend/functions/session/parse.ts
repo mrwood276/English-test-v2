@@ -9,6 +9,14 @@ export const SESSION_EVENT_TYPES = ["tab_hidden", "blur", "focus", "online", "of
 export const SUBMIT_REASONS = ["student", "time_up", "tab_switch_limit", "teacher"] as const;
 
 export const MAX_ANSWERS_PER_SAVE = 200;
+/**
+ * The absolute ceiling one answer may carry in a request body. The rule that decides what a student may
+ * actually save is per question *type* and lives in `public.save_session_answers` — 1,000 characters, or
+ * 20,000 for an essay, and one answer over it refuses the whole batch. This parser cannot know a
+ * question's type, so it admits the largest answer the database accepts and leaves the per-type check to
+ * SQL (BR-21). `frontend/assets/js/student/limits.js` carries the same two numbers for the screen, and
+ * `frontend/tests/unit/student_limits.test.ts` fails if any of the three drift apart (INS-02).
+ */
 export const MAX_ANSWER_CHARS = 20_000;
 
 const isBlank = (v: unknown) => v === undefined || v === null || (typeof v === "string" && v.trim() === "");

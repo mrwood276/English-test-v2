@@ -2,7 +2,8 @@ import { h, mount } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
 import { confirmDialog } from "../../shared/ui.js";
 import { questionBlock } from "../components/question.js";
-import { isExpiredSession, NetworkError, sessionApi } from "../api.js";
+import { HttpError, isExpiredSession, NetworkError, sessionApi } from "../api.js";
+import { answerLimit } from "../limits.js";
 import * as store from "../store.js";
 
 /** Autosave keeps answers on the server without a save button; the timer follows the server clock. */
@@ -87,7 +88,12 @@ export function renderExam(root, ctx) {
     if (submitted) return;
     clearTimeout(saveTimer);
     const pending = store.pendingAnswers();
-    if (pending.length === 0) { setSave("ok", "All answers saved"); return; }
+    if (pending.length === 0) {
+      const refused = store.problems();
+      if (refused.length > 0) return setSave("warn", refused[0].message); // never claim a refused answer is saved
+      setSave("ok", "All answers saved");
+      return;
+    }
     if (navigator.onLine === false) {
       showOffline();
       setSave("warn", "Saved on this phone only");
@@ -116,8 +122,47 @@ export function renderExam(root, ctx) {
         return scheduleRetry();
       }
       if (isExpiredSession(err)) return ctx.onSessionLost(err.message);
+      if (err instanceof HttpError && err.status === 400 && pending.length > 1) return recoverRefused(pending);
       setSave("warn", err.message || "This answer could not be saved.");
     }
+  }
+
+  /** The sentence shown for an answer the server would not take, naming the question the student can fix. */
+  function refusedMessage(questionId, message) {
+    const place = store.indexOf(questionId) + 1;
+    return `Question ${place} could not be saved. ${message} Shorten it and the rest keeps saving.`;
+  }
+
+  /**
+   * The server refused one batch (the database rules are the authority, BR-21). One answer it will not
+   * take must never keep the others on the phone, so the batch is offered again one answer at a time:
+   * every answer it accepts is marked saved, and the refused one is named on screen and kept out of the
+   * queue until the student changes it (INS-02).
+   */
+  async function recoverRefused(pending) {
+    for (const item of pending) {
+      try {
+        const res = await sessionApi.save(state.token, [item]);
+        if (res && res.accepted === false) return goToResult(res.reason === "time_up" ? "time_up" : "already_submitted");
+        store.markSaved([item.question_id]);
+      } catch (err) {
+        if (err instanceof NetworkError) {
+          showOffline();
+          setSave("warn", "Saved on this phone only");
+          return scheduleRetry();
+        }
+        if (isExpiredSession(err)) return ctx.onSessionLost(err.message);
+        if (err instanceof HttpError && err.status === 400) {
+          store.setProblem(item.question_id, refusedMessage(item.question_id, err.message));
+          continue;
+        }
+        setSave("warn", err.message || "This answer could not be saved.");
+        return;
+      }
+    }
+    const refused = store.problems();
+    if (refused.length > 0) setSave("warn", refused[0].message);
+    else setSave("ok", "All answers saved");
   }
 
   /**
@@ -230,7 +275,15 @@ export function renderExam(root, ctx) {
       value: (id) => store.textOf(id),
       onAnswer: (id, text) => {
         if (!store.setText(id, text)) return;
-        setSave("ok", "Saving…");
+        const problem = tooLongMessage(id, text);
+        if (problem) {
+          // The database would refuse this answer and every batch sent with it; keep it here, named,
+          // out of the queue, until the student shortens it (INS-02).
+          store.setProblem(id, problem);
+          setSave("warn", problem);
+        } else {
+          setSave("ok", "Saving…");
+        }
         queueSave();
         refreshChrome();
       },
@@ -238,6 +291,17 @@ export function renderExam(root, ctx) {
     body.replaceChildren(block.el);
     body.scrollTop = 0;
     refreshChrome();
+  }
+
+  /** The phone's copy of the server's cap, so an answer it would refuse is never queued in the first place. */
+  function tooLongMessage(questionId, text) {
+    const place = store.indexOf(questionId);
+    const question = state.questions[place];
+    if (!question) return null;
+    const limit = answerLimit(question.type);
+    const length = String(text ?? "").length;
+    if (length <= limit) return null;
+    return `Question ${place + 1} is too long to save: ${length} of ${limit} characters. Shorten it and it will be saved.`;
   }
 
   function refreshChrome() {
@@ -430,7 +494,8 @@ export function renderExam(root, ctx) {
       h("div", { class: "qnav" }, sheetBtn, markBtn, prevBtn, nextBtn)));
 
   showQuestion(0);
-  setSave("ok", store.pendingAnswers().length > 0 ? "Saving…" : "All answers saved");
+  setSave("ok", "All answers saved");
+  flush(); // answers left unsent by an earlier visit to this phone go now, not at the next keystroke
   if (navigator.onLine === false) onOffline();
   tick();
   tickTimer = setInterval(tick, 1000);
