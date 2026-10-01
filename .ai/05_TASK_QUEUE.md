@@ -5,6 +5,174 @@ Order follows dependencies. Completed tasks are listed at the end for history (a
 
 ## NEXT RECOMMENDED TASK
 
+**2026-10-01 — THE INSPECTION RE-OPENED THE QUEUE: START WITH TASK-028 (Buffy, inspection-only session — documentation only, nothing in the product was touched; the findings, their evidence and the full roadmap are in `10_ROADMAP.md`, the issues in `09_KNOWN_ISSUES.md` under "Inspection 2026-10-01").** A strict inspection of the whole project (code, SQL, security, UI/UX, accessibility, tests, docs, AI workflow) found **no P0**, three P1s that matter on a real exam day, and a set of P2/P3 improvements — all with file-level evidence in `10_ROADMAP.md` and all now real tasks below (TASK-028 .. TASK-047). **The top P1s: TASK-028** (the tab-limit auto-submit never flushes the answers still on the phone), **TASK-029** (one refused answer blocks every later autosave for that attempt), **TASK-030** (a phone notification counts as a page leave and can auto-submit). Do the **PHASE A** group first (TASK-028, TASK-029, TASK-030, TASK-035), because it protects an honest student on the owner's first real exam day. Phases B–F, the decision list (D-1 .. D-6) and what this session could not verify are in `10_ROADMAP.md`.
+
+## OPEN TASKS (created by the 2026-10-01 inspection; detail and evidence in `10_ROADMAP.md`)
+
+The entries below are the machine-readable form of that inspection. Every task names its finding (INS-xx in
+`10_ROADMAP.md`, ISSUE-xxx in `09_KNOWN_ISSUES.md`). Priority here uses the roadmap's P1..P3 plus this
+file's CRITICAL/HIGH/MEDIUM/LOW vocabulary.
+
+### TASK-028 — the tab-limit auto-submit must flush the unsent answers first
+- Priority: **HIGH (P1)**. Status: READY. Finding: INS-01 / ISSUE-046. Feature: F-11.
+- Problem: when a leave event trips the exam's auto-submit limit the phone jumps to the result without sending the answers still queued locally (`SAVE_DEBOUNCE_MS = 1200`); the time-up path flushes first.
+- Goal: nothing a student typed before a server-side submission is dropped or left unsavable.
+- Scope: `frontend/assets/js/student/screens/exam.js` only (no SQL, no Edge change — the server's behavior is correct).
+- Acceptance criteria: with the limit reached, the last typed text is on the server (visible in the teacher's report); the screen never hangs waiting for a save; the offline path is unchanged.
+- Testing: `frontend/tests/student_e2e.py` — a check that types without waiting for the debounce, drives the leave events to the limit and asserts the answer was saved before the result screen; must fail on today's code. Requires TASK-035's mock fidelity first.
+- Dependencies: TASK-035 (mock fidelity). Related: TASK-030 (same screen).
+
+### TASK-029 — one bad answer must not block the whole autosave queue
+- Priority: **HIGH (P1)**. Status: READY. Finding: INS-02 / ISSUE-047. Feature: F-11.
+- Problem: the autosave batch is atomic and the Edge parser allows 20,000 characters for every type while SQL refuses a non-essay answer over 1,000; one oversized answer blocks every later answer, forever, with the same error.
+- Goal: the offending answer is isolated and named; every other answer keeps saving; the caps agree.
+- Scope: `backend/functions/session/parse.ts` (per-type cap), `frontend/assets/js/student/{store.js,screens/exam.js}` (isolate the refused answer, keep it visible, never re-send more than ~40 answers / ~200 KB per save). SQL stays the authority.
+- Acceptance criteria: a batch containing one too-long short answer saves every other answer; the student sees which answer needs shortening and can fix it; no error loop; the limit is written down in `docs/sql-sessions.md`.
+- Testing: `backend/tests/session.test.ts` (parser caps), `student_e2e.py` (the queue survives), `mock_server.py` mirrors the caps (TASK-035).
+- Dependencies: TASK-035.
+
+### TASK-030 — decide and implement the leave-count rule (blur vs tab hidden)
+- Priority: **HIGH (P1) + DECISION REQUIRED**. Status: **BLOCKED** on D-1. Finding: INS-03 / ISSUE-048. Feature: F-11/F-13.
+- Problem: `blur` counts as a page leave and the defaults (warn 1 / flag 3 / auto-submit 5) can submit an honest student who never left the page.
+- Goal: the automatic-submit rule punishes real page-leaving, and the rule is the teacher's explicit choice.
+- Scope: SQL `log_session_event` (the authority) + exam settings (a switch or new defaults) + the exam editor's copy + `student_e2e.py`.
+- Acceptance criteria: an untouched exam cannot auto-submit on blur-only events; the chosen rule is visible in the exam editor and recorded in `06_DECISIONS.md`.
+- Testing: `supabase/tests/session_functions_test.sql`, `student_e2e.py`, `mock_server.py` mirroring the rule.
+- Dependencies: owner decision D-1; land with or after TASK-028.
+
+### TASK-031 — a duplicate exam code must be refused kindly at Open
+- Priority: **MEDIUM (P2)**. Status: READY. Finding: INS-04 / ISSUE-049. Feature: F-09.
+- Problem: code uniqueness is enforced only against open exams, so two drafts can share one; opening the second breaks the partial unique index and the teacher sees a generic 500.
+- Goal: a friendly 400 that names the code, or a save-time rule that no two non-closed exams share one.
+- Scope: a new numbered migration replacing `public.set_exam_status` (and optionally `save_exam`'s check), `frontend/assets/js/teacher/screens/examEditor.js` (show the message at the code field).
+- Acceptance criteria: opening a draft with a taken code is refused in words; the exam stays a draft; no 500; `check_code` can say "used by a draft".
+- Testing: rolled-back SQL test, `backend/tests/exams.test.ts` (400 + message), `exams_e2e.py`.
+- Dependencies: none. Apply the migration live with its ledger row (the pattern since 2026-09-26).
+
+### TASK-032 — a live exam cannot be turned into a template
+- Priority: **MEDIUM (P2)**. Status: READY. Finding: INS-05 / ISSUE-050. Feature: F-09.
+- Problem: `is_template` is accepted for any status, but `exam_join` refuses templates — one tick makes a running exam unjoinable.
+- Goal: templates can only be made from a draft with no attempts.
+- Scope: `save_exam` (one `create or replace function`, new migration) + the editor's checkbox state and its reason.
+- Acceptance criteria: the refusal holds for any caller; the editor disables the checkbox with a sentence; an existing open exam stays joinable.
+- Testing: backend test, `exams_e2e.py`.
+- Dependencies: none; can share the migration/apply session with TASK-031.
+
+### TASK-033 — student identity and "my phone died, can I see my score?"
+- Priority: **MEDIUM (P2) + DECISION REQUIRED**. Status: **BLOCKED** on D-2. Finding: INS-06 / ISSUE-069. Feature: F-11.
+- Problem: name+class is the whole identity (duplicate names collide, an unfinished attempt can be resumed by whoever types that name) and a score cannot be seen on another phone (the token lives in one `localStorage`).
+- Goal: the owner chooses the rule; the student-visible messages always say what to do next.
+- Scope (depends on the choice): optional student number in the join key (`exam_join`, `parseJoin`, the join form, `docs/sql-sessions.md`), or a teacher-visible duplicate warning on the monitor, or a "show my result" path behind `result_visibility`.
+- Acceptance criteria: the decision is in `06_DECISIONS.md` before code; the refusal paths have tests.
+- Testing: SQL test for the chosen key/refusal; `student_e2e.py` for the flow.
+- Dependencies: owner decision D-1..D-2 (do not implement the "show my result" option silently — it changes who can read a score).
+
+### TASK-034 — accessibility pass: contrast, live regions, a real dialog
+- Priority: **MEDIUM (P2)**. Status: READY. Findings: INS-07/08/09 / ISSUE-051/052/053. Features: F-11/F-15.
+- Problem (three items): measured sub-AA contrast on status text; `aria-live` on `#app`; the answer sheet is a fake dialog.
+- Goal: status text is AA-legible, live regions are small and purposeful, and the sheet behaves like the app's other dialogs.
+- Scope: `frontend/assets/css/tokens.css` (`--green: #146b45`, `--red: #b3202f` — measured 5.70 / 5.65 on their tints), `frontend/index.html` + `frontend/teacher/index.html` (drop `aria-live` from `#app`, add `role="status"` to `.saved`), `student/screens/exam.js` (rebuild the sheet on `<dialog>.showModal()`).
+- Acceptance criteria: every text pairing ≥4.5:1 and icon/border ≥3:1; Tab cannot leave the open sheet and Escape closes it; no live region holds more than one message.
+- Testing: `student_e2e.py` (sheet keyboard), a comment table in `tokens.css`; a screen-reader pass is manual and must be recorded as VISUAL-VERIFICATION-REQUIRED.
+- Dependencies: after PHASE A (do not mix it with the P1 work).
+
+### TASK-035 — mock-server fidelity, so the P1 tests can prove something
+- Priority: **MEDIUM (P2)**. Status: READY. Findings: INS-10/11 / ISSUE-054/055. Feature: F-11.
+- Problem: `mock_server.py`'s `save` accepts any text length and refuses a `reopened` session, both contradicting `save_session_answers`; the two riskiest student behaviours therefore have no test.
+- Goal: the mock mirrors the contract (or lists every deliberate simplification), and the two missing checks exist.
+- Scope: `frontend/tests/mock_server.py` (caps + `reopened` acceptance + a header comment listing simplifications), `frontend/tests/student_e2e.py` (leave-limit flush, blur-only does not submit, save after reopen).
+- Acceptance criteria: each new check fails on the pre-fix code (say which commit); the mock's refusals use the same wording the student sees.
+- Testing: the suites themselves (they are the test work).
+- Dependencies: none — do it **before** TASK-028/029/030 so their tests mean something.
+
+### TASK-036 — the question editor says Saved / Unsaved / Saving / failed
+- Priority: **MEDIUM (P2)**. Status: READY. Finding: INS-12 / ISSUE-056. Feature: F-05.
+- Problem: only a toast plus the leave guard show state; a long edit or a failed save has no persistent signal.
+- Scope: `frontend/assets/js/teacher/screens/questionEditor.js` (reuse the exam editor's `saveStatus` pattern and the existing `isDirty()`/`baseline`). No autosave.
+- Acceptance criteria: all four states visible without scrolling, desktop and phone; wording matches `examEditor.js`; the guard still fires only on real changes. Testing: `question_editor_e2e.py`.
+- Dependencies: none.
+
+### TASK-037 — reconcile the stale documentation and the visibility/email item
+- Priority: **MEDIUM (P2) + DECISION REQUIRED (D-5)**. Status: READY. Findings: INS-13/14/15 / ISSUE-057/058. Area: `.ai/`, `frontend/tests/live_*`, `docs/`.
+- Problem: `03_FEATURES.md` declares built features unbuilt; `02_ARCHITECTURE.md` says 74 functions/22 tables where the repository defines 81/23 and has no `notifications` row; `.ai/01` calls the repo public while `README.md`/`00_AI_RULES.md` say private, and the real staff test email is in 15 tracked files.
+- Scope: (a) one authoritative Status/Limitations block per feature plus a `Last reconciled` date; (b) correct the counts and add the notifications functions/migrations with the measurement commands beside them; (c) owner confirms visibility, then reconcile the three files and replace the literal email with `SUPABASE_TEST_EMAIL`/<staff test account> in `.ai/`, `docs/` and the live checks.
+- Acceptance criteria: no "not built/not deployed/no UI" claim contradicts the code; counts re-derivable in one command; `grep -r testguru211l` returns nothing.
+- Dependencies: the owner's visibility answer; the live checks need one run with the env var afterwards.
+
+### TASK-038 — make the state files answer "what is open?" in under a minute
+- Priority: **MEDIUM (P2)**. Status: READY. Finding: INS-16 / ISSUE-059. Area: `.ai/{04,05,08}`.
+- Problem: three files open with tens of KB of session narrative (04 = 320 lines, 05 = 247, 08 = 403); the newest session's story is duplicated in all four files.
+- Goal: short headers — Status / Open tasks (ids) / Next recommended task / Branch+commit / deliberately not verified — with history moved to `07_CHANGELOG.md` (already there) and a pointer.
+- Acceptance criteria: the first screen of each file states what is open and what to do next; no narrative is lost (its commit hash is still greppable in `07`). `10_ROADMAP.md`'s layout is the model.
+- Dependencies: none — do it before adding another session's text.
+
+### TASK-039 — CSP in `_headers`, and the token-secret decision
+- Priority: **MEDIUM (P2) + DECISION REQUIRED (D-4)**. Status: READY. Finding: INS-17 / ISSUE-060. Area: `frontend/_headers`, `backend/functions/session/token.ts`, `docs/production-deployment.md`.
+- Problem: no CSP; and an unset `SESSION_TOKEN_SECRET` silently signs student tokens with the service-role key.
+- Scope: (a) add the CSP listed in `10_ROADMAP.md` INS-17 and verify it on the hosted address (fonts, images, audio, Supabase calls); (b) implement D-4 — fail loudly on `join` when the secret is unset, or keep the fallback and surface it (dashboard/live check).
+- Acceptance criteria: the hosted app works with the CSP; the chosen secret behavior is in `06_DECISIONS.md` and visible to the owner guide's step 3.
+- Dependencies: hosting (guide step 1); the CSP must be tested where `_headers` is honoured (Cloudflare Pages/Netlify), not locally.
+
+### TASK-040 — student tokens expire
+- Priority: **LOW (P3)**. Status: READY. Finding: INS-18 / ISSUE-061. Feature: F-11.
+- Problem: the token is a bare HMAC over the session id, so `get` keeps returning the question snapshot (and `result` keeps answering) forever.
+- Scope: add an `exp` to the signed payload (session `ends_at` + grace, refreshed on accepted calls) and refuse `get`/`save`/`event`/`media` after it; keep `result` while the exam's visibility allows it — coordinate with TASK-033.
+- Acceptance criteria: a token from a closed, finished exam can still show the student's own result (if that stays the rule) but cannot fetch the snapshot. Testing: `session.test.ts`, `session_functions_test.sql`, `student_e2e.py`.
+- Dependencies: TASK-033's result-retrieval decision.
+
+### TASK-041 — an authoritative pre-flight check before Open
+- Priority: **LOW (P3)**. Status: READY (product value; do it after PHASE A–C). Finding: INS-19 / ISSUE-049 (shared query). Feature: F-09.
+- Problem: `set_exam_status` only refuses an empty manual exam; nothing warns that questions were archived since the draft, how many essays await grading, that total points are not 100, or that the code is taken; the editor's "ready to open" summary is drawn from local state and can differ from what is saved.
+- Scope: one read-only SQL function (`exam_readiness`) returning counts/warnings, shown in the exam editor before Open and as a small pill in the exams list; refuse only where the rule already exists.
+- Acceptance criteria: Open shows the same numbers the dashboard/results will produce; archived/missing questions are named; no new write path. Testing: rolled-back SQL test, `exams_e2e.py`; `live_ledger_check.py` picks the function up once applied live.
+- Dependencies: TASK-031 (same code-conflict query).
+
+### TASK-042 — an offline-capable student shell
+- Priority: **LOW (P3) + DECISION REQUIRED (D-5)**. Status: BLOCKED on the owner's answer. Finding: INS-20 / ISSUE-062. Feature: F-11.
+- Problem: the exam screen survives a disconnect once loaded, but a phone that is offline before loading the page (dead spot, reload) gets nothing — the static files themselves need the network.
+- Scope: a hand-written `sw.js` (cache-first for `assets/**` and the two HTML files, network-first for the API, cache name versioned with `APP_BUILD`, registered from the student page only) — keeps DEC-007's "no build step" true.
+- Acceptance criteria: a previously loaded page reloads offline and shows the exam with the offline banner; a deploy invalidates the old cache; nothing from `*.supabase.co` is cached. Testing: `student_e2e.py` with `serviceWorkers: 'allow'`.
+- Dependencies: owner decision; new product surface, so record it in `06_DECISIONS.md`.
+
+### TASK-043 — quality gates: lint/format and one accessibility run in CI
+- Priority: **LOW (P3)**. Status: READY. Finding: INS-21 / ISSUE-063. Area: `.github/workflows/*`.
+- Problem: nothing checks accessibility, and `frontend/assets/js/**` (the part with no build step) is never linted, formatted or type-checked.
+- Scope: (a) `deno lint` + `deno fmt --check` for `frontend/assets/js` and `backend/functions` (dev-only tools, no runtime dependency); (b) one axe-core run inside an existing suite (test-only dependency → record it in `06_DECISIONS.md` per `00_AI_RULES.md` §6).
+- Acceptance criteria: a lint/format failure fails CI; axe reports no serious/critical violations on join, exam, result and dashboard, or the violations are listed as known issues. Testing: prove the a11y check fails on a seeded violation.
+- Dependencies: after TASK-034, so the baseline is honest.
+
+### TASK-044 — one-request statistics, and the duplicate scan at scale
+- Priority: **LOW (P3)**. Status: READY but **do not start without a real need** (`00_AI_RULES.md` §6). Finding: INS-22 / ISSUE-064. Features: F-12/F-04.
+- Problem: the Questions tab sends one `results` report per finished attempt from the browser (~170 requests for a 5-class exam), and `find_duplicate_groups` runs on every bank load.
+- Scope: a single SQL aggregate for per-question accuracy (from `review_snapshot`/`answer_grades`), and either an opt-in "Scan for duplicates" button or a cached result per bank revision once the bank passes a few hundred questions.
+- Acceptance criteria: the Questions tab makes one request; the bank screen's load no longer depends on the scan. Testing: SQL test for the aggregate; update the affected suite counts.
+- Dependencies: none; today's 40 questions do not need it.
+
+### TASK-045 — decide what a zero-answer timed-out attempt means
+- Priority: **LOW (P3) + DECISION REQUIRED (D-3)**. Status: BLOCKED on the owner. Finding: INS-23 / ISSUE-065. Features: F-11/F-12.
+- Problem: `expire_sessions` writes no `exam_results` row when the attempt has no answers, so the student sees "visibility: none" and the teacher's table shows a blank line with `has_result: false`.
+- Scope (depends on the decision): write a 0-point result for every timed-out attempt, or keep the hole but make it explicit ("Did not answer", counted separately and excluded from the average) in words on both sides.
+- Acceptance criteria: a class of 34 with one silent student shows either a 0 row or an explicit "no answers" row the average excludes — never a blank line. Testing: rolled-back SQL test, `results_e2e.py`, `student_e2e.py`.
+- Dependencies: owner decision D-3.
+
+### TASK-046 — small cleanups: dead export, three copies of the code alphabet, shared helpers
+- Priority: **LOW (P3)**. Status: READY. Finding: INS-24 / ISSUE-066. Area: `backend/functions/exams/handler.ts`, `_shared/codes.ts`, `frontend/assets/js/teacher/screens/examEditor.js`, `shared/ui.js`.
+- Problem: `suggestCode()` is exported where nothing can call it; the confusion-safe alphabet exists three times (JS shared, exam editor, SQL); `errorText`/`ignorable` and a small `dialog()` are copy-pasted across screens.
+- Scope: delete or justify the dead export; name the three alphabet copies in one place (DEC-005's discipline) or delete the frontend copy in favor of the server's; hoist the two helpers into `shared/ui.js` when a screen is next touched.
+- Acceptance criteria: no dead export; the copies are documented; the helpers are shared. Testing: existing suites.
+- Dependencies: none. This is **not** a licence to restructure the screens (`00_AI_RULES.md` §6).
+
+### TASK-047 — a nightly read-only live job (optional continuous verification)
+- Priority: **LOW (P3) + DECISION REQUIRED (D-6)**. Status: BLOCKED on the owner's approval for a repository secret. Finding: INS-25 / ISSUE-070. Area: `.github/workflows/`, `docs/production-deployment.md`.
+- Problem: the strongest evidence (13 live checks, the rolled-back SQL tests, the ledger check, the advisors) runs only when a human with a Management token remembers; a push that breaks the live contract is caught only then.
+- Scope: a nightly (or `workflow_dispatch`) job that runs `deno test`, `run_live_checks.py --read-only` and the SQL tests with repository secrets; write-only checks stay manual.
+- Acceptance criteria: the job is read-only by construction and visible in the Actions tab; the secrets are documented in the deployment guide's step 4. Testing: one manual dispatch with a wrong token (the exit-2 path already exists).
+- Dependencies: the owner's approval to store the token; the test account credentials (see TASK-037c).
+
+## HISTORY — the session narratives below are kept for the record; the state they describe is in `04_CURRENT_STATE.md` and `07_CHANGELOG.md`
+
+## NEXT RECOMMENDED TASK (2026-10-01, before the inspection — kept for the record)
+
 **2026-10-01 (later the same day, again) THE BOARD RETRIES A CRASHED CHECK BY ITSELF, SO ONE COMMAND IS THE WHOLE CADENCE (Buffy, repository-only plus one read-only live run; nothing in the live project was written).** The queue still holds no open code task, so the item taken is the previous handoff's suggestion and the bounded cadence ISSUE-045 otherwise asks the reader to remember: **`frontend/tests/run_live_checks.py` now re-runs a `CRASH`ed check by itself up to `--retry N` more times — default 4, `--retry 0` disables — and stops at the first clean pass.** A `FAIL` is an answer and is never retried, the backup guard's `HELD` is the safe outcome on the live project and is not retried either, and a `SKIP` is not run at all; every writable check sweeps its previous run's leftovers as it starts (ISSUE-042/043), so a retry both re-verifies and cleans. The recap names it (`PASS accounts 0:31 44 checks; crashed first, passed on retry 1/4 (attempt 1 died at live_accounts_check.py:213)`) and a `retried:` line lists every check that needed one; a check that never passed reads `3 attempts, all crashed`; the exit codes are unchanged. **Proved:** `--self-test` (a fake check that dies once and then passes → `PASS` at 2 attempts, exit 0; the same fake under `--retry 0` → `CRASH` at 1 attempt; the always-crashing fake → `CRASH` at 3 attempts; `FAIL`, `HELD` and `SKIP` each at exactly one look, and the skip never run); the real CLI with a deliberately bogus token (`--only ledger --retry 2` → the crash, two *re-running it alone* lines, `CRASH ledger 0:00 died at before its first check; 3 attempts, all crashed`, **exit 2**; the same with `--retry 0` → one crash, `retries: off`); and live, read-only, with the owner's credential (`--read-only` under the new default `--retry 4` → `ledger` **3/3**, `duplicates` **15/15**, **2 passed, 0 failed, 0 crashed, 0 held, 0 skipped, exit 0** in 0:19, the dev server started and stopped, and the fingerprint afterwards exactly the owner's — 0 exams, 0 sessions, 40 questions / 0 archived, 5 backups, 2 profiles, 13 topics, 0 read marks, 0 session rate-limit rows, 0 media objects). **No product code, SQL, migration, Edge Function or CI file changed.** **No code task is open, and this did not create one:** what remains is the owner's — the branch cleanup on the remote (`main` → the reconciled tip; delete `backup-ai-development`, `recovery-final-backup`, `backup-old-main`) and the go-live list in `docs/production-deployment.md`; the email half of notifications waits on a provider decision (DEC-017).
 
 **2026-10-01 (later the same day) THE WHOLE LIVE BOARD RAN END TO END AND THE FIRST FULL LIVE PICTURE IS RECORDED — 12 PASSED, 0 FAILED, 0 CRASHED, 1 HELD, 415 CHECKS (Buffy, with the owner's Supabase credential; the run touched the live project and left it exactly as found).** The previous item's board was run for real: two attempts were cut short by a bursty `WinError 10054` against `*.supabase.co` (**run #1** 7 passed / 6 crashed; **run #2** 6 passed / 1 failed / 5 crashed / 1 held — ISSUE-045, environmental), then every crashed check went green under bounded `--only` retries (`accounts` on its 4th attempt; `browser`, `bulk`, `media`, `housekeeping`, `duplicates` and `ledger` on their first), and the whole board finally ran in one command: **13 checks in 6:45, 415 checks, exit 0** — `ledger` 3, `duplicates` 15, `monitor` 39, `browser` 20, `results` 39, `notifications` 36, `accounts` 44, `exam_delete` 17, `bulk` 65, `exam_bulk` 56, `media` 41, `housekeeping` 40, and `HELD backup` (the guard refused while the owner's 5 copies exist). The live project ended at the owner's fingerprint: **0 exams, 0 sessions, 40 questions / 0 archived, 5 backups, 2 profiles, 13 topics, 0 read marks, 0 session rate-limit rows, 0 media objects** — and nothing left on 8123. The same session showed run #2's crashed checks being **swept by their own next run** (*an earlier run's leftover exam (1) was swept before this one started*, *leftovers (3 questions, 1 topics)…*) — ISSUE-043 working live. One real bug in a check was found and fixed (**ISSUE-044**: `live_duplicates_check.py` assumed a question belongs to at most one duplicate group; proved by reproducing the exact state deliberately — 12 entries over 9 ids — and passing 15/15 against it, then sweeping it), and the network condition is recorded as **ISSUE-045 — OPEN, environmental**, answered by a retry cadence rather than a fix. **No code task is open, and this did not create one:** what remains is the owner's — the branch cleanup on the remote (`main` → the reconciled tip; delete `backup-ai-development`, `recovery-final-backup`, `backup-old-main`) and the go-live list in `docs/production-deployment.md`; the email half of notifications waits on a provider decision (DEC-017).

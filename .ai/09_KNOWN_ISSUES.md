@@ -330,5 +330,57 @@ Statuses: OPEN, INVESTIGATING, BLOCKED, FIXED, WONT_FIX, NEEDS_VERIFICATION. Onl
 - **Outcome the same day (the cadence works, and the board can be green in the end):** once the waves passed, `accounts` was green on its **4th** bounded retry, and `browser` (1:01, 21 checks), `bulk` (0:52), `media`, `housekeeping`, `duplicates` (0:13) and `ledger` then all went green on their **first** attempt. The whole board then ran in one command: **12 passed, 0 failed, 0 crashed, 1 held, 0 skipped — 13 checks in 6:45, 415 checks, exit 0** — and the project was left exactly as the owner has it (0 exams, 0 sessions, 40 questions / 0 archived, 5 backups, 2 profiles, 13 topics, 0 read marks, 0 session rate-limit rows, 0 media objects; nothing on 8123). The condition can return at any time; it is recorded, not fixed.
 - Affected: nothing in the repository; recorded in `frontend/README.md` and `.ai/{04,05,07,08,09}`.
 
+## Inspection 2026-10-01 — the strict full-project inspection's findings (ISSUE-046 .. ISSUE-070)
+
+One session inspected the whole repository (no credential, no browser, no test run) and wrote its findings up
+in **`.ai/10_ROADMAP.md`** (evidence, exact files, acceptance criteria) with the matching tasks in
+`05_TASK_QUEUE.md` (TASK-028 .. TASK-047). **Nothing in the product changed** — documentation only
+(DEC-038). The issues below are the same findings in this file's format, split by how certain they are.
+Severity here uses this file's scale; the priority in brackets is the roadmap's (P1..P3).
+
+### CONFIRMED (read in the source; each has line-level evidence in `10_ROADMAP.md`)
+- **ISSUE-046 [P1]** — the tab-limit auto-submit never flushes the answers still queued on the phone; the time-up path does. `frontend/assets/js/student/screens/exam.js` (`logEvent` vs `timeUp`). Related: TASK-028.
+- **ISSUE-047 [P1]** — one refused answer blocks every later autosave for that attempt: the batch is atomic, the Edge parser allows 20,000 characters for every type while SQL caps non-essay at 1,000, and the client neither isolates nor drops the offending answer. `backend/functions/session/parse.ts`, `supabase/migrations/20260923000000_session_functions.sql#save_session_answers`, `exam.js`. Related: TASK-029.
+- **ISSUE-048 [P1]** — `window.blur` (notifications, address bar, a call) counts as a page leave toward warn 1 / flag 3 / auto-submit 5, so an honest student can be submitted automatically. `exam.js` `onBlur`; `log_session_event`; `exams/parse.ts` defaults. Owner decision + TASK-030.
+- **ISSUE-049 [P2]** — two drafts may share an exam code (uniqueness is only enforced against **open** exams) and opening the second hits the partial unique index: a raw `23505` becomes HTTP 500 "Something went wrong." `20260920095429_v2_03_exams.sql#L40`, `save_exam`, `set_exam_status`, `_shared/rpc.ts`. TASK-031.
+- **ISSUE-050 [P2]** — `is_template` can be set on a live exam, and `exam_join` refuses templates, so one tick silently makes a running exam unjoinable. `exams/parse.ts`, `exam_join`, `examEditor.js`. TASK-032.
+- **ISSUE-051 [P2]** — measured contrast: green/red status text is below WCAG AA (`--green` on `--green-tint` = 3.62:1, `--red` on `--red-tint` = 3.91:1, `--green` on white = 4.14:1); proposed replacements that keep the palette: `#146b45` (5.70) and `#b3202f` (5.65). `tokens.css` used by `.pill.ok/.bad`, `.score.pass/.fail`, `.notif-pill-*`, `.field-error`. TASK-034.
+- **ISSUE-052 [P2]** — `aria-live="polite"` wraps `#app` on both pages, so every poll (monitor 15 s, dashboard 30 s) and every screen render lands inside one live region. TASK-034.
+- **ISSUE-053 [P2]** — the student answer sheet is a hand-rolled `role="dialog"` with no `aria-modal`, focus move, focus trap or Escape, while `confirmDialog` shows the project already has the right pattern (native `<dialog>`). TASK-034.
+- **ISSUE-054 [P2]** — the mock server's `save` accepts any answer text and refuses a **reopened** session, both contradicting `save_session_answers`; the browser suites therefore cannot see ISSUE-047 or the BR-11 continue-after-reopen path. `frontend/tests/mock_server.py`. TASK-035.
+- **ISSUE-055 [P2]** — no test drives the leave-limit auto-submit (ISSUE-046/048) or a save after a reopen. `frontend/tests/student_e2e.py`. TASK-035.
+- **ISSUE-056 [P2]** — the question editor has no persistent Saved / Unsaved / Saving / failed state (the exam editor does); the only signal is a toast plus the leave guard. `screens/questionEditor.js`, `screens/examEditor.js#saveStatus`. TASK-036.
+- **ISSUE-057 [P2]** — `03_FEATURES.md` still declares built features unbuilt (F-01 "none in git", F-02 "no user-management UI", F-07 "cannot reorder files", F-08 "not deployed, live function is version 2", F-11 "not built: the live monitor", F-13 "not yet seen against a real exam", F-14 "not started: notifications"), and `02_ARCHITECTURE.md` says 74 functions / 22 tables where the repository defines **81** / **23** and has no `notifications` row. TASK-037.
+- **ISSUE-058 [P2]** — `.ai/01_PROJECT.md` calls the repository **public** while `00_AI_RULES.md` and `README.md` say it must stay **private**, and the real staff test email `testguru211l@gmail.com` appears in 15 tracked files (`frontend/tests/live_*_check.py`, `.ai/04,05,07,08`, `docs/sql-accounts.md`, `docs/sql-duplicates.md`, `docs/verification-checklist.md`). TASK-037 + owner decision.
+- **ISSUE-059 [P2]** — the queue/state/handoff files have grown into chronological logs (04 = 320 lines, 05 = 247, 08 = 403, 07 = 599; the newest session's story is duplicated in all four), so the actionable state is buried. TASK-038.
+- **ISSUE-060 [P3]** — no CSP in `frontend/_headers`, and `SESSION_TOKEN_SECRET` silently falls back to the service-role key. TASK-039 + owner decision.
+- **ISSUE-061 [P3]** — student session tokens have no expiry claim, so a token in a phone's `localStorage` keeps `get` (the question snapshot) and `result` reachable indefinitely. `session/token.ts`, `get_exam_session`. TASK-040.
+- **ISSUE-062 [P3]** — the student page cannot start at all without a network (no service worker, no manifest), although the exam screen tolerates a disconnect once loaded. TASK-042 + owner decision.
+- **ISSUE-063 [P3]** — no accessibility automation and no lint/format/typecheck gate for `frontend/assets/js/**` in CI. `.github/workflows/*`. TASK-043.
+- **ISSUE-064 [P3]** — the Questions statistics tab issues one `results` report request per finished attempt from the browser, and the whole-bank duplicate scan runs on every bank load. TASK-044 (do not optimise before it is needed).
+- **ISSUE-065 [P3]** — an attempt that expires with zero answers is marked `timed_out` with **no** `exam_results` row, so it is a blank line in the class results and the student's screen says "visibility: none". `expire_sessions`, `_session_public_result`, `list_exam_results`. TASK-045 + owner decision.
+- **ISSUE-066 [P3]** — the confusion-safe code alphabet and generator exist three times (`_shared/codes.ts`, `examEditor.js` lines 15–21, `regenerate_exam_code` in SQL) and `exams/handler.ts` exports a `suggestCode()` nothing can call. TASK-046.
+
+### POTENTIAL (reasoned from the source; needs a live/real-device check before it is called a defect)
+- **ISSUE-067 [P2]** — an exam's public surface may be reachable during a burst of `blur`/`tab_hidden` events on a real phone in ways the mock cannot show (camera, screenshots, notification shade). The decision in ISSUE-048 should be taken with one real phone in hand (the deployment guide's step 6 walkthrough is the natural place). Related: TASK-030.
+- **ISSUE-068 [P3]** — `docs/production-deployment.md` step 5 says a teacher can set their own password "from the same screen"; `#/accounts` lets an **admin** set another person's password, and no self-service password change exists for the teacher's own account (ISSUE-028 records the email reset path as not built). Worth verifying with the owner that this is the intended sentence (it reads as a promise the product does not keep).
+
+### DEFERRED (recorded, deliberately not done now)
+- The `cp` (contrast) and live-region fixes are deliberately scheduled after the P1s: TASK-034 waits for TASK-028..030.
+- ISSUE-064 is deferred until the bank or the class count grows (today: 40 questions, one class).
+- The `notifications` email half stays deferred on the owner's provider decision (DEC-017).
+
+### USER DECISION REQUIRED (asked in `10_ROADMAP.md`, decisions D-1 .. D-6)
+- D-1 does `blur` count as a leave / may it auto-submit (ISSUE-048) — TASK-030.
+- D-2 student identity (name+class only vs a student number) and how a score is seen on a second phone (ISSUE-069, see below) — TASK-033.
+- D-3 what a zero-answer timed-out attempt means (ISSUE-065) — TASK-045.
+- D-4 require `SESSION_TOKEN_SECRET` (fail loudly) or keep the fallback (ISSUE-060) — TASK-039.
+- D-5 repository visibility, and whether an offline shell may be added (ISSUE-058, ISSUE-062) — TASK-037 / TASK-042.
+- D-6 may a Supabase Management token live as a repository secret for a nightly read-only job (ISSUE-070) — TASK-047.
+
+### Also recorded in this inspection's range
+- **ISSUE-069 [P2] — duplicate names and a second phone.** Identity is the normalized typed name+class, so two students with the same name in one class collide, an unfinished attempt can be resumed by whoever types that name, and a student whose phone died cannot see their score (the token lives only in that phone's `localStorage`). This is DEC-009's accepted risk, but the *consequences* (a refused join and no way to see a result) have never been decided. Full reasoning: `10_ROADMAP.md` INS-06. TASK-033.
+- **ISSUE-070 [P3] — the live/SQL half of the board is manual.** CI proves logic and the mocked UI; the thirteen live checks, the rolled-back SQL tests, the ledger check and the advisors run only when a human with a Management token remembers. A nightly read-only job (or a `workflow_dispatch` job) would catch a renamed function or a privilege regression on the push that causes it. TASK-047.
+
 ## Legacy v1 issues (outside this repository; not being fixed, DEC-015)
 Summarized from `docs/audit-v1.md`: server does not enforce exam time (H-1); no attempt limit or open/close/code (H-2); teacher password stored plaintext, no login throttling (H-3); token signing secret hard-coded in function code (H-4); no server-side validation of name/class and no rate limit on session creation (H-5); answers only in browser storage until submit (M-1); duplicate result rows possible (M-2). These disappear when v2 replaces v1.

@@ -33,6 +33,8 @@ If you find a conflict, do not follow `.ai/` blindly: inspect the code, then fix
 
 Also read `docs/design.md` (product requirements, business rules BR-01..BR-22, data model, phases) when working on features that are not implemented yet.
 
+**If `05_TASK_QUEUE.md`'s OPEN TASKS section is not empty, read `10_ROADMAP.md` too:** it is the 2026-10-01 inspection's report (findings with file-level evidence, the phase order and the owner decisions D-1..D-6 that block some tasks). It names the next task at its end and in `08_HANDOFF.md`.
+
 ## 2. Environment facts an agent must know (verified 2026-09-21)
 
 | Topic | Fact |

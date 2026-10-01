@@ -1,5 +1,18 @@
 # 04 CURRENT STATE
 
+## At a glance (added 2026-10-01 by the inspection; keep this block short)
+
+| Item | Value |
+|---|---|
+| Product | English Daily Test v2 — functionally complete for one school and one teacher, not deployed anywhere yet (`docs/production-deployment.md` is the go-live list, all of it owner action). |
+| Branch / commit | `ai-development` @ `98c2091` (working tree clean when the inspection ran). `main` untouched. A second worktree `D:/freebuff/etv-bulk` sits on `feat-bulk` @ `53baaa1` — pre-F-18, already contained in `ai-development`, do not merge. |
+| Open code tasks | **TASK-028 .. TASK-047** (`05_TASK_QUEUE.md` OPEN TASKS, evidence in `10_ROADMAP.md`). Nothing else is open; everything else recorded in these files is COMPLETE or the owner's. |
+| Next task | **TASK-035** (make the mock server tell the truth), then **TASK-028** (flush before the leave-limit auto-submit), then **TASK-029** (one bad answer must not block the autosave queue). See `08_HANDOFF.md`. |
+| Owner decisions waiting | D-1 blur vs page-leave (TASK-030), D-2 student identity (+ a score on a second phone, TASK-033), D-3 a zero-answer timed-out attempt (TASK-045), D-4 require `SESSION_TOKEN_SECRET` (TASK-039), D-5 repository visibility / offline shell (TASK-037, TASK-042), D-6 a Management token as a repo secret (TASK-047). |
+| Verification state | Last live picture: 2026-10-01, whole board 12 PASSED / 1 HELD, 415 checks (produced by the thirty-second session, **not** re-run by the inspection). Local suites last green: backend **167**, unit **42**, fourteen suites / **794** checks (2026-09-30). The inspection ran nothing — no credential, no browser. |
+| Measured repository facts (2026-10-01, by the inspection) | 33 migrations in git; **81** distinct `public.*` functions (matching the live count recorded 2026-09-30); **23** `create table` targets; 8,614 lines of frontend JS, ~2,900 of backend TS, 6,655 of SQL, ~13,600 of tests; `.ai/` 5,824 lines before this session. |
+| Known-issue range opened by the inspection | ISSUE-046 .. ISSUE-070 in `09_KNOWN_ISSUES.md` (three P1s: auto-submit without a flush, a poisoned autosave queue, blur counted as a page leave). |
+
 ## Snapshot
 
 | Item | Value |
