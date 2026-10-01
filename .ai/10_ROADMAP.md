@@ -411,6 +411,14 @@ PHASE F — OPTIONAL CONTINUOUS VERIFICATION (needs the owner's secret)
   TASK-047  a nightly read-only live job                        (INS-25, P3 + DECISION)
 ```
 
+**Progress (2026-10-01, later the same day — implementation session):** PHASE A is two-thirds done.
+**TASK-035** (`27e51ec`), **TASK-028** (`555fdf0`) and **TASK-029** (`d80be83`) are complete and pushed,
+each with a check that was proved to fail on the pre-fix code first (2 checks red on the old mock, 1 on the
+old exam screen, 8 on the old client). Backend **168**, unit **44**, `student_e2e.py` **85** checks, all
+three harness self-tests green; nothing live was run (no credential). **TASK-030 remains BLOCKED on D-1** —
+that is the one PHASE A item left, and it is a product decision. Detail: `05_TASK_QUEUE.md` (the three
+tasks' status lines), `07_CHANGELOG.md` (2026-10-01, later the same day), `08_HANDOFF.md` (top block).
+
 Decisions the owner must make (recorded in `06_DECISIONS.md` before the code lands):
 
 | # | Question | Blocks |
