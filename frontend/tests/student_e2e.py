@@ -269,4 +269,32 @@ with sync_playwright() as pw:
     check("the student stays on the exam screen", page3.query_selector(".qbody") is not None and page3.query_selector(".result") is None)
     check("no page errors on the reopened device", errors3 == [], "; ".join(errors3[:3]))
 
+    # ---------- the tab limit: what was typed just before must already be on the server (INS-01) ----------
+    # Two real page leaves reach this exam's auto-submit limit, and the answer is typed *without* waiting
+    # for the 1.2 s autosave debounce. On the pre-fix screen the phone jumped straight to the result and
+    # the answer never left it.
+    SRV.session_exam("AUTO01", tab_switch_warn_limit=5, tab_switch_flag_limit=5, tab_switch_autosubmit_limit=2)
+    ctx4 = browser.new_context(viewport={"width": 390, "height": 844})
+    page4 = ctx4.new_page()
+    errors4 = []
+    suite.watch(page4, errors4)
+    page4.on("pageerror", lambda e: errors4.append(str(e)))
+    block(page4)
+    join(page4, "Gita Lestari", "XII TKJ B", "AUTO01")
+    page4.wait_for_selector(".qbody")
+    page4.click(".qnav .icobtn[aria-label='Answer sheet']")
+    page4.wait_for_selector(".sheetgrid")
+    page4.query_selector_all(".sheetgrid button")[3].click()   # the last question is the essay
+    typed = "The last sentence typed before the tab limit fired."
+    page4.fill(".qbody textarea", typed)
+    for _ in range(2):
+        page4.evaluate("Object.defineProperty(document, 'hidden', {value: true, configurable: true}); document.dispatchEvent(new Event('visibilitychange'))")
+    page4.wait_for_selector(".result", timeout=15000)
+    auto = [s for s in SRV.sessions.values() if s["exam"] == "AUTO01"]
+    check("the tab limit still sends the test automatically", len(auto) == 1 and auto[0]["status"] == "auto_submitted")
+    check("the answer typed just before the limit reached the server",
+          any((a.get("text") or "") == typed for a in auto[0]["answers"].values()))
+    check("the exam screen gives way to the result", page4.query_selector(".result") is not None and page4.query_selector(".qbody") is None)
+    check("no page errors on the tab-limit device", errors4 == [], "; ".join(errors4[:3]))
+
 suite.finish()

@@ -32,7 +32,7 @@ export function renderExam(root, ctx) {
 
   let index = 0;
   let block = null;
-  let saving = false;
+  let saveInFlight = null;
   let submitting = false;
   let submitted = false;
   let saveTimer = null;
@@ -80,8 +80,11 @@ export function renderExam(root, ctx) {
     saveTimer = setTimeout(flush, SAVE_DEBOUNCE_MS);
   }
 
+  /** Sends everything still queued. A save already on the wire is awaited first, never skipped. */
   async function flush() {
-    if (submitted || saving) return;
+    if (submitted) return;
+    while (saveInFlight) await saveInFlight; // a caller that needs the truth must not race the save in flight
+    if (submitted) return;
     clearTimeout(saveTimer);
     const pending = store.pendingAnswers();
     if (pending.length === 0) { setSave("ok", "All answers saved"); return; }
@@ -91,11 +94,15 @@ export function renderExam(root, ctx) {
       return scheduleRetry();
     }
 
-    saving = true;
+    saveInFlight = sendPending(pending);
+    try { await saveInFlight; } finally { saveInFlight = null; }
+  }
+
+  /** One save request; `saveInFlight` in `flush()` is what keeps a second one from overlapping it. */
+  async function sendPending(pending) {
     setSave("ok", "Saving…");
     try {
       const res = await sessionApi.save(state.token, pending);
-      saving = false;
       if (res.accepted === false) return goToResult(res.reason === "time_up" ? "time_up" : "already_submitted");
       applyServerClock(res);
       store.markSaved(idsOf(pending));
@@ -103,7 +110,6 @@ export function renderExam(root, ctx) {
       setSave("ok", "All answers saved");
       if (store.pendingAnswers().length > 0) queueSave(); // something was typed while this was in flight
     } catch (err) {
-      saving = false;
       if (err instanceof NetworkError) {
         showOffline();
         setSave("warn", "Saved on this phone only");
@@ -111,6 +117,25 @@ export function renderExam(root, ctx) {
       }
       if (isExpiredSession(err)) return ctx.onSessionLost(err.message);
       setSave("warn", err.message || "This answer could not be saved.");
+    }
+  }
+
+  /**
+   * Makes sure nothing typed is still on this phone, and does so *before* anything that can end the
+   * attempt: the server grades the session the moment its page-leave limit is reached, and an answer
+   * still in the queue would be lost and could never be saved afterwards (INS-01).
+   *
+   * Bounded on purpose: it gives up as soon as a save makes no progress (no connection, or the server
+   * refused an answer), so a leave event can never hang the screen.
+   */
+  async function drainPending() {
+    if (submitted) return;
+    let left = store.pendingAnswers().length;
+    while (!submitted && left > 0 && navigator.onLine !== false) {
+      await flush();
+      const now = store.pendingAnswers().length;
+      if (now >= left) return; // offline or refused: the banner or the message already says so
+      left = now;
     }
   }
 
@@ -138,7 +163,7 @@ export function renderExam(root, ctx) {
   async function timeUp() {
     if (submitted) return;
     setSave("ok", "Time is up. Sending your test…");
-    await flush(); // whatever is on this phone still reaches the server inside its grace period (BR-20)
+    await drainPending(); // whatever is on this phone still reaches the server inside its grace period (BR-20)
     await submitTest("time_up");
   }
 
@@ -177,7 +202,9 @@ export function renderExam(root, ctx) {
   }
 
   async function onHidden() {
-    const res = await logEvent("tab_hidden", { at: new Date().toISOString() });
+    const at = new Date().toISOString();
+    await drainPending(); // this leave may be the one that ends the attempt: send first, then count it (INS-01)
+    const res = await logEvent("tab_hidden", { at });
     if (!res || submitted) return;
     if (res.tab_switch_count >= res.warn_limit) showLeaveWarning(res);
   }
@@ -354,11 +381,12 @@ export function renderExam(root, ctx) {
   nextBtn.addEventListener("click", () => (index === total - 1 ? askSubmit() : showQuestion(index + 1)));
 
   const onVisibility = () => { if (document.hidden) onHidden(); };
-  const onBlur = () => {
+  const onBlur = async () => {
     if (document.hidden) return; // a real tab switch is already recorded
     const now = Date.now();
     if (now - lastBlurLogged < BLUR_THROTTLE_MS) return;
     lastBlurLogged = now;
+    await drainPending(); // a blur counts as a leave too, so it can end the attempt as well (INS-01)
     logEvent("blur", { at: new Date(now).toISOString() });
   };
   const onOnline = () => {
