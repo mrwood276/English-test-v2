@@ -182,17 +182,18 @@ def main():
             sections = page.query_selector_all("dialog.dup-dialog .dup-group")
             expected = list(groups.get("exact_groups") or []) + list(groups.get("similar_pairs") or [])
             check("Review lists every group the server sent", len(sections) == len(expected), f"{len(sections)} vs {len(expected)}")
-            links = sorted((a.get_attribute("href") or "").rsplit("/", 1)[-1] for a in page.query_selector_all("dialog.dup-dialog a"))
+            links = sorted({(a.get_attribute("href") or "").rsplit("/", 1)[-1] for a in page.query_selector_all("dialog.dup-dialog a")})
             check("every question in it links to its own editor", links == ids_of(groups), f"{links[:3]} vs {ids_of(groups)[:3]}")
             percents = [f"{round(p['similarity'] * 100)}% alike" for p in (groups.get("similar_pairs") or [])]
             check("the pairs show the similarity the server computed",
                   all(p in text for p in percents) and all(f"Same text ({len(g['questions'])} questions)" in text for g in (groups.get("exact_groups") or [])),
                   text[:200])
             items = page.query_selector_all("dialog.dup-dialog .dup-group li")
+            entries = sum(len(g["questions"]) for g in expected)
             check("the review names how often each question is used",
-                  len(items) == len(ids_of(groups)) and all(i.query_selector(".hint") is not None
-                                                            and ("used in" in i.inner_text() or "not used yet" in i.inner_text()) for i in items),
-                  f"{len(items)} items vs {len(ids_of(groups))} questions")
+                  len(items) == entries and all(i.query_selector(".hint") is not None
+                                                and ("used in" in i.inner_text() or "not used yet" in i.inner_text()) for i in items),
+                  f"{len(items)} items vs {entries} question entries")
             page.keyboard.press("Escape")
             page.wait_for_function("document.querySelector('dialog') === null")
             check("escape closes the review without leaving it on the screen", page.query_selector(".banner:not([hidden])") is not None)
