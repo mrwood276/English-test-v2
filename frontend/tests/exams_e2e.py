@@ -86,6 +86,28 @@ with sync_playwright() as pw:
     check("nothing was opened", srv.exams["e3"]["status"] == "draft")
     page.fill("#ex-search", ""); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 3")
 
+    # --- TASK-031: two drafts may share a code, but opening the second must be refused in words
+    srv.exams["e5"] = dict(srv.exams[EXAM2], id="e5", title="Twin code A", status="draft",
+                           access_code="TWIN01", is_template=False, session_count=0,
+                           selection_mode="manual", auto_filter=None, questions=list(srv.exams[EXAM1]["questions"]))
+    srv.exams["e6"] = dict(srv.exams["e5"], id="e6", title="Twin code B")
+    page.fill("#ex-search", "Twin"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 2")
+    page.click("tr[data-id='e5'] button:has-text('Open')")
+    page.wait_for_function("(document.querySelector('tr[data-id=\"e5\"] .pill') || {}).textContent === 'Open'")
+    check("the first draft with the shared code opens", srv.exams["e5"]["status"] == "open")
+    page.click("tr[data-id='e6'] button:has-text('Open')")
+    deadline = time.time() + 5
+    while time.time() < deadline and srv.exams["e6"]["status"] == "draft":
+        if any("TWIN01" in t.inner_text() for t in page.query_selector_all(".toast.bad")): break
+        page.wait_for_timeout(100)
+    refused = next((t for t in page.query_selector_all(".toast.bad") if "TWIN01" in t.inner_text()), None)
+    check("the duplicate code is refused in words that name it",
+          refused is not None and "already used" in refused.inner_text().lower(),
+          refused.inner_text() if refused else f"status={srv.exams['e6']['status']}")
+    check("the second exam stays a draft after the refusal", srv.exams["e6"]["status"] == "draft")
+    del srv.exams["e5"]; del srv.exams["e6"]
+    page.fill("#ex-search", ""); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 3")
+
     # --- delete
     page.click("tr[data-id='e3'] button:has-text('Delete')")
     page.wait_for_selector(".dialog, [role=dialog]")
@@ -156,6 +178,19 @@ with sync_playwright() as pw:
     page.dispatch_event(".code-input", "input")
     page.wait_for_function("document.querySelector('.pill.bad') && document.querySelector('.pill.bad').textContent.includes('used')")
     check("taken code is flagged", "already used" in page.inner_text(".pill.bad").lower())
+
+    # --- TASK-031: a code held by another draft is named at the code field before Open can fail
+    srv.exams["e7"] = dict(srv.exams[EXAM2], id="e7", title="Draft code holder", status="draft",
+                           access_code="DRFT01", is_template=False)
+    page.fill(".code-input", "DRFT01")
+    page.dispatch_event(".code-input", "input")
+    deadline = time.time() + 5
+    while time.time() < deadline and not any(c.get("action") == "check_code" and c.get("code") == "DRFT01" for c in srv.exam_calls):
+        page.wait_for_timeout(100)
+    page.wait_for_timeout(150)
+    held = page.inner_text(".row.gap .pill[role=status]")
+    check("a code another draft holds is named at the code field", "draft" in held.lower(), held)
+    del srv.exams["e7"]
     page.click("button:has-text('Make a new one')")
     page.wait_for_function("document.querySelector('.code-input').value !== 'TAKEN1'")
     page.wait_for_function("document.querySelector('.pill.bad') === null || !document.querySelector('.pill.bad').textContent.includes('used')")

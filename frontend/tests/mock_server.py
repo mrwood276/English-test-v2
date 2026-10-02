@@ -14,7 +14,10 @@ Deliberate simplifications, so that no test passes for the wrong reason:
     limit; the essay/non-essay rules the question bank owns are not re-derived;
   * only a hidden page counts as a page leave (`tab_hidden`) — a `blur` is recorded but never counts
     (DEC-039) — and leaves count only while the session is `in_progress` here, where the live function
-    also counts a `reopened` session.
+    also counts a `reopened` session;
+  * exam codes: `check_code` answers who holds a code (`open` / `draft` / null) like
+    `public.exam_code_used_by`, and `set_status` refuses opening a code an open exam holds in words
+    (TASK-031), like the current `public.set_exam_status`.
 """
 import datetime
 import json
@@ -1005,8 +1008,15 @@ class Server:
         if a == "set_status":
             e = self.exams.get(body.get("id"))
             if not e: return err(400, "That exam no longer exists.")
-            if body.get("status") == "open" and len(e["questions"]) == 0 and e["selection_mode"] == "manual":
-                return err(400, "Add questions before opening the exam.")
+            if body.get("status") == "open":
+                if e["selection_mode"] == "manual" and len(e["questions"]) == 0:
+                    return err(400, "Add questions before opening the exam.")
+                # TASK-031: the rule public.set_exam_status applies — a code an open exam holds cannot be
+                # opened on a second exam; the refusal names it instead of letting a unique index 500.
+                conflict = any(x["id"] != e["id"] and x["access_code"] == e["access_code"] and x["status"] == "open"
+                               for x in self.exams.values())
+                if conflict or e["access_code"] in self.exam_codes_used:
+                    return err(400, f"The test code {e['access_code']} is already used by an open exam. Close that exam or give this one a different code.")
             e["status"] = body.get("status"); return ok({"ok": True})
         if a == "regenerate_code":
             e = self.exams.get(body.get("id"))
@@ -1014,9 +1024,12 @@ class Server:
             e["access_code"] = f"NEW{len(self.exam_calls) % 100:02d}"; return ok({"code": e["access_code"]})
         if a == "check_code":
             code = str(body.get("code", "")).strip().upper()
-            used = self.exam_codes_used | {e["access_code"] for e in self.exams.values() if e["status"] == "open"}
-            mine = {e["access_code"] for e in self.exams.values() if e["id"] == body.get("exclude_id")}
-            return ok({"available": code not in (used - mine)})
+            others = [e for e in self.exams.values() if e["id"] != body.get("exclude_id")]
+            if code in self.exam_codes_used or any(e["access_code"] == code and e["status"] == "open" for e in others):
+                return ok({"available": False, "used_by": "open"})
+            if any(e["access_code"] == code and e["status"] == "draft" for e in others):
+                return ok({"available": True, "used_by": "draft"})
+            return ok({"available": True, "used_by": None})
         if a == "bulk_questions":
             # The same guards public.bulk_exam_questions makes, said the same way.
             self.exam_bulk_calls.append(body)

@@ -416,9 +416,19 @@ export function renderExamEditor(container, ctx, match) {
     codeStatus.className = "pill";
     codeStatus.textContent = "checking…";
     try {
-      const available = await exams.checkCode(code, state.id);
-      codeStatus.className = `pill ${available ? "ok" : "bad"}`;
-      codeStatus.textContent = available ? "Code is available" : "Already used by an open exam";
+      const { available, usedBy } = await exams.checkCode(code, state.id);
+      if (!available) {
+        codeStatus.className = "pill bad";
+        codeStatus.textContent = "Already used by an open exam";
+      } else if (usedBy === "draft") {
+        // TASK-031: the code is still saveable, but opening this exam will be refused while the other
+        // draft holds it — say so here, where the teacher can still pick another code.
+        codeStatus.className = "pill warn";
+        codeStatus.textContent = "Already used by another draft";
+      } else {
+        codeStatus.className = "pill ok";
+        codeStatus.textContent = "Code is available";
+      }
     } catch (err) {
       if (!ignorable(err)) { codeStatus.className = "pill warn"; codeStatus.textContent = "Could not check the code"; }
     }

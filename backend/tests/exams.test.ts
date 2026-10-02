@@ -165,6 +165,15 @@ Deno.test("set_status validates the status value and passes the actor", async ()
   assert.equal((await h(post({ action: "set_status", id: EXAM, status: "paused" }))).status, 400);
 });
 
+Deno.test("an open-code conflict at set_status is a friendly 400", async () => {
+  const message = "The test code K7M2QX is already used by an open exam. Close that exam or give this one a different code.";
+  const { db, calls } = fakeDb(() => ({ error: { message, hint: "validation" } }));
+  const res = await createHandler(() => db)(post({ action: "set_status", id: EXAM, status: "open" }));
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).error, message);
+  assert.equal(calls[0].name, "set_exam_status");
+});
+
 Deno.test("regenerate_code returns the new code", async () => {
   const { db, calls } = fakeDb(() => ({ data: "X9K2MD" }));
   const res = await createHandler(() => db)(post({ action: "regenerate_code", id: EXAM }));
@@ -172,12 +181,22 @@ Deno.test("regenerate_code returns the new code", async () => {
   assert.equal(calls[0].name, "regenerate_exam_code");
 });
 
-Deno.test("check_code normalizes the code before asking the database", async () => {
-  const { db, calls } = fakeDb(() => ({ data: true }));
+Deno.test("check_code asks who holds the code and returns the holder", async () => {
+  const { db, calls } = fakeDb(() => ({ data: "open" }));
   const res = await createHandler(() => db)(post({ action: "check_code", code: " k7m2qx ", exclude_id: EXAM }));
-  assert.deepEqual(await res.json(), { available: true });
+  assert.deepEqual(await res.json(), { available: false, used_by: "open" });
+  assert.equal(calls[0].name, "exam_code_used_by");
   assert.equal(calls[0].args.p_code, "K7M2QX");
   assert.equal(calls[0].args.p_exclude, EXAM);
+});
+
+Deno.test("check_code can say only a draft holds the code, and that nothing does", async () => {
+  const draft = fakeDb(() => ({ data: "draft" }));
+  const res = await createHandler(() => draft.db)(post({ action: "check_code", code: "DRFT01" }));
+  assert.deepEqual(await res.json(), { available: true, used_by: "draft" });
+  const free = fakeDb(() => ({ data: null }));
+  const res2 = await createHandler(() => free.db)(post({ action: "check_code", code: "FREE01" }));
+  assert.deepEqual(await res2.json(), { available: true, used_by: null });
 });
 
 Deno.test("check_code refuses a malformed code without a database call", async () => {

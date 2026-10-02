@@ -80,11 +80,14 @@ export function createHandler(getDb: () => Db) {
 
       case "check_code": {
         const code = cleanedCode(b.code, "Test code");
-        const free = await callRpc<boolean>(db, "exam_code_available", {
+        // The SQL names the holder of the code — 'open', 'draft', or null — so the editor can warn that
+        // another draft holds it before Open, when the conflict is still avoidable (TASK-031). A code an
+        // open exam holds stays unavailable.
+        const holder = await callRpc<string | null>(db, "exam_code_used_by", {
           p_code: code,
           p_exclude: optional(b.exclude_id, (v) => asUuid(v, "exclude_id")) ?? null,
         });
-        return { available: free === true };
+        return { available: holder !== "open", used_by: holder };
       }
 
       case "duplicate": {

@@ -29,8 +29,10 @@ Contract notes for the handler in `backend/functions/exams/handler.ts`:
 - Errors raised with `hint = 'validation'` reach the teacher as friendly 400 messages; anything
   else is a hidden 500 (`callRpc`).
 - `save_exam` returns the exam id (insert **and** update); `remove_exam` returns `'deleted'` or
-  `'closed'`; `exam_code_available` returns a boolean; `regenerate_exam_code` returns the new code;
-  `duplicate_exam` returns the new draft id; `set_exam_status` returns void.
+  `'closed'`; `exam_code_available` returns a boolean (kept for `regenerate_exam_code`); since TASK-031
+  `check_code` asks `exam_code_used_by`, which returns `'open'`, `'draft'` or null — who holds the code;
+  `regenerate_exam_code` returns the new code; `duplicate_exam` returns the new draft id;
+  `set_exam_status` returns void.
 - `list_exams` also returns **`session_count`** (how many attempts the exam has), added 2026-09-25 so the
   screen can say what a delete will do before the click. Additive: existing readers are unaffected.
 - `remove_exam(p_id, p_actor, p_force)` — the third argument was added on 2026-09-25 (the old
@@ -82,3 +84,36 @@ the admin account as the admin:
 - Nothing was left behind: the permanent delete is the cleanup, and the check sweeps up after itself (and
   its own `rate_limits` row) if an earlier step fails. Live state unchanged: the owner's own exam
   (`4KHU2A`, closed) with its 1 attempt is still there, 40 questions, 0 media rows.
+
+## The open-code conflict (2026-10-02, TASK-031 / INS-04 / ISSUE-049) — migration `20261002000002_open_exam_code_conflict.sql`
+
+`save_exam` refuses a code an open exam already holds, and `exams_open_code_unique` allows only one open
+exam per code — but two **drafts** may still be saved with the same code (a copy/paste, or a code reused
+from the board). Opening the second could only hit the partial index: Supabase answered `23505` without a
+`hint`, `callRpc` rethrew it, and the teacher saw "Something went wrong. Please try again." while
+`check_code` had said the code was free.
+
+The migration replaces `public.set_exam_status` with the same rule `save_exam` applies: when
+`p_status = 'open'` and another exam (`x.id <> p_id`) holds the code while open (`x.status = 'open' or
+public._exam_is_open(x)`), it raises
+
+    The test code <CODE> is already used by an open exam. Close that exam or give this one a different code.
+
+with `hint = 'validation'`, so the handler answers **400** and the exams screen's toast shows the
+sentence; the exam stays a draft. No table, column or index changes.
+
+The same migration adds `public.exam_code_used_by(p_code text, p_exclude uuid default null) returns text`
+— `'open'`, `'draft'`, or null (free) — and `check_code` now calls it instead of `exam_code_available`, so
+the editor's code field says **"Already used by another draft"** before Open, when the conflict can still
+be avoided cheaply. `exam_code_available` keeps its boolean rule for `regenerate_exam_code` (open exams
+only; a closed exam does not hold its code), and `save_exam` is unchanged.
+
+Mirrored by `frontend/tests/mock_server.py`; asserted by `supabase/tests/exam_status_test.sql` (rolled
+back) and `frontend/tests/exams_e2e.py` (the Open refusal and the code-field warning — all three checks
+failed on the pre-fix client+mock first).
+
+**Live status:** the migration is **not yet applied** — it was written on 2026-10-02 in a session without
+a Management credential. Applying it as one request with its `schema_migrations` row (`20261002000002` /
+`open_exam_code_conflict`), running the SQL test, **redeploying the `exams` Edge Function** (its handler now
+calls `exam_code_used_by` — the SQL must land first, or `check_code` would 500) and re-running
+`live_ledger_check.py` is the next live run's first task; the result belongs here.

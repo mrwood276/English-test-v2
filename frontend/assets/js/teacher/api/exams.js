@@ -11,7 +11,9 @@ export const exams = {
   remove: (id, hard = false) => call({ action: "remove", id, hard }).then((r) => r.result),
   setStatus: (id, status) => call({ action: "set_status", id, status }),
   regenerateCode: (id) => call({ action: "regenerate_code", id }).then((r) => r.code),
-  checkCode: (code, excludeId) => call({ action: "check_code", code, exclude_id: excludeId }).then((r) => r.available),
+  /** `{ available, usedBy }` — `usedBy` is 'open', 'draft', or null: who currently holds the code. */
+  checkCode: (code, excludeId) => call({ action: "check_code", code, exclude_id: excludeId })
+    .then((r) => ({ available: r.available, usedBy: r.used_by ?? null })),
   duplicate: (id) => call({ action: "duplicate", id }).then((r) => r.id),
   /**
    * Put many questions on one exam, or take many off it, in one request (F-18). `mode` is `add` or
