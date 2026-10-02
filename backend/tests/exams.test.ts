@@ -174,6 +174,16 @@ Deno.test("an open-code conflict at set_status is a friendly 400", async () => {
   assert.equal(calls[0].name, "set_exam_status");
 });
 
+Deno.test("saving a live exam as a template is a friendly 400 from save_exam", async () => {
+  const message = "An open exam cannot become a template. Close it first.";
+  const { db, calls } = fakeDb(() => ({ error: { message, hint: "validation" } }));
+  const res = await createHandler(() => db)(post({ ...validExam, id: EXAM, is_template: true }));
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).error, message);
+  assert.equal(calls[0].name, "save_exam");
+  assert.equal((calls[0].args.p as { is_template?: boolean }).is_template, true, "the flag reaches the function that owns the rule");
+});
+
 Deno.test("regenerate_code returns the new code", async () => {
   const { db, calls } = fakeDb(() => ({ data: "X9K2MD" }));
   const res = await createHandler(() => db)(post({ action: "regenerate_code", id: EXAM }));

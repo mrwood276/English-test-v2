@@ -17,7 +17,10 @@ Deliberate simplifications, so that no test passes for the wrong reason:
     also counts a `reopened` session;
   * exam codes: `check_code` answers who holds a code (`open` / `draft` / null) like
     `public.exam_code_used_by`, and `set_status` refuses opening a code an open exam holds in words
-    (TASK-031), like the current `public.set_exam_status`.
+    (TASK-031), like the current `public.set_exam_status`;
+  * templates: `save` refuses `is_template` unless the exam is a draft nobody has joined and
+    `set_status` refuses to open a template (TASK-032), like `public.save_exam` and
+    `public.set_exam_status` after `20261002000003_template_only_when_safe.sql`.
 """
 import datetime
 import json
@@ -985,6 +988,15 @@ class Server:
             if code == "TAKEN1": return err(400, f"The test code {code} is already used by an open exam.")
             eid = body.get("id") or f"00000000-0000-4000-8000-{len(self.exams) + 1:012d}"
             prev = self.exams.get(eid)
+            # TASK-032: the same gate public.save_exam applies — a template is a draft nobody has
+            # joined, so `exam_join` (which refuses templates) can never be the surprise.
+            if body.get("is_template"):
+                if body.get("status", "draft") != "draft":
+                    return err(400, "A template must be saved as a draft.")
+                if (prev or {}).get("status") == "open":
+                    return err(400, "An open exam cannot become a template. Close it first.")
+                if (prev or {}).get("session_count", 0) > 0:
+                    return err(400, "This exam already has attempts, so it cannot become a template. Duplicate it and save the copy as a template.")
             self.exams[eid] = {"id": eid, "title": body["title"], "description": body.get("description"), "status": body.get("status", "draft"),
                                "duration_minutes": body.get("duration_minutes", 45), "passing_grade": body.get("passing_grade", 0),
                                "availability_mode": body.get("availability_mode", "manual"), "starts_at": body.get("starts_at"), "ends_at": body.get("ends_at"),
@@ -995,6 +1007,7 @@ class Server:
                                "result_visibility": body.get("result_visibility", "none"), "essay_pending_display": body.get("essay_pending_display", "hide_score"),
                                "tab_switch_warn_limit": body.get("tab_switch_warn_limit", 1), "tab_switch_flag_limit": body.get("tab_switch_flag_limit", 3),
                                "tab_switch_autosubmit_limit": body.get("tab_switch_autosubmit_limit", 5), "is_template": bool(body.get("is_template")),
+                               "session_count": (prev or {}).get("session_count", 0),
                                "questions": [{"question_id": q["question_id"], "position": i, "weight": q.get("weight", 1), "body": next((qq["body"] for qq in self.qs if qq["id"] == q["question_id"]), f"Question {i + 1}"), "type": "multiple_choice"} for i, q in enumerate(body.get("questions", []))],
                                "created_at": (prev or {}).get("created_at", "2026-09-21T00:00:00Z")}
             return ok({"id": eid})
@@ -1009,6 +1022,9 @@ class Server:
             e = self.exams.get(body.get("id"))
             if not e: return err(400, "That exam no longer exists.")
             if body.get("status") == "open":
+                # TASK-032: an open template is a live exam nobody can join.
+                if e.get("is_template"):
+                    return err(400, "A template cannot be opened. Duplicate it and open the copy.")
                 if e["selection_mode"] == "manual" and len(e["questions"]) == 0:
                     return err(400, "Add questions before opening the exam.")
                 # TASK-031: the rule public.set_exam_status applies — a code an open exam holds cannot be
@@ -1073,6 +1089,7 @@ class Server:
             if not src: return err(400, "That exam no longer exists.")
             nid = f"00000000-0000-4000-8000-{len(self.exams) + 1:012d}"
             import copy
-            dup = copy.deepcopy(src); dup.update(id=nid, status="draft", title=src["title"] + " (copy)", access_code=f"DUP{len(self.exams) % 100:02d}", created_at="2026-09-22T00:00:00Z")
+            # A copy is a fresh draft: it has no attempts (`duplicate_exam` copies question rows only).
+            dup = copy.deepcopy(src); dup.update(id=nid, status="draft", title=src["title"] + " (copy)", access_code=f"DUP{len(self.exams) % 100:02d}", session_count=0, created_at="2026-09-22T00:00:00Z")
             self.exams[nid] = dup; return ok({"id": nid})
         return err(400, "Unknown action")

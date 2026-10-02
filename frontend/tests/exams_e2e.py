@@ -15,6 +15,8 @@ check = suite.check      # the suite's own check(), now counted and located
 
 EXAM1 = "00000000-0000-4000-8000-0000000000e1"
 EXAM2 = "00000000-0000-4000-8000-0000000000e2"
+USED = "00000000-0000-4000-8000-0000000000e8"
+TMPL = "00000000-0000-4000-8000-0000000000e9"
 
 def seed(server):
     q1, q2 = server.qs[0], server.qs[1]
@@ -72,17 +74,28 @@ with sync_playwright() as pw:
     check("schedule summary", "Scheduled" in row1.inner_text())
     check("template flagged", "template" in page.query_selector("tr[data-id='" + EXAM2 + "']").inner_text())
 
-    # --- status toggle
+    # --- TASK-032: a template cannot be opened
+    # A template exists to be duplicated; exam_join refuses it outright, so opening one from the list
+    # would produce a live exam nobody can join. The refusal says what to do instead.
     page.click("tr[data-id='" + EXAM2 + "'] button:has-text('Open')")
-    page.wait_for_function(f"(document.querySelector('tr[data-id=\"{EXAM2}\"] .pill') || {{}}).textContent === 'Open'")
-    check("opening a draft calls set_status with open", any(c.get("action") == "set_status" and c.get("status") == "open" and c.get("id") == EXAM2 for c in srv.exam_calls))
+    deadline = time.time() + 5
+    while time.time() < deadline and srv.exams[EXAM2]["status"] == "draft":
+        if any("template" in t.inner_text().lower() for t in page.query_selector_all(".toast.bad")): break
+        page.wait_for_timeout(100)
+    refused = next((t for t in page.query_selector_all(".toast.bad") if "template" in t.inner_text().lower()), None)
+    check("opening a template is refused in words that say what to do",
+          refused is not None and "duplicate" in refused.inner_text().lower(),
+          refused.inner_text() if refused else f"status={srv.exams[EXAM2]['status']}")
+    check("the template stays a draft", srv.exams[EXAM2]["status"] == "draft")
 
     # --- cannot open an exam without questions
     srv.exams["e3"] = dict(srv.exams[EXAM2], id="e3", title="Empty exam", status="draft", questions=[], is_template=False, access_code="EMPTY1", selection_mode="manual", auto_filter=None)
     page.fill("#ex-search", "Empty"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 1")
     page.click("button:has-text('Open')")
-    page.wait_for_selector(".toast.bad")
-    check("server refusal is shown", "questions" in page.inner_text(".toast.bad").lower())
+    # Read the toast by its words, not the first on screen: the TASK-032 refusal may still be up.
+    page.wait_for_function("Array.from(document.querySelectorAll('.toast.bad')).some(t => t.textContent.toLowerCase().includes('questions'))")
+    refusal_toast = next(t for t in page.query_selector_all(".toast.bad") if "questions" in t.inner_text().lower())
+    check("server refusal is shown", "questions" in refusal_toast.inner_text().lower(), refusal_toast.inner_text())
     check("nothing was opened", srv.exams["e3"]["status"] == "draft")
     page.fill("#ex-search", ""); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 3")
 
@@ -118,8 +131,12 @@ with sync_playwright() as pw:
           [c for c in srv.exam_calls if c.get("action") == "remove" and c.get("id") == "e3"][0].get("hard") is False)
 
     # --- filters
-    page.select_option("#ex-status", "draft"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 0")
-    check("draft filter shows the empty state", "No exams match these filters." in page.inner_text(".list-status"))
+    # EXAM2 is still a draft now (TASK-032 refused to open a template), so the empty state is proven
+    # with a status nothing is in, and the draft filter finds what the refusal left behind.
+    page.select_option("#ex-status", "closed"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 0")
+    check("a status nothing is in shows the empty state", "No exams match these filters." in page.inner_text(".list-status"))
+    page.select_option("#ex-status", "draft"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 1")
+    check("the draft filter still finds the template that could not be opened", "Template, Term 4 exam" in page.inner_text(".qtable"))
     page.select_option("#ex-status", ""); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 2")
     page.check("#ex-templates"); page.wait_for_function("document.querySelectorAll('.qtable tbody tr').length === 1")
     check("template filter", srv.exam_calls[-1].get("template_only") is True and "Template" in page.inner_text(".qtable"))
@@ -231,6 +248,47 @@ with sync_playwright() as pw:
     page.wait_for_function("document.querySelector('#ee-title').value !== ''")
     check("an untouched editor reloads without a leave warning", dialogs == [], str(dialogs))
     check("existing exam title loaded", page.input_value("#ee-title") == "Narrative Text, Daily Test 3")
+
+    # --- TASK-032: a live exam cannot be turned into a template
+    # The checkbox is disabled while the exam is open, with the reason on screen.
+    box = page.query_selector("#ee-template")
+    check("the template box is disabled on an open exam", box is not None and box.is_disabled(),
+          "no #ee-template" if box is None else "enabled")
+    note_el = page.query_selector("#ee-template-note")
+    note = note_el.text_content() if note_el else ""
+    check("and its reason says to close the exam first",
+          "open" in note.lower() and "close" in note.lower(), note)
+    # The same for an exam whose students have already joined: duplicate it instead.
+    srv.exams[USED] = dict(srv.exams[EXAM2], id=USED, title="Used draft", status="draft",
+                           access_code="USED01", is_template=False, session_count=2)
+    page.goto(BASE + "#/exams/edit/" + USED)
+    page.wait_for_function("(document.querySelector('#ee-title') || {}).value === 'Used draft'")
+    used_box = page.query_selector("#ee-template")
+    check("the template box is disabled once students have joined",
+          used_box is not None and used_box.is_disabled(),
+          "no #ee-template" if used_box is None else "enabled")
+    used_note_el = page.query_selector("#ee-template-note")
+    used_note = used_note_el.text_content() if used_note_el else ""
+    check("and that reason points at Duplicate", "duplicate" in used_note.lower(), used_note)
+    # The mock mirrors the SQL gate: even a direct save cannot mark an open exam as a template. A
+    # throwaway open exam is the target, so a pre-fix mock overwrites that and not the shared seed.
+    srv.exams[TMPL] = dict(srv.exams[EXAM2], id=TMPL, title="Throwaway open", status="open",
+                           access_code="TMPL01", is_template=False)
+    refusal = page.evaluate("""async () => {
+        const r = await fetch('/functions/v1/exams', { method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'save', id: '%s', title: 'Throwaway open',
+                status: 'draft', duration_minutes: 45, access_code: 'TMPL01', selection_mode: 'auto',
+                auto_filter: { topic: 'x' }, pool_size: 1, is_template: true }) });
+        return { status: r.status, error: (await r.json()).error || '' };
+    }""" % TMPL)
+    check("the server refuses to save an open exam as a template",
+          refusal["status"] == 400 and "template" in refusal["error"].lower(), str(refusal))
+    del srv.exams[TMPL]
+    del srv.exams[USED]
+    page.goto(BASE + "#/exams/edit/" + EXAM1)
+    page.wait_for_function("document.querySelector('#ee-title').value === 'Narrative Text, Daily Test 3'")
+
     page.click("button[data-sel='manual']")
     page.wait_for_selector(".chosen-item")
     page.click("button[data-sel='auto']")

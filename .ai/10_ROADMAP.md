@@ -134,7 +134,7 @@ check; the browser-suite/live-check crash-reporting harnesses; `docs/production-
 - **Resolution (2026-10-02, TASK-031, `b7ed106`)**: migration `20261002000002_open_exam_code_conflict.sql` replaces `set_exam_status` with the same open-code check `save_exam` applies, raised with `hint = 'validation'` (HTTP 400 naming the code; the exam stays a draft), and adds `public.exam_code_used_by` so `check_code` reports `'open'` / `'draft'` / null and the editor's code field says "Already used by another draft" before Open. Mirrored in `mock_server.py`; covered by the rolled-back `supabase/tests/exam_status_test.sql`, two new backend tests (the `used_by` answers and the 400) and 3 new `exams_e2e.py` checks — all of which failed on the pre-fix code first (87 checks after the fix). **Not yet applied live — no Management credential in the session that wrote it**; the apply with its ledger row, the SQL test and the `exams` Edge Function redeploy (its handler now calls `exam_code_used_by`, so the SQL must land first) are the next live run's first task. Contract: `docs/sql-exams.md` ("The open-code conflict").
 
 ### INS-05 — "Save as a template" is available on a live exam and locks its code out
-- Category: settings footgun. Priority: P2. Area: exam editor + `exam_join`. Status: CONFIRMED (code).
+- Category: settings footgun. Priority: P2. Area: exam editor + `exam_join`. Status: **FIXED 2026-10-02 (TASK-032)** — code and tests complete; the live apply waits on a Management credential (resolution bullet at the end of this finding).
 - Problem: `is_template` is accepted for any exam status, but `exam_join` refuses a template outright ("That code belongs to a template, not a running test"), and templates are not listed for students anywhere. Marking an open exam as a template therefore turns a live exam into one nobody can join — the students get a refusal the teacher cannot see from their own screen.
 - Evidence: `backend/functions/exams/parse.ts` (`is_template: asBool(b.is_template ?? false)`), `20260922000000_exams_functions.sql` (`save_exam` stores it; `exam_join` in `20260923000000_session_functions.sql` refuses it), `examEditor.js` ("Save as a template" checkbox beside the status controls).
 - Current behaviour: one tick + Save silently disables the exam for students; the exam's own screen still says "Open".
@@ -144,6 +144,7 @@ check; the browser-suite/live-check crash-reporting harnesses; `docs/production-
 - Acceptance criteria: a template can only be made from a draft with no attempts; the editor explains why the checkbox is unavailable; an existing open exam stays joinable.
 - Testing required: backend test (400 on the refusal, `exams_e2e.py` check that the checkbox is disabled and the tooltip/hint is shown.
 - Dependencies: none.
+- **Resolution (2026-10-02, TASK-032)**: migration `20261002000003_template_only_when_safe.sql` refuses `is_template = true` in `save_exam` unless the save is a draft, the exam is not open and it has no attempts (three validation-hinted sentences that say what to do instead: save it as a draft, close it first, or duplicate it), refuses opening a template in `set_exam_status` ("A template cannot be opened. Duplicate it and open the copy." — TASK-031's open-code check carried forward, so apply `20261002000002` first), adds `session_count` to `get_exam` so the editor can disable the checkbox with the reason, and repairs any exam that is open and marked a template (the flag is what made it unjoinable — clearing it makes the exam joinable again as it stands). The editor forces the flag off where it is locked and says why; `mock_server.py` mirrors both gates. **Proved red first:** 7 new `exams_e2e.py` checks failed on the pre-fix client+mock (94 after the fix, was 87); backend **171**, unit **44**, `dashboard_e2e.py` **37**, `question_bank_e2e.py` **151**. Covered by the rolled-back `supabase/tests/exam_template_test.sql` — **not yet run live: no Management credential**; the apply (after `20261002000002`) and both SQL tests are the next live run's first task. Contract: `docs/sql-exams.md` ("A live exam cannot become a template").
 
 ### INS-06 — one name+class is one attempt, and a second phone cannot show the score
 - Category: product / identity. Priority: P2. Area: student join + results visibility. Status: CONFIRMED (code); DECISION REQUIRED.
@@ -391,7 +392,7 @@ PHASE B — CORRECT THE PROJECT'S OWN MEMORY (cheap, unblocks everything after i
 
 PHASE C — TRUST AND ACCESSIBILITY (a teacher and a student should not be surprised)
   TASK-031  a duplicate open code is refused kindly             (INS-04, P2)   ← DONE 2026-10-02, live apply waits on a credential
-  TASK-032  a live exam cannot be turned into a template        (INS-05, P2)
+  TASK-032  a live exam cannot be turned into a template        (INS-05, P2)   ← DONE 2026-10-02, live apply waits on a credential
   TASK-036  the editor says Saved / Unsaved / Saving… / Failed  (INS-12, P2)
   TASK-034  contrast, live regions, a real dialog               (INS-07/08/09, P2)
   TASK-039  CSP + the token-secret decision                     (INS-17, P3 + DECISION)
@@ -463,6 +464,21 @@ new backend tests failed on the old `check_code`; green after: backend **170**, 
 place TASK-024/026 stood before their applies). **Next: TASK-032** (a live exam cannot be turned into a
 template — it can share the same apply session), then TASK-036, TASK-034, TASK-039 (its secret half waits
 on D-4).
+
+**Progress (2026-10-02, later still — product code, tests and docs; the live apply is still blocked on a
+credential): TASK-032 is code-complete, so PHASE C is half done.** A live exam could be ticked "Save as a
+template", and `exam_join` refuses templates — one tick made a running test unjoinable — so
+`20261002000003_template_only_when_safe.sql` replaces `save_exam` (`is_template` only on a draft that is
+not open and has no attempts, all three refusals validation-hinted), `set_exam_status` (a template cannot
+be opened; TASK-031's open-code check carried forward) and `get_exam` (`session_count` for the editor),
+and one repair statement clears `is_template` from any exam that is open right now. The editor disables
+the checkbox with the reason and forces the flag off. **Proved red first:** 7 new `exams_e2e.py` checks
+failed on the old mock+client; green after: backend **171**, unit **44**, `exams_e2e.py` **94**,
+`dashboard_e2e.py` **37**, `question_bank_e2e.py` **151**. **Neither `20261002000002` nor
+`20261002000003` is applied live — no Management credential**; the next live run applies both in order
+(TASK-031's `exams` redeploy after the first), runs `exam_status_test.sql` and `exam_template_test.sql`,
+and records the results. **Next: TASK-036** (the editor says Saved / Unsaved / Saving… / Failed), then
+TASK-034, TASK-039 (its secret half waits on D-4).
 
 Decisions the owner must make (recorded in `06_DECISIONS.md` before the code lands):
 

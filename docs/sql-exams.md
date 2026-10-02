@@ -34,7 +34,8 @@ Contract notes for the handler in `backend/functions/exams/handler.ts`:
   `regenerate_exam_code` returns the new code; `duplicate_exam` returns the new draft id;
   `set_exam_status` returns void.
 - `list_exams` also returns **`session_count`** (how many attempts the exam has), added 2026-09-25 so the
-  screen can say what a delete will do before the click. Additive: existing readers are unaffected.
+  screen can say what a delete will do before the click. Additive: existing readers are unaffected; since
+  TASK-032 `get_exam` returns it too (the editor needs it to decide whether an exam may become a template).
 - `remove_exam(p_id, p_actor, p_force)` — the third argument was added on 2026-09-25 (the old
   two-argument function was **dropped**, so there is no force-less overload to call by accident):
   with attempts and `p_force = false` it closes the exam and answers `'closed'`; with `p_force = true` it
@@ -117,3 +118,38 @@ a Management credential. Applying it as one request with its `schema_migrations`
 `open_exam_code_conflict`), running the SQL test, **redeploying the `exams` Edge Function** (its handler now
 calls `exam_code_used_by` — the SQL must land first, or `check_code` would 500) and re-running
 `live_ledger_check.py` is the next live run's first task; the result belongs here.
+
+## A live exam cannot become a template (2026-10-02, TASK-032 / INS-05 / ISSUE-050) — migration `20261002000003_template_only_when_safe.sql`
+
+`exam_join` refuses a template outright ("That code belongs to a template, not a running test"), and
+`save_exam` accepted `is_template` for any status — so one tick + Save on an **open** exam turned a running
+test into one nobody could join, while the list still said "Open". The same state was reachable by opening
+a template from the list's Open button. The migration closes both paths and repairs what the bug could
+already have made:
+
+- `save_exam` refuses `is_template = true` unless the save is a draft, the exam is not currently open, and
+  it has no attempts (`exam_sessions` rows). All three are `hint = 'validation'` 400s:
+
+        A template must be saved as a draft.
+        An open exam cannot become a template. Close it first.
+        This exam already has attempts, so it cannot become a template. Duplicate it and save the copy as a template.
+
+- `set_exam_status` refuses to **open** a template: `A template cannot be opened. Duplicate it and open the
+  copy.` It also carries TASK-031's open-code check (`20261002000002`) forward unchanged, being a
+  `create or replace` of the same function — so the two migrations must be applied in that order.
+- `get_exam` also returns **`session_count`** (like `list_exams` since ISSUE-023), which the editor uses to
+  disable the checkbox and say why.
+- one repair statement clears `is_template` from any exam that is open **right now** — such an exam was
+  never joinable, so the flag is what the bug left behind; it becomes joinable again as it stands.
+
+The editor mirrors it: `examEditor.js` disables "Save as a template" for an open exam or one with attempts,
+prints the reason in its place and forces the flag off on save. `mock_server.py` mirrors both gates (and now
+keeps an exam's `session_count` across a save). Asserted by the rolled-back
+`supabase/tests/exam_template_test.sql` and 7 new `exams_e2e.py` checks (they failed on the pre-fix
+client+mock first; 94 checks after the fix, was 87).
+
+**Live status:** not yet applied — written 2026-10-02 without a Management credential. Apply it as one
+request with its `schema_migrations` row (`20261002000003` / `template_only_when_safe`) **after**
+`20261002000002`, run `supabase/tests/exam_template_test.sql`, then record the result here. Unlike TASK-031,
+no Edge Function redeploy goes with this one (`get_exam`'s payload simply gains a field); TASK-031's `exams`
+redeploy still belongs to the `20261002000002` apply.

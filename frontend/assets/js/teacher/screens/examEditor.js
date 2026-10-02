@@ -61,6 +61,7 @@ export function renderExamEditor(container, ctx, match) {
     tab_switch_flag_limit: 3,
     tab_switch_autosubmit_limit: 5,
     is_template: false,
+    session_count: 0,
     questions: [], // [{ id, body, type, weight }] in chosen order
     poolCount: null,
     dirty: false,
@@ -106,6 +107,12 @@ export function renderExamEditor(container, ctx, match) {
   const codeInput = h("input", { class: "input code-input", type: "text", maxlength: "12", spellcheck: "false", autocomplete: "off" });
   const codeStatus = h("span", { class: "pill", role: "status" }, "checking…");
   const newCodeBtn = h("button", { class: "btn small ghost", type: "button" }, "Make a new one");
+
+  // TASK-032: the template checkbox is only offered when it is safe to make one. syncTemplate()
+  // (below) decides and says why not; the server refuses the same three states.
+  const templateBox = h("input", { type: "checkbox", id: "ee-template" });
+  const templateNote = h("small", { id: "ee-template-note" }, " — templates appear in the list with a filter and can be duplicated each term");
+  templateBox.addEventListener("change", () => { state.is_template = templateBox.checked; markDirty(); });
 
   const shuffleQ = h("input", { type: "checkbox" });
   const shuffleO = h("input", { type: "checkbox" });
@@ -404,6 +411,29 @@ export function renderExamEditor(container, ctx, match) {
     autoWrap.hidden = state.selection_mode !== "auto";
   }
 
+  /**
+   * TASK-032: a template may only be made from a draft nobody has joined — `exam_join` refuses a
+   * template, so marking a live exam as one locks its students out. When it may not, the checkbox is
+   * disabled and the reason stays on screen; the flag is forced off so a save can never smuggle it in
+   * (the server refuses it anyway, and this also clears a legacy open template on the first save).
+   */
+  function syncTemplate() {
+    const attempts = Number(state.session_count) || 0;
+    templateBox.disabled = state.status === "open" || attempts > 0;
+    if (state.status === "open") {
+      templateBox.checked = false;
+      state.is_template = false;
+      templateNote.textContent = " — this exam is open. Close it first; a template is a draft you duplicate each term.";
+    } else if (attempts > 0) {
+      templateBox.checked = false;
+      state.is_template = false;
+      templateNote.textContent = " — students have already joined this exam, so it cannot become a template. Duplicate it and save the copy as a template.";
+    } else {
+      templateBox.checked = state.is_template;
+      templateNote.textContent = " — templates appear in the list with a filter and can be duplicated each term";
+    }
+  }
+
   // ---------- code checking (BR-17) ----------
   async function checkCode() {
     const code = codeInput.value.trim().toUpperCase();
@@ -536,7 +566,7 @@ export function renderExamEditor(container, ctx, match) {
     drawToggle.checked = state.draw_per_student; shuffleQ.checked = state.randomize_questions; shuffleO.checked = state.randomize_options;
     warnLimit.value = String(state.tab_switch_warn_limit); flagLimit.value = String(state.tab_switch_flag_limit); submitLimit.value = String(state.tab_switch_autosubmit_limit);
     addTicks.clear(); removeTicks.clear();
-    syncSchedule(); syncSelection(); renderChosen(); checkCode(); refreshPoolCount();
+    syncSchedule(); syncSelection(); syncTemplate(); renderChosen(); checkCode(); refreshPoolCount();
   }
 
   // ---------- layout ----------
@@ -578,8 +608,7 @@ export function renderExamEditor(container, ctx, match) {
         card("Ready to open?", h("div", { class: "stack" }, summaryItems, saveStatus,
           h("div", { class: "stack" }, saveBtn, saveCloseBtn))),
         card("Template", h("div", { class: "stack" },
-          h("label", { class: "check" }, h("input", { type: "checkbox", onchange: (e) => { state.is_template = e.target.checked; markDirty(); } }, ), "Save as a template",
-            h("small", {}, " — templates appear in the list with a filter and can be duplicated each term"))))),
+          h("label", { class: "check" }, templateBox, "Save as a template", templateNote)))),
     ),
   );
 
@@ -603,6 +632,7 @@ export function renderExamEditor(container, ctx, match) {
         result_visibility: exam.result_visibility, essay_pending_display: exam.essay_pending_display,
         tab_switch_warn_limit: exam.tab_switch_warn_limit, tab_switch_flag_limit: exam.tab_switch_flag_limit,
         tab_switch_autosubmit_limit: exam.tab_switch_autosubmit_limit, is_template: !!exam.is_template,
+        session_count: Number(exam.session_count) || 0,
         questions: (exam.questions ?? []).map((q) => ({ id: q.question_id, body: q.body ?? `Question ${q.position + 1}`, type: q.type ?? "multiple_choice", weight: Number(q.weight) || 1 })),
       });
       fill(); searchBank();
