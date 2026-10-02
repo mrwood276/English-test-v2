@@ -108,3 +108,45 @@ audio { width: 100%; height: 44px; }
 @media (min-width: 520px) {
   .phone { border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
 }
+
+.teacher-link {
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  z-index: 9999;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 12px 18px;
+  border-radius: 10px;
+
+  background: var(--pen);
+  color: #fff;
+
+  text-decoration: none;
+  font-weight: 650;
+  font-size: 14px;
+
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.teacher-link:hover {
+  opacity: 0.9;
+}
+
+/* HP: sembunyikan tombol */
+@media (max-width: 600px) {
+  .teacher-link {
+    display: none;
+  }
+}
+
+/* Tablet, laptop, desktop: tombol tetap muncul */
+@media (min-width: 601px) {
+  .teacher-link {
+    display: inline-flex;
+  }
+}
