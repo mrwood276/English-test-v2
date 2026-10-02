@@ -105,7 +105,7 @@ check; the browser-suite/live-check crash-reporting harnesses; `docs/production-
 - Dependencies: INS-10 for the browser test to mean anything.
 
 ### INS-03 — a phone notification counts as a page leave and can auto-submit the test
-- Category: fairness / anti-cheating UX. Priority: P1 (a product decision is required before a real exam day). Area: student exam screen + exam settings. Status: CONFIRMED (code); the fairness impact is a judgement call the owner must make.
+- Category: fairness / anti-cheating UX. Priority: P1 (a product decision was required before a real exam day). Area: student exam screen + exam settings. Status: **FIXED 2026-10-02 (DEC-039)** — the owner chose "only a hidden page counts"; `blur` is recorded but never counts. TASK-030 complete; migration `20261002000001_leave_count_only_tab_hidden.sql` applied live with its ledger row; proved red first (SQL case failed on the old function live; 3 new `student_e2e.py` checks failed on the old mock).
 - Problem: both `visibilitychange` (counted) and `window.blur` (counted, throttled to one per 10 s) increment `tab_switch_count`, and the exam's default limits are warn 1 / flag 3 / auto-submit 5. Notifications, a call, the notification shade, tapping the browser's address bar or the on-screen keyboard's overflow can fire `blur` without the student ever leaving the page — and `00_AI_RULES.md`/ISSUE-019 already record that phones fire these events for notifications.
 - Evidence: `exam.js` `onVisibility`/`onBlur` (`BLUR_THROTTLE_MS = 10_000`), `20260923000000_session_functions.sql#log_session_event` (`v_leave := p_event_type in ('tab_hidden','blur')`), `backend/functions/exams/parse.ts` defaults (1/3/5).
 - Current behaviour: five blur-like events auto-submit the attempt, grade it as it stands, and tell the student "You left the test page too many times" — for a student who never left it.
@@ -419,11 +419,22 @@ three harness self-tests green; nothing live was run (no credential). **TASK-030
 that is the one PHASE A item left, and it is a product decision. Detail: `05_TASK_QUEUE.md` (the three
 tasks' status lines), `07_CHANGELOG.md` (2026-10-01, later the same day), `08_HANDOFF.md` (top block).
 
+**Progress (2026-10-02 — implementation session with the owner's Supabase credential): PHASE A is
+complete.** The owner answered D-1 (option a) and it is recorded as **DEC-039**: only a hidden page counts
+as a page leave; a `blur` is recorded but never feeds the limits. **TASK-030** (`4ac8b35`) replaced
+`public.log_session_event` through the new migration `20261002000001_leave_count_only_tab_hidden.sql`,
+applied live with its `schema_migrations` row; the new `session_functions_test.sql` blur case failed on
+the old function (`ASSERT FAILED: a blur never submits the attempt`) and passes after the apply; 3 new
+`student_e2e.py` checks failed on the old mock and pass now. Numbers: backend **168**, unit **44**,
+`student_e2e.py` **91**, `exams_e2e.py` **83**, `monitor_e2e.py` **34**, `results_e2e.py` **87**, all
+three harness self-tests green. Next: PHASE B — TASK-038, then TASK-037 (its visibility/email half waits
+on D-5). Detail: `05_TASK_QUEUE.md`, `07_CHANGELOG.md` (2026-10-02), `08_HANDOFF.md` (top block).
+
 Decisions the owner must make (recorded in `06_DECISIONS.md` before the code lands):
 
 | # | Question | Blocks |
 |---|---|---|
-| D-1 | Does a `blur` (notification, address bar) count as a page leave, and can it auto-submit? | TASK-030 |
+| D-1 (answered 2026-10-02 — DEC-039) | Only a hidden page counts as a page leave; `blur` is recorded but never counts. | — (TASK-030 complete) |
 | D-2 | How is a student identified (name+class only, or a student number), and how does a student see a score on another phone? | TASK-033 |
 | D-3 | What does a timed-out attempt with no answers mean: a 0, or an explicit "no answers" row? | TASK-045 |
 | D-4 | Should `SESSION_TOKEN_SECRET` be required (fail loudly) or keep its fallback to the service-role key? | TASK-039b |
