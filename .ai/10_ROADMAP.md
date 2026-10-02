@@ -230,7 +230,7 @@ check; the browser-suite/live-check crash-reporting harnesses; `docs/production-
 - Dependencies: none.
 
 ### INS-13 — `03_FEATURES.md` still declares built features unbuilt
-- Category: documentation (AI workflow risk). Priority: P2. Area: `.ai/03_FEATURES.md`. Status: MEASURED (grep against the code/migrations).
+- Category: documentation (AI workflow risk). Priority: P2. Area: `.ai/03_FEATURES.md`. Status: **FIXED 2026-10-02 (TASK-037)** — measured at the inspection (grep against the code/migrations).
 - Problem: several "State / Limitations / Not built" lines are older than the paragraphs above them, and `00_AI_RULES.md` §3 tells an agent never to rebuild a feature it believes is complete. Wrong "not built" lines therefore cause duplicated work or a wrong premise:
   - **F-01**: "Files: **none in git** (ISSUE-001)" — 33 migrations are in git since 2026-09-24.
   - **F-02**: "Accounts are created by the owner in the Supabase dashboard … There is no user-management UI" — `#/accounts` has been live since 2026-09-26 (DEC-031).
@@ -249,7 +249,7 @@ check; the browser-suite/live-check crash-reporting harnesses; `docs/production-
 - Dependencies: none.
 
 ### INS-14 — `02_ARCHITECTURE.md` counts and inventory are stale
-- Category: documentation. Priority: P2. Area: `.ai/02_ARCHITECTURE.md`. Status: MEASURED.
+- Category: documentation. Priority: P2. Area: `.ai/02_ARCHITECTURE.md`. Status: **FIXED 2026-10-02 (TASK-037)** — measured at the inspection.
 - Problem: the file says "74 public SQL functions" and "22 tables"; the repository now defines **81** distinct `public.*` functions (`grep -rhoiE "create (or replace )?function +public\.[a-z_]+" | sort -u | wc -l` = 81, matching the live count recorded on 2026-09-30) and **23** `create table` targets (`notification_reads` is the newest). Its function table has no row for `notifications` (`list_notifications`, `mark_notifications_read`, `_essay_notifications`, `_suspicious_notifications`, `_actor_profile`) and its migration list stops before the newest files. The overview diagram also still shows the deployed-function set without `notifications`.
 - Evidence: `02_ARCHITECTURE.md` ("22 tables in `public`", "74 public SQL functions", the migration list), `supabase/migrations/` (`20261001000000_notification_functions.sql`, `20261002000000_notification_reads_rls.sql`), measured counts above.
 - Current behaviour: an agent trusting the architecture file under-counts the API surface and may miss the notification endpoint entirely.
@@ -261,14 +261,14 @@ check; the browser-suite/live-check crash-reporting harnesses; `docs/production-
 - Dependencies: none.
 
 ### INS-15 — the repository's visibility is described two ways, and a real email address is in 15 tracked files
-- Category: documentation / privacy. Priority: P2 (owner decision + one small cleanup). Area: `.ai/01_PROJECT.md`, `.ai/00_AI_RULES.md`, `README.md`, tests and docs. Status: CONFIRMED (grep) + NEEDS_VERIFICATION (the real visibility could not be checked from this host).
-- Problem: `.ai/01_PROJECT.md` says the repository is "GitHub, public", while `00_AI_RULES.md` says "(private)" and `README.md` says "Keep this repository **private**". If it is public, the tree exposes the school's data model, staff display names and the **real staff test account's email address** `testguru211l@gmail.com` (plus its use as a login in the live checks). It also exposes the Supabase project ref and the publishable key (public by design, DEC-002 — not the issue here).
-- Evidence: measured — `testguru211l@gmail.com` appears 22 times across 15 tracked files: `.ai/{04,05,07,08}`, `docs/{sql-accounts,sql-duplicates,verification-checklist}.md`, `frontend/tests/live_{accounts,backup,bulk,duplicates,exam_bulk,housekeeping,media,notifications}_check.py` (and one untracked `__pycache__` file, which `.gitignore` covers).
+- Category: documentation / privacy. Priority: P2 (owner decision + one small cleanup). Area: `.ai/01_PROJECT.md`, `.ai/00_AI_RULES.md`, `README.md`, tests and docs. Status: **FIXED 2026-10-02 (TASK-037, DEC-040)** — the owner confirmed the repository is public and the address was stripped; the text below is the inspection's finding, kept for the record.
+- Problem: `.ai/01_PROJECT.md` says the repository is "GitHub, public", while `00_AI_RULES.md` says "(private)" and `README.md` says "Keep this repository **private**". If it is public, the tree exposes the school's data model, staff display names and the **real staff test account's email address** (and its use as a login in the live checks). It also exposes the Supabase project ref and the publishable key (public by design, DEC-002 — not the issue here).
+- Evidence: measured at the inspection — the address appeared 22 times across 15 tracked files: `.ai/{04,05,07,08}`, `docs/{sql-accounts,sql-duplicates,verification-checklist}.md`, `frontend/tests/live_{accounts,backup,bulk,duplicates,exam_bulk,housekeeping,media,notifications}_check.py` (and one untracked `__pycache__` file, which `.gitignore` covers).
 - Current behaviour: whichever line is wrong is misleading; if the repo is public, an email tied to a live account is published.
 - Expected: one truthful statement, and no personal data in the tree regardless of visibility.
 - Recommended solution: (1) owner confirms the real visibility and `.ai/01`/`README.md`/`00_AI_RULES.md` are reconciled to it; (2) move the test account's address into an environment variable the live checks read (`SUPABASE_TEST_EMAIL`, which the checks already support) and replace the literal with `<staff test account>` in `.ai/` and `docs/`; (3) if the repository is public, rotate that account's password and consider renaming the Auth user (its address is also in the Auth dashboard, which is the durable place to fix it).
 - Implementation guidance: the live checks' docstrings also print the address in failure messages; keep the behavior, drop the literal. Do not remove the tests' ability to sign in — `SUPABASE_TEST_EMAIL`/`SUPABASE_TEST_PASSWORD` and the one-time-link path already cover it.
-- Acceptance criteria: `grep -r testguru211l` returns nothing; the live checks still run with the env var; `.ai/01` and `README.md` agree on visibility.
+- Acceptance criteria: `grep -r` for the address returns nothing in the working tree; the live checks still run with `SUPABASE_TEST_EMAIL` set; `.ai/01` and `README.md` agree on visibility.
 - Testing required: one live-check run with the env var set (owner's credential).
 - Dependencies: the owner's answer on visibility.
 
@@ -438,6 +438,17 @@ three files quote is greppable in 07 (the two the older text only implied — `0
 were named there the same day). No product code, SQL, migration, Edge Function, test or CI file was
 touched and nothing was re-run. **Next: TASK-037** (its visibility/email half waits on D-5).
 
+**Progress (2026-10-02, later — docs and test scripts only): PHASE B is complete.** **TASK-037** (the
+TASK-037 docs commit) reconciled `02_ARCHITECTURE.md` and `03_FEATURES.md` with the measured inventory
+(**23 tables / 81 public functions / 34 migrations / 10 Edge Functions**, re-count commands at the end
+of `02`), corrected every stale "not built / not deployed / no UI" claim in `03`, and — after the owner
+answered D-5 (**DEC-040: the repository is public**) — removed the staff test account's address from
+all 15 tracked files: the eight live checks read `SUPABASE_TEST_EMAIL` and refuse with a clear message
+when it is unset, and docs and `.ai` name the variable. Verified: `grep -r` for the address returns
+nothing in the working tree, the eight checks compile, backend **168** and unit **44** re-run green; no
+live check was run (no credential). **Next: PHASE C — TASK-031**, then TASK-032, TASK-036, TASK-034,
+TASK-039 (its secret half waits on D-4).
+
 Decisions the owner must make (recorded in `06_DECISIONS.md` before the code lands):
 
 | # | Question | Blocks |
@@ -446,7 +457,7 @@ Decisions the owner must make (recorded in `06_DECISIONS.md` before the code lan
 | D-2 | How is a student identified (name+class only, or a student number), and how does a student see a score on another phone? | TASK-033 |
 | D-3 | What does a timed-out attempt with no answers mean: a 0, or an explicit "no answers" row? | TASK-045 |
 | D-4 | Should `SESSION_TOKEN_SECRET` be required (fail loudly) or keep its fallback to the service-role key? | TASK-039b |
-| D-5 | Is the repository public or private, and may an offline-capable student shell be added? | TASK-037, TASK-042 |
+| D-5 (visibility half answered 2026-10-02 — DEC-040) | The repository is public and the staff test account's address is stripped; **still open: may an offline-capable student shell (a service worker) be added?** | TASK-042 |
 | D-6 | May a Supabase Management token live as a repository secret for a nightly read-only job? | TASK-047 |
 
 ### What this session did not verify (do not read as a clean bill)

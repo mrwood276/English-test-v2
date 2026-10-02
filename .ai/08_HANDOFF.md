@@ -4,11 +4,11 @@
 
 | | |
 |---|---|
-| Status | **PHASE A complete and live** — TASK-028/029/030/035, each proved red on the pre-fix code first; TASK-030 was applied live with its ledger row (DEC-039: only a hidden page counts as a page leave; a `blur` is recorded but never counts). **PHASE B started:** TASK-038 (this restructure) done; **TASK-037 next**. |
-| Open tasks | **TASK-031, TASK-032, TASK-033 (D-2), TASK-034, TASK-036, TASK-037 (D-5 half), TASK-039 (D-4 half), TASK-040 .. TASK-047** — definitions in `05_TASK_QUEUE.md`, evidence in `10_ROADMAP.md`. |
-| Next recommended task | **TASK-037** — reconcile `02_ARCHITECTURE.md`/`03_FEATURES.md` with the code and take the visibility/email item to the owner (D-5). Then PHASE C: TASK-031, TASK-032, TASK-036, TASK-034, TASK-039. |
-| Branch + commit | `ai-development` @ `3dc6f06` (the TASK-038 docs commit, 2026-10-02) — after `4ac8b35` (TASK-030), `084383d` (its record) and `62e2319` (PHASE A's record); pushed to `origin/ai-development`. `main` untouched at the orphan snapshot `8b7aeba`. |
-| Deliberately not verified | Docs-only change: no product code, SQL, migration, Edge Function, test or CI file touched; nothing live was run for TASK-038. Last evidence: TASK-030's rolled-back SQL test (live, 2026-10-02) and the 2026-10-01 whole live board (12 PASSED / 1 HELD, 415 checks). |
+| Status | **PHASE A complete and live** — TASK-028/029/030/035, each proved red on the pre-fix code first; TASK-030 was applied live with its ledger row (DEC-039: only a hidden page counts as a page leave; a `blur` is recorded but never counts). **PHASE B complete** — TASK-038 (short headers) and TASK-037 (`02`/`03` reconciled to the measured inventory; DEC-040: the repository is public and the staff test account's address is out of the tree). **Next: TASK-031 (PHASE C).** |
+| Open tasks | **TASK-031, TASK-032, TASK-033 (D-2), TASK-034, TASK-036, TASK-039 (D-4 half), TASK-040 .. TASK-047** — definitions in `05_TASK_QUEUE.md`, evidence in `10_ROADMAP.md`. |
+| Next recommended task | **TASK-031** — a duplicate open exam code must be refused kindly (INS-04). Then TASK-032, TASK-036, TASK-034, TASK-039 (its secret half waits on D-4). |
+| Branch + commit | `ai-development` @ the TASK-037 docs commit (2026-10-02) — after `3dc6f06` (TASK-038), `4ac8b35` (TASK-030), `084383d` (its record) and `62e2319` (PHASE A's record); pushed to `origin/ai-development`. `main` untouched at the orphan snapshot `8b7aeba`. |
+| Deliberately not verified | Docs and test scripts only: no product code, SQL, migration, Edge Function or CI file touched; nothing live was run for TASK-037/038 — the live checks' new `SUPABASE_TEST_EMAIL` guard has not itself been exercised live (no credential). Last evidence: TASK-030's rolled-back SQL test (live, 2026-10-02) and the 2026-10-01 whole live board (12 PASSED / 1 HELD, 415 checks). |
 | History | **`07_CHANGELOG.md`** — every session narrative, commit hash and test number. The record below is kept as reference; the header above wins. |
 
 Keep this file current after every meaningful change; the header above is the current state, everything below is the record.
@@ -135,7 +135,7 @@ Start with **TASK-035 then TASK-028** (the mock must mirror the real contract be
 
 **Live hazard found and fixed on 2026-09-25 (ISSUE-007)** — worth remembering: the owner's "disable public sign-up" step had switched the **Email provider off entirely** (`external_email_enabled: false`), so every staff sign-in answered `HTTP 422 email_provider_disabled` and the teacher app was unusable. It is fixed and verified (provider on, `disable_signup: true` kept: a real sign-up attempt is refused with `signup_disabled`, admin sign-in returns 200). **After any dashboard change, re-read `GET https://lbhnadqmokloyfarrzfv.supabase.co/auth/v1/settings` (publishable key as `apikey`) and check both halves: sign-ups refused AND a staff sign-in still works.** Turning a provider off is not the same as disabling sign-ups.
 
-The staff test account `testguru211l@gmail.com` (`profiles`: `role = 'teacher'`, `is_active = true`; 2 profiles live) is what the media check signs in as; its password was supplied by the owner through chat and must not be committed. **Sandbox limitation reminder**: a claude.ai chat session's network cannot reach `*.supabase.co`/`*.supabase.com` at all (confirmed via `x-deny-reason: host_not_allowed`) — Storage upload, Edge Function calls and the Auth password-grant login all need HTTP access to that host. **This Windows/Codebuff clone can reach it** (that is how every live check in this file was run); a claude.ai chat session cannot.
+The staff test account (`profiles`: `role = 'teacher'`, `is_active = true`; 2 profiles live) is what the live checks sign in as; its address and password are supplied through `SUPABASE_TEST_EMAIL` / `SUPABASE_TEST_PASSWORD` and must not be committed. **Sandbox limitation reminder**: a claude.ai chat session's network cannot reach `*.supabase.co`/`*.supabase.com` at all (confirmed via `x-deny-reason: host_not_allowed`) — Storage upload, Edge Function calls and the Auth password-grant login all need HTTP access to that host. **This Windows/Codebuff clone can reach it** (that is how every live check in this file was run); a claude.ai chat session cannot.
 
 Do not merge `ai-development` into `main` without the owner's explicit go-ahead (DEC-020); when it happens, resolve the DEC-021 import files in favour of `ai-development`.
 
@@ -331,7 +331,7 @@ Edited: `backend/functions/_shared/validate.ts` (`asEmail`), `frontend/assets/js
 SUPABASE_ACCESS_TOKEN=… python frontend/tests/live_duplicates_check.py
 ```
 
-`SUPABASE_TEST_EMAIL` defaults to `testguru211l@gmail.com`; **no password is needed** — the check mints a one-time login link with the token and exchanges it for a session, then compares the deployed action, the SQL function asked directly, and the banner in `#/questions` (one section per group in **Review**, every link checked against the ids the server sent). It writes nothing at all: no question, no media row, no audit row. 15/15 on 2026-09-25.
+`SUPABASE_TEST_EMAIL` must be set to the staff test account's address; **no password is needed** — the check mints a one-time login link with the token and exchanges it for a session, then compares the deployed action, the SQL function asked directly, and the banner in `#/questions` (one section per group in **Review**, every link checked against the ids the server sent). It writes nothing at all: no question, no media row, no audit row. 15/15 on 2026-09-25.
 
 Two details worth reusing: `find_duplicate_groups` is called with **no arguments** (so the live answer is the SQL defaults: threshold 0.55, at most 50 pairs, non-archived questions only), and the live bank currently holds **6 questions that look duplicated**. If the count ever changes, the check compares against the server, not against a fixed number, so it stays honest.
 

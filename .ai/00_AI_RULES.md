@@ -39,9 +39,9 @@ Also read `docs/design.md` (product requirements, business rules BR-01..BR-22, d
 
 | Topic | Fact |
 |---|---|
-| Repository | GitHub `mrwood276/English-test-v2` (private). Frontend and backend live together. Branches: `main` (stable) and `ai-development` (shared AI workspace) — see section 12. |
+| Repository | GitHub `mrwood276/English-test-v2` (**public** — confirmed by the owner 2026-10-02, DEC-040; never commit secrets, credentials, the staff test account's address or students' data). Frontend and backend live together. Branches: `main` (stable) and `ai-development` (shared AI workspace) — see section 12. |
 | Database and functions | Supabase project **English_Test_v2**, ref `lbhnadqmokloyfarrzfv`, region ap-southeast-1. Changes to the database and to deployed Edge Functions are made **in the live project**, not by `git push`. |
-| Migrations in git | **Not present.** The SQL of migrations `v2_01`..`v2_12` exists only inside the Supabase project (see `09_KNOWN_ISSUES.md` ISSUE-001). |
+| Migrations in git | **Present — 34 files** under `supabase/migrations/` (the 12 live-only ones were pulled verbatim on 2026-09-24; the live-vs-git ledger mapping is `docs/migration-ledger-reconciliation.md`; `09_KNOWN_ISSUES.md` ISSUE-001 keeps only its tracking-metadata nuance). |
 | Claude (claude.ai chat) | Has a sandbox (Deno 2.x, Python + Playwright, git) and the Supabase connector (apply_migration, execute_sql, deploy_edge_function). It has **no GitHub push/pull tool** in the chat used so far; it hands changes over as a repository zip which the owner pulls and pushes. |
 | Codex/GPT | UNKNOWN / NEEDS VERIFICATION whether it can reach the Supabase project. If it cannot, any task that needs a database migration or an Edge Function deployment must be marked `BLOCKED` (see section 9) rather than worked around. |
 | Owner | Communicates in casual Indonesian. All product UI text is English. Documentation in this repo is English. |

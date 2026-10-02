@@ -146,7 +146,7 @@ def make_files():
 def main():
     if not EMAIL or not PASSWORD:
         print("set SUPABASE_TEST_EMAIL and SUPABASE_TEST_PASSWORD in the environment first"
-              " (the staff test account, e.g. testguru211l@gmail.com)")
+              " (the staff test account's own address and password)")
         return 1
     if not ACCESS:
         print("note: SUPABASE_ACCESS_TOKEN is not set — the database, bucket and cleanup checks are skipped\n")

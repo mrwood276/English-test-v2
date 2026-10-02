@@ -44,7 +44,7 @@ PROJECT = "lbhnadqmokloyfarrzfv"
 ACCESS = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
 ADMIN_EMAIL = os.environ.get("SUPABASE_ADMIN_EMAIL", "jonathan10g7@gmail.com")
 ADMIN_PASSWORD = os.environ.get("SUPABASE_ADMIN_PASSWORD", "")
-TEACHER_EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "testguru211l@gmail.com")
+TEACHER_EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "")
 CODE = "HSKEEP"
 TITLE = "Housekeeping live check (safe to delete)"
 JOBS = {
@@ -187,6 +187,9 @@ def wait_for(what, marker, want, timeout=240):
 def main():
     if not ACCESS:
         print("set SUPABASE_ACCESS_TOKEN first: this check reads the live job list, Vault and its own rows")
+        return 1
+    if not TEACHER_EMAIL:
+        print("set SUPABASE_TEST_EMAIL to the staff test account's email first: this check mints its login link")
         return 1
     image = png_bytes()
     # A run that died halfway must not block this one; its leftovers are the check's own, nothing else.

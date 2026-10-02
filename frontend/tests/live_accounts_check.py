@@ -41,7 +41,7 @@ PROJECT = "lbhnadqmokloyfarrzfv"
 ACCESS = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
 ADMIN_EMAIL = os.environ.get("SUPABASE_ADMIN_EMAIL", "jonathan10g7@gmail.com")
 ADMIN_PASSWORD = os.environ.get("SUPABASE_ADMIN_PASSWORD", "")
-TEACHER_EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "testguru211l@gmail.com")
+TEACHER_EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "")
 NAME = "Live Accounts Check"
 NAME_AFTER = "Live Accounts Check Renamed"
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -139,6 +139,9 @@ def wipe_check():
 def main():
     if not ACCESS:
         print("set SUPABASE_ACCESS_TOKEN first: this check mints login links and reads its own rows")
+        return 1
+    if not TEACHER_EMAIL:
+        print("set SUPABASE_TEST_EMAIL to the staff test account's email first: this check mints its login link")
         return 1
     wipe_check()
     before = accounts_state()

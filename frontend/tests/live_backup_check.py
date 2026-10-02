@@ -50,7 +50,7 @@ PROJECT = "lbhnadqmokloyfarrzfv"
 ACCESS = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
 ADMIN_EMAIL = os.environ.get("SUPABASE_ADMIN_EMAIL", "jonathan10g7@gmail.com")
 ADMIN_PASSWORD = os.environ.get("SUPABASE_ADMIN_PASSWORD", "")
-TEACHER_EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "testguru211l@gmail.com")
+TEACHER_EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "")
 UPLOAD_NAME = "backup-check.png"
 QUESTION_BODY = "BACKUP CHECK (safe to delete): write the past of go."
 JOB = "nightly-backup"
@@ -210,6 +210,9 @@ def wait_for(what, marker, want, timeout=240):
 def main():
     if not ACCESS:
         print("set SUPABASE_ACCESS_TOKEN first: this check reads the live job list, Vault, Storage and its own rows")
+        return 1
+    if not TEACHER_EMAIL:
+        print("set SUPABASE_TEST_EMAIL to the staff test account's email first: this check mints its login link")
         return 1
     # This check takes copies and then deletes EVERY row in `public.backups` (with its file) to assert
     # its counts, and it fires the nightly job, whose retention sweep prunes the oldest automatic copy.

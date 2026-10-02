@@ -5,9 +5,9 @@
 | Item | Value |
 |---|---|
 | Name | English Daily Test v2 (working title "English Testing Platform"; Claude project "APP_V2") |
-| Repository | `mrwood276/English-test-v2` (GitHub, public) |
+| Repository | `mrwood276/English-test-v2` (GitHub, **public** — confirmed by the owner 2026-10-02, DEC-040; never commit secrets, the staff test account's address or real student data) |
 | Purpose | A web platform for English **daily tests** (ulangan harian) at one school, grades X, XI, XII, all majors |
-| Development stage | **Phase 5 done; Phase 6 dashboard/UX polish done.** Foundation, auth, question bank, editor, media, import, exams (teacher side), the student exam engine, essay grading + results, the live monitor and the mockup-5 dashboard are built — the teacher, exam, import, student, grading and monitor flows are live against the v2 project (the monitor was watched in a real browser while a real exam ran, 2026-09-24). **Not finished: only the email half of notifications** (TASK-015's provider decision, DEC-017). Done and live: the audit viewer, the scheduled purge jobs, the **backup slice** (manual + nightly, 2026-09-26), **user management** (2026-09-26) and DEC-032's dashboard notifications; the **PDF class summary** that was TASK-012's last piece was built 2026-09-27 (DEC-033) |
+| Development stage | **Phase 5 done; Phase 6 dashboard/UX polish done.** Foundation, auth, question bank, editor, media, import, exams (teacher side), the student exam engine, essay grading + results, the live monitor and the mockup-5 dashboard are built — the teacher, exam, import, student, grading and monitor flows are live against the v2 project (the monitor was watched in a real browser while a real exam ran, 2026-09-24). **Not finished: only the email half of notifications** (TASK-015's provider decision, DEC-017). Done and live: the audit viewer, the scheduled purge jobs, the **backup slice** (manual + nightly, 2026-09-26), **user management** (2026-09-26), the **server-backed notification bell** (DEC-037; DEC-032's dashboard notices retired), the **PDF class summary** (DEC-033, 2026-09-27), the **migration-ledger reconciliation** (ISSUE-036 closed) and the owner's **leave rule** (DEC-039: only a hidden page counts — applied live 2026-10-02) |
 | Deployment | v2 is **not deployed anywhere yet**; it runs locally against the live Supabase project. Hosting for the frontend is UNKNOWN (not chosen). The older v1 app is live on a separate static host + separate Supabase project and is **outside this repository** |
 
 ## Problem being solved
@@ -63,6 +63,9 @@ Only teachers and admins may see student scores.
 | Scheduled jobs (the database's own clock) | `docs/sql-jobs.md` |
 | Backups (manual + nightly, and how to restore one by hand) | `docs/sql-backups.md` |
 | User management (what an admin can do to an account, and why deactivate) | `docs/sql-accounts.md` |
+| Bulk changes to the question bank and to an exam's questions | `docs/sql-bulk-update.md`, `docs/sql-exam-questions.md` |
+| Going live (the owner's ordered checklist) | `docs/production-deployment.md` |
+| The live-vs-git migration ledger (what is applied, and why a file may differ) | `docs/migration-ledger-reconciliation.md` |
 | What was wrong with v1 | `docs/audit-v1.md` |
 | Approved screens | `docs/mockups/round-1.html`, `docs/mockups/round-2.html` (open in a browser) |
 | How to run and test | `README.md`, `frontend/README.md`, `backend/README.md`, `00_AI_RULES.md` section 7 |

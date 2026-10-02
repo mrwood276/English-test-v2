@@ -96,7 +96,7 @@ PY
 ```
 
 **LIVE, read-only** — `frontend/tests/live_duplicates_check.py` (**15/15, 2026-09-25**), signed in as
-the staff test account `testguru211l@gmail.com` (role `teacher`). It signs in with the account's
+the staff test account (role `teacher`, address via `SUPABASE_TEST_EMAIL`). It signs in with the account's
 password when `SUPABASE_TEST_PASSWORD` is set, and otherwise — this is the useful part — mints a
 one-time login link through the Auth admin API with the Management token already used by the other
 live checks, so **no password has to be written down anywhere**. Then it: calls the deployed
@@ -108,7 +108,7 @@ count; confirms filtering the list runs the scan no second time; opens **Review*
 per group the server sent, every question linked to its own editor, the same similarity percentages
 and a used-count line per question; and no page errors. It writes nothing, so there is nothing to clean
 up. (Re-run it: `python frontend/dev-server.py 8123`, then
-`SUPABASE_ACCESS_TOKEN=… SUPABASE_TEST_EMAIL=testguru211l@gmail.com python frontend/tests/live_duplicates_check.py`.)
+`SUPABASE_ACCESS_TOKEN=… SUPABASE_TEST_EMAIL=<staff test account> python frontend/tests/live_duplicates_check.py`.)
 
 **Deno, mocked database** — `backend/tests/question_bank.test.ts` (120 backend tests in total): the
 action is accepted, calls `find_duplicate_groups` with **no arguments**, returns the payload untouched,

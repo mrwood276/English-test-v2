@@ -64,7 +64,7 @@ from playwright.sync_api import sync_playwright
 URL = "https://lbhnadqmokloyfarrzfv.supabase.co"
 KEY = "sb_publishable_WewR6gpQy3SdaoBaJxxDyg_l5gt-R7E"
 PROJECT = "lbhnadqmokloyfarrzfv"
-EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "testguru211l@gmail.com")
+EMAIL = os.environ.get("SUPABASE_TEST_EMAIL", "")
 PASSWORD = os.environ.get("SUPABASE_TEST_PASSWORD", "")
 ACCESS = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
 BASE = "http://127.0.0.1:8123/teacher/index.html"
@@ -140,6 +140,9 @@ def quoted(values):
 def main(api_only=False):
     if not PASSWORD and not ACCESS:
         print("set SUPABASE_TEST_PASSWORD, or SUPABASE_ACCESS_TOKEN so a one-time login link can be minted")
+        return 1
+    if not EMAIL:
+        print("set SUPABASE_TEST_EMAIL to the staff test account's email first")
         return 1
 
     # ---------- 1. a real staff session ----------

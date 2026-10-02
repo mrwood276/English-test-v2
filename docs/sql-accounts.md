@@ -136,7 +136,7 @@ for an admin (the assertions in `teacher_e2e.py` and `monitor_e2e.py` were bumpe
   project's own two accounts compared **row for row** before and after.
 * Live state afterwards: 2 auth users, **0 strays**, 2 profiles, 0 `account.%` audit rows.
 * Live public SQL functions 69 → **74**; the live `profiles` rows are the admin (`7b0a389c…`, "Admin") and the
-  staff test account (`d4d16135…`, "Test Upload", `testguru211l@gmail.com`).
+  staff test account (`d4d16135…`, "Test Upload"; its address is supplied through `SUPABASE_TEST_EMAIL` and is not written down).
 
 ## What is deliberately not here
 
