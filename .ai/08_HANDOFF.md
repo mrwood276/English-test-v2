@@ -1,3 +1,22 @@
+# 08 HANDOFF
+
+**Short header (2026-10-02, TASK-038 — keep this short; the full narrative is in `07_CHANGELOG.md`)**
+
+| | |
+|---|---|
+| Status | **PHASE A complete and live** — TASK-028/029/030/035, each proved red on the pre-fix code first; TASK-030 was applied live with its ledger row (DEC-039: only a hidden page counts as a page leave; a `blur` is recorded but never counts). **PHASE B started:** TASK-038 (this restructure) done; **TASK-037 next**. |
+| Open tasks | **TASK-031, TASK-032, TASK-033 (D-2), TASK-034, TASK-036, TASK-037 (D-5 half), TASK-039 (D-4 half), TASK-040 .. TASK-047** — definitions in `05_TASK_QUEUE.md`, evidence in `10_ROADMAP.md`. |
+| Next recommended task | **TASK-037** — reconcile `02_ARCHITECTURE.md`/`03_FEATURES.md` with the code and take the visibility/email item to the owner (D-5). Then PHASE C: TASK-031, TASK-032, TASK-036, TASK-034, TASK-039. |
+| Branch + commit | `ai-development` @ the TASK-038 docs commit (2026-10-02) — after `4ac8b35` (TASK-030), `084383d` (its record) and `62e2319` (PHASE A's record); pushed to `origin/ai-development`. `main` untouched at the orphan snapshot `8b7aeba`. |
+| Deliberately not verified | Docs-only change: no product code, SQL, migration, Edge Function, test or CI file touched; nothing live was run for TASK-038. Last evidence: TASK-030's rolled-back SQL test (live, 2026-10-02) and the 2026-10-01 whole live board (12 PASSED / 1 HELD, 415 checks). |
+| History | **`07_CHANGELOG.md`** — every session narrative, commit hash and test number. The record below is kept as reference; the header above wins. |
+
+Keep this file current after every meaningful change; the header above is the current state, everything below is the record.
+
+---
+
+## REFERENCE — the record (newest first; state may be older than the header above)
+
 **PHASE A IS COMPLETE AND LIVE: THE OWNER ANSWERED D-1, TASK-030 LANDED, AND THE NEXT READY WORK IS PHASE B — TASK-038, THEN TASK-037 (Buffy, 2026-10-02 — implementation session on `ai-development`, with the owner's Supabase credential, SQL applied live).**
 
 **What was completed:** **TASK-030 / DEC-039 — only a hidden page counts as a page leave (`4ac8b35`).** The owner chose option (a) of D-1: a `blur` (a notification, the address bar, a call, the keyboard's overflow) is still recorded in `session_events` as info, but it can no longer move the warn / flag / auto-submit count or submit an attempt. One function was replaced — `public.log_session_event` — by new migration `supabase/migrations/20261002000001_leave_count_only_tab_hidden.sql`, **applied live with its `schema_migrations` row** (`20261002000001` / `leave_count_only_tab_hidden`); no table, column or other function changed, and no Edge Function was redeployed. **Proved red first on both layers:** the new `supabase/tests/session_functions_test.sql` blur case failed against the old live function (`ASSERT FAILED: a blur never submits the attempt`) and ends `SESSION ENGINE TESTS PASSED (all rows rolled back)` after the apply; 3 new `student_e2e.py` checks failed on the old mock (`a blur does not count as a page leave`, `a blur cannot submit the attempt`, `the exam screen stays open after a blur`) — the check seeds a session one leave from a limit of 2, fires one blur, then fires one real hide and asserts it still submits. `mock_server.py` now counts only `tab_hidden` (its docstring records the rule and the one remaining simplification: a `reopened` session's leaves are not counted there while live counts them). The rule is stated in the exam editor beside the limits and recorded in `docs/sql-sessions.md` ("What counts as a page leave"). **Numbers on the committed tree:** backend **168**, unit **44**, `student_e2e.py` **91** checks (85 → 91), `exams_e2e.py` **83** (new editor-copy check), `monitor_e2e.py` **34**, `results_e2e.py` **87**, all three harness self-tests green, and the live SQL test above. **PHASE A is finished** (TASK-028, TASK-029, TASK-030, TASK-035).
@@ -91,10 +110,6 @@ Start with **TASK-035 then TASK-028** (the mock must mirror the real contract be
 
 **TASK-012 is COMPLETE (2026-09-27, and its decision is DEC-033 — recorded 2026-09-28).** `frontend/assets/js/teacher/export/classSummaryPdf.js` builds the PDF in the browser with no dependency, using the standard Helvetica the format already has. `#/results/:examId` exposes **Class summary PDF** beside CSV/Excel. **What the report actually contains** (this line previously described the earlier draft — a per-class table — and was corrected on 2026-09-28): an **optional school name** asked for once per device (`export/schoolName.js`, `localStorage`), the exam title, one `Class:` line and one statistics line (`N results · average · highest · lowest · passed`), then **one row per student** — Name / Class / Score / Status — sorted by class and name, with the table header repeated if the roster runs to a second page; the teacher's name, a date, a logo and every individual answer are deliberately excluded. It reads the same `overview` payload the screen has (DEC-025). `frontend/tests/results_e2e.py` checks filename, PDF header/page count, xref/EOF, title, class and summary labels; `frontend/tests/unit/pdf.test.ts` checks the writer itself (pagination, clipping, hostile text). CI was not triggered/available for that commit in its environment, so no pass count is claimed for it — the suite is green locally here.
 
-# 08 HANDOFF
-
-Keep this file current after every meaningful change. It must never describe an outdated state.
-
 ## RELEASE STATUS
 
 **TASK-015 notifications — the server-backed bell is the one system (adopted 2026-09-29 under DEC-037; DEC-032's dashboard notices are retired).** The bell sits in the shell's brand row (`frontend/assets/js/teacher/screens/shell.js`, `assets/js/teacher/api/notifications.js`) and is served by the `notifications` Edge Function over four read-time functions (`list_notifications`, `mark_notifications_read`, `_essay_notifications`, `_suspicious_notifications`) and one per-person table (`notification_reads`). A teacher's bell carries essays waiting to be graded and exams with suspicious events; an admin's adds the newest backup and newly created accounts. Read state lives in the database, so the bell agrees across devices; DEC-032's browser-local notice card and its “Mark all read” were removed from `#/dashboard` in the same change, its dead CSS deleted, and `dashboard_e2e.py` now asserts the retirement instead. The email half of TASK-015 remains pending a provider decision (DEC-017).
@@ -124,7 +139,7 @@ The staff test account `testguru211l@gmail.com` (`profiles`: `role = 'teacher'`,
 
 Do not merge `ai-development` into `main` without the owner's explicit go-ahead (DEC-020); when it happens, resolve the DEC-021 import files in favour of `ai-development`.
 
-## BRANCH CONTEXT
+## BRANCH CONTEXT (history — the current branch/commit is in the header above)
 
 | | |
 |---|---|

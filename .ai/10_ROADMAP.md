@@ -273,7 +273,7 @@ check; the browser-suite/live-check crash-reporting harnesses; `docs/production-
 - Dependencies: the owner's answer on visibility.
 
 ### INS-16 — the actionable state is buried under session narratives
-- Category: AI workflow / maintainability of the memory system. Priority: P2. Area: `.ai/04_CURRENT_STATE.md`, `05_TASK_QUEUE.md`, `08_HANDOFF.md`, `07_CHANGELOG.md`. Status: CONFIRMED (measured).
+- Category: AI workflow / maintainability of the memory system. Priority: P2. Area: `.ai/04_CURRENT_STATE.md`, `05_TASK_QUEUE.md`, `08_HANDOFF.md`, `07_CHANGELOG.md`. Status: **FIXED 2026-10-02 (TASK-038)** — the measurements below are the inspection's (pre-fix) ones.
 - Problem: the three files a next agent is told to read first have grown into chronological logs. `05_TASK_QUEUE.md`'s "NEXT RECOMMENDED TASK" section is a stack of ~9 session narratives (the newest ones thousands of words each), and its message is "no code task is open"; `04_CURRENT_STATE.md`'s "Last updated" cell is a single ~30 KB paragraph; `08_HANDOFF.md` opens with ~10 KB of narrative before the reader learns what to do. Measured: 04 = 320 lines, 05 = 247, 08 = 403, 07 = 599 — with the newest session's story duplicated in all four.
 - Evidence: the files; `grep -c` counts; `.ai/` total 5,824 lines for a project of 8,614 frontend + ~2,900 backend lines.
 - Current behaviour: an agent must read ~40 KB to discover that there is nothing to do — and a human skimming it cannot see the current state at all.
@@ -429,6 +429,14 @@ the old function (`ASSERT FAILED: a blur never submits the attempt`) and passes 
 `student_e2e.py` **91**, `exams_e2e.py` **83**, `monitor_e2e.py` **34**, `results_e2e.py` **87**, all
 three harness self-tests green. Next: PHASE B — TASK-038, then TASK-037 (its visibility/email half waits
 on D-5). Detail: `05_TASK_QUEUE.md`, `07_CHANGELOG.md` (2026-10-02), `08_HANDOFF.md` (top block).
+
+**Progress (2026-10-02, later — docs-only): PHASE B has started.** **TASK-038** (the TASK-038 docs
+commit) is complete: `04_CURRENT_STATE.md`, `05_TASK_QUEUE.md` and `08_HANDOFF.md` now open with short
+Status / Open tasks / Next recommended task / Branch + commit / deliberately-not-verified headers and
+point at `07_CHANGELOG.md` for history; the hash-coverage check (`comm`) proved every commit hash the
+three files quote is greppable in 07 (the two the older text only implied — `084383d`, `b0c56bd` —
+were named there the same day). No product code, SQL, migration, Edge Function, test or CI file was
+touched and nothing was re-run. **Next: TASK-037** (its visibility/email half waits on D-5).
 
 Decisions the owner must make (recorded in `06_DECISIONS.md` before the code lands):
 
