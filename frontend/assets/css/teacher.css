@@ -24,7 +24,7 @@
 .main { flex: 1; min-width: 0; padding: 28px 30px; }
 .main h1 { font-size: 26px; letter-spacing: -0.01em; }
 .main .sub { color: var(--ink-2); margin: 2px 0 22px; }
-.card { background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius-m); padding: 18px 20px; max-width: 640px; }
+.card { background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius-m); padding: 18px 20px; max-width: none; }
 .card h2 { font-size: 16px; margin-bottom: 10px; }
 .kv { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
 .kv:last-child { border-bottom: 0; }
@@ -83,7 +83,7 @@
 }
 
 /* ---------- Dashboard (mockup 5) ---------- */
-.dash-layout { max-width: 980px; }
+.dash-layout { max-width: none; }
 .dash-layout .card { max-width: none; }
 .dash-open { display: flex; flex-direction: column; gap: 16px; }
 
