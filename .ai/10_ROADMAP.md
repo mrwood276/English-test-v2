@@ -438,7 +438,7 @@ three files quote is greppable in 07 (the two the older text only implied — `0
 were named there the same day). No product code, SQL, migration, Edge Function, test or CI file was
 touched and nothing was re-run. **Next: TASK-037** (its visibility/email half waits on D-5).
 
-**Progress (2026-10-02, later — docs and test scripts only): PHASE B is complete.** **TASK-037** (the
+**Progress (2026-10-02, later — docs and test scripts only): PHASE B is complete.** **TASK-037** (`298a16d` — the
 TASK-037 docs commit) reconciled `02_ARCHITECTURE.md` and `03_FEATURES.md` with the measured inventory
 (**23 tables / 81 public functions / 34 migrations / 10 Edge Functions**, re-count commands at the end
 of `02`), corrected every stale "not built / not deployed / no UI" claim in `03`, and — after the owner
