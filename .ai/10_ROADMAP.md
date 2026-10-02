@@ -430,7 +430,7 @@ the old function (`ASSERT FAILED: a blur never submits the attempt`) and passes 
 three harness self-tests green. Next: PHASE B — TASK-038, then TASK-037 (its visibility/email half waits
 on D-5). Detail: `05_TASK_QUEUE.md`, `07_CHANGELOG.md` (2026-10-02), `08_HANDOFF.md` (top block).
 
-**Progress (2026-10-02, later — docs-only): PHASE B has started.** **TASK-038** (the TASK-038 docs
+**Progress (2026-10-02, later — docs-only): PHASE B has started.** **TASK-038** (`3dc6f06` — the TASK-038 docs
 commit) is complete: `04_CURRENT_STATE.md`, `05_TASK_QUEUE.md` and `08_HANDOFF.md` now open with short
 Status / Open tasks / Next recommended task / Branch + commit / deliberately-not-verified headers and
 point at `07_CHANGELOG.md` for history; the hash-coverage check (`comm`) proved every commit hash the

@@ -7,7 +7,7 @@
 | Status | **PHASE A complete and live** — TASK-028/029/030/035, each proved red on the pre-fix code first; TASK-030 was applied live with its ledger row (DEC-039: only a hidden page counts as a page leave; a `blur` is recorded but never counts). **PHASE B started:** TASK-038 (this restructure) done; **TASK-037 next**. |
 | Open tasks | **TASK-031, TASK-032, TASK-033 (D-2), TASK-034, TASK-036, TASK-037 (D-5 half), TASK-039 (D-4 half), TASK-040 .. TASK-047** — definitions in `05_TASK_QUEUE.md`, evidence in `10_ROADMAP.md`. |
 | Next recommended task | **TASK-037** — reconcile `02_ARCHITECTURE.md`/`03_FEATURES.md` with the code and take the visibility/email item to the owner (D-5). Then PHASE C: TASK-031, TASK-032, TASK-036, TASK-034, TASK-039. |
-| Branch + commit | `ai-development` @ the TASK-038 docs commit (2026-10-02) — after `4ac8b35` (TASK-030), `084383d` (its record) and `62e2319` (PHASE A's record); pushed to `origin/ai-development`. `main` untouched at the orphan snapshot `8b7aeba`. |
+| Branch + commit | `ai-development` @ `3dc6f06` (the TASK-038 docs commit, 2026-10-02) — after `4ac8b35` (TASK-030), `084383d` (its record) and `62e2319` (PHASE A's record); pushed to `origin/ai-development`. `main` untouched at the orphan snapshot `8b7aeba`. |
 | Deliberately not verified | Docs-only change: no product code, SQL, migration, Edge Function, test or CI file touched; nothing live was run for TASK-038. Last evidence: TASK-030's rolled-back SQL test (live, 2026-10-02) and the 2026-10-01 whole live board (12 PASSED / 1 HELD, 415 checks). |
 | History | **`07_CHANGELOG.md`** — every session narrative, commit hash and test number. The record below is kept as reference; the header above wins. |
 
