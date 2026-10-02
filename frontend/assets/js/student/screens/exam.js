@@ -450,7 +450,7 @@ export function renderExam(root, ctx) {
     const now = Date.now();
     if (now - lastBlurLogged < BLUR_THROTTLE_MS) return;
     lastBlurLogged = now;
-    await drainPending(); // a blur counts as a leave too, so it can end the attempt as well (INS-01)
+    await drainPending(); // a blur is recorded, never counted (DEC-039); drain first so a queued answer is not left behind when focus leaves (INS-01)
     logEvent("blur", { at: new Date(now).toISOString() });
   };
   const onOnline = () => {

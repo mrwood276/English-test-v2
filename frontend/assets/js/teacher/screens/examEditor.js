@@ -559,6 +559,7 @@ export function renderExamEditor(container, ctx, match) {
           h("label", { class: "check" }, shuffleQ, "Shuffle question order"),
           h("label", { class: "check" }, shuffleO, "Shuffle answer choices"),
           h("div", {}, h("span", { class: "lbl" }, "When a student leaves the test page"),
+            h("small", {}, "Counts only when the page is hidden — the student switched to another app or tab. Notifications, the address bar and calls are recorded but never count."),
             h("div", { class: "form-row three" },
               fieldWithPill("Warn", "warn", warnLimit), fieldWithPill("Flag", "bad", flagLimit), fieldWithPill("Submit", "plain", submitLimit)))),
           h("div", {}, h("span", { class: "lbl" }, "After submitting, the student sees"), resultSeg),

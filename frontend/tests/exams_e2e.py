@@ -144,6 +144,9 @@ with sync_playwright() as pw:
     page.wait_for_selector("#ee-title")
     check("editor starts with a suggested 6-character code", bool(page.eval_on_selector(".code-input", "el => /^[A-Z0-9]{6}$/.test(el.value)")))
     check("summary warns about the missing title", page.query_selector(".summary-list .pill.warn") is not None)
+    check("the leave rule is explained where the limits are set",
+          "Counts only when the page is hidden" in page.inner_text("body")
+          and "recorded but never count" in page.inner_text("body"))
 
     page.fill("#ee-title", "Simple Past, Quiz 1")
     page.click("button[data-sel='auto']")

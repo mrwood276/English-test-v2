@@ -8,7 +8,8 @@ other feature (DEC-004). The tables it uses already existed from the Phase-1 mig
 The functions live in **`supabase/migrations/20260923000000_session_functions.sql`** — applied live
 on 2026-09-23 (the dashboard SQL editor or the Management API query endpoint; there is no
 `supabase db query` subcommand in CLI 2.117.0 — corrected 2026-09-25), which is the
-canonical SQL source from now on. Keep changes there.
+canonical SQL source from now on. Keep changes there; the one replacement so far is
+`log_session_event`, rewritten by **`20261002000001_leave_count_only_tab_hidden.sql`** (DEC-039).
 
 ## Contract
 
@@ -18,7 +19,7 @@ canonical SQL source from now on. Keep changes there.
 | `get_exam_session(p_id uuid)` | Everything the phone needs to resume: `session` (status, attempt, ends_at, `remaining_seconds`, `grace_seconds`, exam settings), `questions`, `answers`. |
 | `save_session_answers(p_id uuid, p_answers jsonb)` | Upserts answers (unique `(session_id, question_id)`, so a resend from the phone cannot duplicate — BR-12). Refuses questions that are not part of this session and anything past `ends_at + 2 minutes` (BR-20), and closes the session itself when the deadline has passed. |
 | `session_heartbeat(p_id uuid)` | Keeps `last_heartbeat_at` fresh, returns the status and time left, and submits a session that ran out of time. |
-| `log_session_event(p_id uuid, p_event_type text, p_meta jsonb)` | Records tab switches, focus loss, online/offline, reloads (server decides severity). Counts page leaves and auto-submits at the exam's `tab_switch_autosubmit_limit`. |
+| `log_session_event(p_id uuid, p_event_type text, p_meta jsonb)` | Records tab switches, focus loss, online/offline, reloads (server decides severity). Counts **page leaves** — only a hidden page (`tab_hidden`); a `blur` is recorded but never counts (DEC-039) — and auto-submits at the exam's `tab_switch_autosubmit_limit`. |
 | `submit_exam_session(p_id uuid, p_reason text)` | Grades the automatic questions (multiple choice, true/false, short answer) per BR-06, leaves essays for the teacher (BR-07), writes `exam_results`, and returns the student-visible result. Idempotent. |
 | `get_session_result(p_id uuid)` | The result again, honouring the exam's `result_visibility` and `essay_pending_display` (BR-08). |
 | `get_session_media_ids(p_id uuid)` | The media ids that belong to this session's snapshot, so the Edge Function can sign links for them without exposing storage paths. |
@@ -39,6 +40,16 @@ ceiling (it cannot know a question's type, so it leaves the per-type rule to SQL
 `frontend/tests/unit/student_limits.test.ts` fails if any of the three drift apart. A session that is
 `reopened` accepts answers again; a finished one (`submitted`, `auto_submitted`, `timed_out`) refuses them
 with `{accepted: false, reason: 'already_submitted'}`.
+
+### What counts as a page leave
+
+Only a **hidden page** counts: `tab_hidden` (visibilitychange with `document.hidden`) feeds the exam's
+`tab_switch_warn_limit` / `tab_switch_flag_limit` / `tab_switch_autosubmit_limit`. A `blur` — a phone
+notification, the address bar, an incoming call, the keyboard's overflow — is still written to
+`session_events` (severity `info`) and stays visible to the teacher, but it can no longer move the count
+or submit an attempt. That rule was the owner's answer to D-1 (DEC-039) and lives in
+`20261002000001_leave_count_only_tab_hidden.sql`; the exam editor says it where the limits are set, and
+`frontend/tests/mock_server.py` mirrors it.
 
 ## Live schema facts (discovered while applying this SQL)
 
@@ -72,8 +83,9 @@ answers; a resent answer updates instead of duplicating; an essay keeps the resu
 with `pass_status not_final`; `hide_score` keeps the partial number away from the student until the
 teacher says otherwise; the second attempt is refused but a granted retake becomes attempt 2 and is
 used up; an unfinished attempt is resumed instead of duplicated; an answer one minute past the
-deadline is still accepted while ten minutes past is refused; the fifth page leave submits
-automatically; a silent session becomes `timed_out`; `cut_at_end` shortens a late start.
+deadline is still accepted while ten minutes past is refused; the fifth **real** page leave submits
+automatically while five blurs do not (DEC-039); a silent session becomes `timed_out`; `cut_at_end`
+shortens a late start.
 
 **Deno, mocked database** — `backend/tests/session.test.ts` (21 tests: parsing, the signed session
 token, rate limiting, the auth wall, media signing).

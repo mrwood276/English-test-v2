@@ -1,8 +1,9 @@
 """A pretend server for the browser tests: answers the question-bank, exams, session and auth-me endpoints from memory.
 
 The student session endpoints mirror the rules that decide what a student's browser sees. The authority is
-`supabase/migrations/20260923000000_session_functions.sql` (`save_session_answers`, `log_session_event`,
-`exam_join`) with `backend/functions/session/parse.ts` in front of it; when those change, change this too.
+`supabase/migrations/` (`save_session_answers` and `exam_join` in `20260923000000_session_functions.sql`;
+`log_session_event` as last replaced by `20261002000001_leave_count_only_tab_hidden.sql`, DEC-039) with
+`backend/functions/session/parse.ts` in front of it; when those change, change this too.
 Deliberate simplifications, so that no test passes for the wrong reason:
 
   * no rate limits, no trigram similarity, no clock skew, no storage signing;
@@ -10,7 +11,10 @@ Deliberate simplifications, so that no test passes for the wrong reason:
   * `save` refuses the whole batch on one bad answer, exactly as the real edge parser and
     `save_session_answers` do (a `reopened` session still accepts answers, like the live function);
   * an answer is checked here only for the 1,000/20,000 character caps and the 200-answers-per-call
-    limit; the essay/non-essay rules the question bank owns are not re-derived.
+    limit; the essay/non-essay rules the question bank owns are not re-derived;
+  * only a hidden page counts as a page leave (`tab_hidden`) — a `blur` is recorded but never counts
+    (DEC-039) — and leaves count only while the session is `in_progress` here, where the live function
+    also counts a `reopened` session.
 """
 import datetime
 import json
@@ -486,7 +490,7 @@ class Server:
         if a == "event":
             kind = body.get("event_type")
             self.session_events.append({"session": sid, "type": kind, "meta": body.get("meta")})
-            if kind in ("tab_hidden", "blur") and s["status"] == "in_progress":
+            if kind == "tab_hidden" and s["status"] == "in_progress":
                 s["tab_switch_count"] += 1
             autosubmit = s["status"] == "in_progress" and s["tab_switch_count"] >= exam["tab_switch_autosubmit_limit"]
             if autosubmit: self.session_grade(sid, "auto_submitted")

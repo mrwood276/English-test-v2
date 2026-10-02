@@ -1,4 +1,6 @@
 """Browser test of the student page: join, take the test, send it, see the result.
+Covers the leave rule too: only a hidden page counts as a leave; a blur is recorded but cannot submit
+(DEC-039 / TASK-030).
 Run: python3 frontend/tests/student_e2e.py  (expects the dev-server on 8123, like the other suites)
 """
 import json
@@ -301,6 +303,34 @@ with sync_playwright() as pw:
           any((a.get("text") or "") == typed for a in auto[0]["answers"].values()))
     check("the exam screen gives way to the result", page4.query_selector(".result") is not None and page4.query_selector(".qbody") is None)
     check("no page errors on the tab-limit device", errors4 == [], "; ".join(errors4[:3]))
+
+    # ---------- a blur is not a page leave (TASK-030, DEC-039) ----------
+    # One blur at the boundary of a 2-leave limit: on the old server a phone notification counted as the
+    # second leave and submitted the attempt; the rule is now that only a hidden page counts, while every
+    # blur is still recorded for the teacher.
+    SRV.session_exam("BLUR01", tab_switch_warn_limit=1, tab_switch_flag_limit=2, tab_switch_autosubmit_limit=2)
+    ctx7 = browser.new_context(viewport={"width": 390, "height": 844})
+    page7 = ctx7.new_page()
+    errors7 = []
+    suite.watch(page7, errors7)
+    page7.on("pageerror", lambda e: errors7.append(str(e)))
+    block(page7)
+    join(page7, "Intan Permata", "XI TKJ A", "BLUR01")
+    page7.wait_for_selector(".qbody")
+    blur_sid = next(k for k, s in SRV.sessions.items() if s["exam"] == "BLUR01")
+    SRV.sessions[blur_sid]["tab_switch_count"] = 1   # one real leave from the limit; only a blur follows
+    page7.evaluate("window.dispatchEvent(new Event('blur'))")
+    check("a blur is still recorded for the teacher",
+          wait_until(page7, lambda: any(e["type"] == "blur" and e["session"] == blur_sid for e in SRV.session_events)))
+    check("a blur does not count as a page leave", SRV.sessions[blur_sid]["tab_switch_count"] == 1)
+    check("a blur cannot submit the attempt", SRV.sessions[blur_sid]["status"] == "in_progress")
+    check("the exam screen stays open after a blur",
+          page7.query_selector(".qbody") is not None and page7.query_selector(".result") is None)
+    page7.evaluate("Object.defineProperty(document, 'hidden', {value: true, configurable: true}); document.dispatchEvent(new Event('visibilitychange'))")
+    page7.wait_for_selector(".result", timeout=15000)
+    check("a real page leave at the same boundary still submits automatically",
+          SRV.sessions[blur_sid]["status"] == "auto_submitted")
+    check("no page errors on the blur device", errors7 == [], "; ".join(errors7[:3]))
 
     # ---------- the phone's own cap: it names the question and never queues the answer (INS-02) ----------
     SRV.session_exam("LONG01")

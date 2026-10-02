@@ -11,7 +11,8 @@
 -- BR-05 (late start cut at end), BR-06/BR-07/BR-08 (points, essay pending, visibility),
 -- BR-09 (no key in the snapshot), BR-10 (per-session snapshot), BR-12 (idempotent resend),
 -- BR-20 (2-minute tolerance), BR-21 (server validation, timed_out cleanup),
--- and the tab-switch auto-submit limit.
+-- and the tab-switch auto-submit limit (only a hidden page counts as a leave; a blur is recorded but
+-- never counts — DEC-039 / TASK-030).
 
 create or replace function pg_temp.assert_true(cond boolean, msg text) returns void language plpgsql as $$
 begin
@@ -24,7 +25,7 @@ declare
   v_q_mc uuid; v_q_tf uuid; v_q_sa uuid; v_q_es uuid;
   v_mc_correct text;
   v_join jsonb; v_res jsonb;
-  v_sess uuid; v_sess2 uuid; v_sess3 uuid; v_sess4 uuid; v_sess5 uuid;
+  v_sess uuid; v_sess2 uuid; v_sess3 uuid; v_sess4 uuid; v_sess5 uuid; v_sess6 uuid;
   v_n int;
   v_caught boolean;
   v_hint text;
@@ -198,6 +199,27 @@ begin
     'the fifth leave submits the test automatically');
   perform pg_temp.assert_true((select status from public.exam_sessions where id = v_sess5) = 'auto_submitted',
     'the automatic submit is stored');
+
+  -- ---------- TASK-030 / DEC-039: a blur is recorded, but only a hidden page counts as a leave ----------
+  v_join := public.exam_join(jsonb_build_object('code', 'SQLTST', 'name', 'Blur Student', 'class', 'XII TKJ A'));
+  v_sess6 := (v_join->'session'->>'id')::uuid;
+  for v_n in 1 .. 5 loop
+    v_res := public.log_session_event(v_sess6, 'blur');
+    perform pg_temp.assert_true(v_res->>'autosubmit' = 'false', 'a blur never submits the attempt');
+  end loop;
+  perform pg_temp.assert_true((v_res->>'tab_switch_count')::int = 0, 'a blur is not counted as a page leave');
+  perform pg_temp.assert_true((select status from public.exam_sessions where id = v_sess6) = 'in_progress',
+    'the attempt is still open after five blurs');
+  perform pg_temp.assert_true((select count(*) from public.session_events where session_id = v_sess6 and event_type = 'blur') = 5,
+    'every blur is still recorded for the teacher');
+  for v_n in 1 .. 4 loop
+    v_res := public.log_session_event(v_sess6, 'tab_hidden');
+  end loop;
+  perform pg_temp.assert_true(v_res->>'autosubmit' = 'false' and (v_res->>'tab_switch_count')::int = 4,
+    'a real page leave still counts toward the limit');
+  v_res := public.log_session_event(v_sess6, 'tab_hidden');
+  perform pg_temp.assert_true(v_res->>'autosubmit' = 'true' and (v_res->>'tab_switch_count')::int = 5,
+    'the fifth real leave still submits the test automatically');
 
   v_caught := false;
   begin
