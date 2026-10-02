@@ -120,7 +120,7 @@ check; the browser-suite/live-check crash-reporting harnesses; `docs/production-
 ## P2 findings
 
 ### INS-04 — two drafts may share an exam code, and opening the second answers a generic 500
-- Category: error handling / data correctness. Priority: P2. Area: exams SQL + `exams` Edge Function. Status: **FIXED 2026-10-02 (TASK-031)** — code and tests complete; the live apply waits on a Management credential (resolution bullet at the end of this finding).
+- Category: error handling / data correctness. Priority: P2. Area: exams SQL + `exams` Edge Function. Status: **FIXED 2026-10-02 (TASK-031, `b7ed106`)** — code and tests complete; the live apply waits on a Management credential (resolution bullet at the end of this finding).
 - Problem: code uniqueness is enforced only against **open** exams at save time (`save_exam`) and by a partial unique index (`... where status = 'open'`). `set_exam_status` performs no code check, so opening the second draft hits the index, Supabase returns `23505` with no `hint = 'validation'`, and `callRpc` rethrows it as a hidden error → HTTP 500 "Something went wrong. Please try again." The teacher cannot tell what happened, and `check_code` told them the code was free.
 - Evidence: `supabase/migrations/20260920095429_v2_03_exams.sql#L40`; `20260922000000_exams_functions.sql` (`save_exam` code check, `set_exam_status`); `backend/functions/_shared/rpc.ts`; `_shared/http.ts` (500 fallback).
 - Current behaviour: a raw 500 at Open; a code can be prepared on two drafts and one of them is unusable until renamed.
@@ -131,7 +131,7 @@ check; the browser-suite/live-check crash-reporting harnesses; `docs/production-
 - Acceptance criteria: opening a draft whose code is taken is refused with a sentence that names the code; the exam stays `draft`; no 500.
 - Testing required: a rolled-back SQL test for the refusal, a backend test asserting 400 + message, an `exams_e2e.py` check on the Open button.
 - Dependencies: none.
-- **Resolution (2026-10-02, TASK-031)**: migration `20261002000002_open_exam_code_conflict.sql` replaces `set_exam_status` with the same open-code check `save_exam` applies, raised with `hint = 'validation'` (HTTP 400 naming the code; the exam stays a draft), and adds `public.exam_code_used_by` so `check_code` reports `'open'` / `'draft'` / null and the editor's code field says "Already used by another draft" before Open. Mirrored in `mock_server.py`; covered by the rolled-back `supabase/tests/exam_status_test.sql`, two new backend tests (the `used_by` answers and the 400) and 3 new `exams_e2e.py` checks — all of which failed on the pre-fix code first (87 checks after the fix). **Not yet applied live — no Management credential in the session that wrote it**; the apply with its ledger row, the SQL test and the `exams` Edge Function redeploy (its handler now calls `exam_code_used_by`, so the SQL must land first) are the next live run's first task. Contract: `docs/sql-exams.md` ("The open-code conflict").
+- **Resolution (2026-10-02, TASK-031, `b7ed106`)**: migration `20261002000002_open_exam_code_conflict.sql` replaces `set_exam_status` with the same open-code check `save_exam` applies, raised with `hint = 'validation'` (HTTP 400 naming the code; the exam stays a draft), and adds `public.exam_code_used_by` so `check_code` reports `'open'` / `'draft'` / null and the editor's code field says "Already used by another draft" before Open. Mirrored in `mock_server.py`; covered by the rolled-back `supabase/tests/exam_status_test.sql`, two new backend tests (the `used_by` answers and the 400) and 3 new `exams_e2e.py` checks — all of which failed on the pre-fix code first (87 checks after the fix). **Not yet applied live — no Management credential in the session that wrote it**; the apply with its ledger row, the SQL test and the `exams` Edge Function redeploy (its handler now calls `exam_code_used_by`, so the SQL must land first) are the next live run's first task. Contract: `docs/sql-exams.md` ("The open-code conflict").
 
 ### INS-05 — "Save as a template" is available on a live exam and locks its code out
 - Category: settings footgun. Priority: P2. Area: exam editor + `exam_join`. Status: CONFIRMED (code).
@@ -451,7 +451,7 @@ live check was run (no credential). **Next: PHASE C — TASK-031**, then TASK-03
 TASK-039 (its secret half waits on D-4).
 
 **Progress (2026-10-02, later — product code, tests and docs; the live apply is blocked on a credential):
-PHASE C has started with TASK-031.** Opening a second exam with a code an open exam already used could
+PHASE C has started with TASK-031 (`b7ed106`).** Opening a second exam with a code an open exam already used could
 only hit `exams_open_code_unique`, and the raw `23505` reached the teacher as a hidden 500.
 `20261002000002_open_exam_code_conflict.sql` replaces `set_exam_status` (the `save_exam` rule, raised with
 `hint = 'validation'` so the exams screen's toast shows the sentence and the exam stays a draft) and adds
