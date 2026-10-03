@@ -113,11 +113,10 @@ Mirrored by `frontend/tests/mock_server.py`; asserted by `supabase/tests/exam_st
 back) and `frontend/tests/exams_e2e.py` (the Open refusal and the code-field warning — all three checks
 failed on the pre-fix client+mock first).
 
-**Live status:** the migration is **not yet applied** — it was written on 2026-10-02 in a session without
-a Management credential. Applying it as one request with its `schema_migrations` row (`20261002000002` /
-`open_exam_code_conflict`), running the SQL test, **redeploying the `exams` Edge Function** (its handler now
-calls `exam_code_used_by` — the SQL must land first, or `check_code` would 500) and re-running
-`live_ledger_check.py` is the next live run's first task; the result belongs here.
+**Live status (2026-10-03, applied):** applied as one Management API request with its ledger row
+(`20261002000002` / `open_exam_code_conflict`), `supabase/tests/exam_status_test.sql` passed live against it, the `exams` Edge Function was redeployed immediately after (its handler now calls
+`exam_code_used_by` — the SQL landed first, so `check_code` has the function), and `live_ledger_check.py` is clean. Note recorded during the apply: the draft lacked the `revoke`/`grant` for the new
+`exam_code_used_by`, caught by the SQL test in the same session and fixed before staging.
 
 ## A live exam cannot become a template (2026-10-02, TASK-032 / INS-05 / ISSUE-050) — migration `20261002000003_template_only_when_safe.sql`
 
@@ -148,8 +147,8 @@ keeps an exam's `session_count` across a save). Asserted by the rolled-back
 `supabase/tests/exam_template_test.sql` and 7 new `exams_e2e.py` checks (they failed on the pre-fix
 client+mock first; 94 checks after the fix, was 87).
 
-**Live status:** not yet applied — written 2026-10-02 without a Management credential. Apply it as one
-request with its `schema_migrations` row (`20261002000003` / `template_only_when_safe`) **after**
-`20261002000002`, run `supabase/tests/exam_template_test.sql`, then record the result here. Unlike TASK-031,
-no Edge Function redeploy goes with this one (`get_exam`'s payload simply gains a field); TASK-031's `exams`
-redeploy still belongs to the `20261002000002` apply.
+**Live status (2026-10-03, applied):** applied as one Management API request with its ledger row
+(`20261002000003` / `template_only_when_safe`) after `20261002000002`, and
+`supabase/tests/exam_template_test.sql` passed live against it. No Edge Function redeploy belonged to this
+apply (`get_exam`'s payload simply gains a field); the `exams` redeploy for TASK-031 already happened after
+`20261002000002`.

@@ -4,17 +4,20 @@
 --   POST https://api.supabase.com/v1/projects/lbhnadqmokloyfarrzfv/database/query  {"query": "<this file>"}
 --   (CLI 2.117.0 has NO `supabase db query` subcommand), or paste it into the dashboard SQL editor.
 --
--- It creates its own exams and lets the transaction abort at the end, so nothing it writes survives —
+-- It creates its own exams and lets the transaction abort at the end, so nothing it writes survives â€”
 -- the ERROR MESSAGE is the result:
---   "EXAM STATUS TESTS PASSED (…)"  → every assertion held
---   "ASSERT FAILED: <message>"      → a rule is broken
+--   "EXAM STATUS TESTS PASSED (â€¦)"  â†’ every assertion held
+--   "ASSERT FAILED: <message>"      â†’ a rule is broken
 --
--- NOT YET RUN LIVE (written 2026-10-02, TASK-031): no Management credential was available in the
--- session that wrote it. The next live run applies `20261002000002_open_exam_code_conflict.sql` with
--- its `schema_migrations` row, then runs this file; the result belongs in its header and in `.ai/`.
+-- RUN LIVE 2026-10-03 (TASK-031): `20261002000002_open_exam_code_conflict.sql` applied with its
+-- `schema_migrations` row; this file ended with `EXAM STATUS TESTS PASSED (...)`; the `exams` Edge
+-- Function was redeployed. Fixture note (2026-10-03): the twin exams now use
+-- `availability_mode='scheduled'` with a window — the questions rule on open only fires for
+-- manual-availability exams, and an auto-draw exam with manual availability and no materialized
+-- exam_questions could not be opened; the live run proved it, so the fixture matches the live rule.
 --
 -- The red proof for the fix: on the pre-fix `set_exam_status` the second open below does not raise a
--- validation-hinted error at all — it hits `exams_open_code_unique` (23505, no hint) and the Edge
+-- validation-hinted error at all â€” it hits `exams_open_code_unique` (23505, no hint) and the Edge
 -- function turns that into a hidden 500; the assertion that demands the friendly sentence fails.
 --
 -- What is checked: the boundary (only the service role may execute the functions); two drafts may be
@@ -48,7 +51,7 @@ begin
       raise exception 'ASSERT FAILED: % (the message does not name %: %)', msg, needle2, sqlerrm;
     end if;
     if v_hint is distinct from 'validation' then
-      raise exception 'ASSERT FAILED: % (the hint was %, not validation — the teacher would see a 500)', msg, coalesce(v_hint, '<none>');
+      raise exception 'ASSERT FAILED: % (the hint was %, not validation â€” the teacher would see a 500)', msg, coalesce(v_hint, '<none>');
     end if;
     return;
   end;
@@ -85,10 +88,10 @@ begin
   -- ---------- two drafts may share a code (the state the bug grows from) ----------
   v_twin_a := public.save_exam(null, jsonb_build_object(
     'title', 'Twin code A', 'duration_minutes', 30, 'access_code', 'TWIN31',
-    'selection_mode', 'auto', 'auto_filter', jsonb_build_object('topic', 'TASK-031 test'), 'pool_size', 1), v_actor);
+    'selection_mode', 'auto', 'auto_filter', jsonb_build_object('topic', 'TASK-031 test'), 'pool_size', 1, 'availability_mode', 'scheduled', 'starts_at', now() + interval '1 hour', 'ends_at', now() + interval '2 hours'), v_actor);
   v_twin_b := public.save_exam(null, jsonb_build_object(
     'title', 'Twin code B', 'duration_minutes', 30, 'access_code', 'TWIN31',
-    'selection_mode', 'auto', 'auto_filter', jsonb_build_object('topic', 'TASK-031 test'), 'pool_size', 1), v_actor);
+    'selection_mode', 'auto', 'auto_filter', jsonb_build_object('topic', 'TASK-031 test'), 'pool_size', 1, 'availability_mode', 'scheduled', 'starts_at', now() + interval '1 hour', 'ends_at', now() + interval '2 hours'), v_actor);
   perform pg_temp.assert_true(v_twin_a is distinct from v_twin_b, 'the two drafts are separate exams');
   perform pg_temp.assert_true(
     (select count(*) from public.exams where id in (v_twin_a, v_twin_b) and access_code = 'TWIN31' and status = 'draft') = 2,
@@ -130,7 +133,7 @@ begin
   -- ---------- a closed exam does not hold its code ----------
   v_reuse := public.save_exam(null, jsonb_build_object(
     'title', 'Reuse check', 'duration_minutes', 30, 'access_code', 'REUSE31',
-    'selection_mode', 'auto', 'auto_filter', jsonb_build_object('topic', 'TASK-031 test'), 'pool_size', 1), v_actor);
+    'selection_mode', 'auto', 'auto_filter', jsonb_build_object('topic', 'TASK-031 test'), 'pool_size', 1, 'availability_mode', 'scheduled', 'starts_at', now() + interval '1 hour', 'ends_at', now() + interval '2 hours'), v_actor);
   perform public.set_exam_status(v_reuse, 'open', v_actor);
   perform public.set_exam_status(v_reuse, 'closed', v_actor);
   perform pg_temp.assert_true(public.exam_code_used_by('REUSE31') is null,
@@ -143,5 +146,6 @@ begin
         'selection_mode', 'auto', 'auto_filter', jsonb_build_object('topic', 'x'), 'pool_size', 1)::text, v_actor),
     'already used by an open exam', 'saving another exam with an open code is still refused');
 
-  raise exception 'EXAM STATUS TESTS PASSED (two drafts may share a code; the second open is refused with hint=validation, names the code and stays a draft; closing frees it; exam_code_used_by says open/draft/free and honours p_exclude; save_exam still refuses an open code) — everything rolled back';
+  raise exception 'EXAM STATUS TESTS PASSED (two drafts may share a code; the second open is refused with hint=validation, names the code and stays a draft; closing frees it; exam_code_used_by says open/draft/free and honours p_exclude; save_exam still refuses an open code) â€” everything rolled back';
 end $exam_status$;
+

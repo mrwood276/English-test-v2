@@ -26,13 +26,11 @@
 --     only non-archived questions now, matching what list_topics always did.
 -- The old signatures are dropped: keeping them would leave unscoped functions behind.
 --
--- APPLIED LIVE: pending — written 2026-10-03 without a Management credential. Apply it as ONE
--- Management API request with its ledger row (version `20261003000000`, name
--- `question_bank_isolation`), then REDEPLOY the `question-bank` Edge Function — the deployed handler
--- must gain the new `p_actor` arguments in the same step, so SQL first, redeploy second; either one
--- alone breaks the endpoint (missing or extra rpc arguments). Then run
--- `supabase/tests/question_bank_isolation_test.sql`, record the result here and in `.ai/`.
--- Existing data needs no repair: every row already carries its true `created_by`.
+-- APPLIED LIVE: 2026-10-03 as ONE Management API request with its ledger row (version
+-- `20261003000000`, name `question_bank_isolation`); `supabase/tests/question_bank_isolation_test.sql`
+-- passed live against it, and the `question-bank` Edge Function was redeployed immediately after the
+-- apply so the deployed handler gained the new `p_actor` arguments. Existing data needed no repair:
+-- every row already carried its true `created_by`.
 
 -- ============ who is an admin (the bypass) ============
 create or replace function public._is_staff_admin(p_actor uuid) returns boolean

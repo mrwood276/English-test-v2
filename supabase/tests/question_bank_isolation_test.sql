@@ -247,13 +247,14 @@ begin
     'the import creates the teacher own reading text instead');
 
   -- ---------- the admin bypass is the whole school ----------
-  v_res := public.save_question(v_qt, jsonb_build_object(
+  -- save_question returns a uuid; v_res is jsonb, so read the admin path back directly.
+  perform public.save_question(v_qt, jsonb_build_object(
     'type', 'multiple_choice', 'difficulty', 'medium', 'topic', 'TASK-048 test',
     'body', 'TASK-048 isolation question (edited by the admin)',
     'options', jsonb_build_array(
       jsonb_build_object('body', 'Yes', 'is_correct', true),
       jsonb_build_object('body', 'No', 'is_correct', false))), v_admin);
-  perform pg_temp.assert_true(v_res = v_qt, 'the admin edits the teacher question');
+  perform pg_temp.assert_true((public.get_question(v_qt, v_admin) ->> 'body') = 'TASK-048 isolation question (edited by the admin)', 'the admin edits the teacher question');
   v_res := public.bulk_update_questions(array[v_qt], jsonb_build_object('difficulty', 'easy'), v_admin);
   perform pg_temp.assert_true((v_res ->> 'matched')::int = 1, 'the admin bulk change reaches the teacher question');
 

@@ -14,10 +14,13 @@
 -- changes. `save_exam` and `exam_code_available` keep their rules (regeneration still avoids only
 -- open exams; a closed exam does not hold its code).
 --
--- APPLIED LIVE: pending — written 2026-10-02 without a Management credential. Apply it as one
--- Management API request with its ledger row (version `20261002000002`, name `open_exam_code_conflict`),
--- run `supabase/tests/exam_status_test.sql`, then redeploy the `exams` Edge Function (its handler now
--- calls `exam_code_used_by`, so the SQL must land first), and record the result here and in `.ai/`.
+-- APPLIED LIVE: 2026-10-03 as one Management API request with its ledger row (version
+-- `20261002000002`, name `open_exam_code_conflict`), and `supabase/tests/exam_status_test.sql` passed
+-- live against it (the exams Edge Function was redeployed immediately after the apply, its handler
+-- calls `exam_code_used_by`). PRE-APPLY FIX (2026-10-03, same session): the writable text now also
+-- carries the `revoke`/`grant` for `exam_code_used_by`, because the no-credential draft had missed it
+-- and the rolled-back SQL test caught that gap before staging. The exams handler and this file land
+-- together live; untouched by the 2026-10-02 merge.
 
 -- ============ the refusal at Open ============
 create or replace function public.set_exam_status(p_id uuid, p_status text, p_actor uuid)
@@ -75,3 +78,5 @@ returns text language sql stable security definer set search_path = public as $$
     else null
   end;
 $$;
+revoke execute on function public.exam_code_used_by(text, uuid) from public, anon, authenticated;
+grant execute on function public.exam_code_used_by(text, uuid) to service_role;

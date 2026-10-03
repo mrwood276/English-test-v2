@@ -56,17 +56,17 @@ themselves are not owner-filtered yet. `used_in_exams` counts every exam that re
 regardless of the exam's owner — factual metadata about the question itself, to be revisited with the
 exam slice.
 
-## Apply order (the pending live half)
+## Apply order — done live 2026-10-03
 
-1. Apply `supabase/migrations/20261003000000_question_bank_isolation.sql` as ONE Management API
+1. Applied `supabase/migrations/20261003000000_question_bank_isolation.sql` as ONE Management API
    request with its ledger row (`20261003000000` / `question_bank_isolation`).
-2. **Redeploy the `question-bank` Edge Function** — the deployed handler must gain the new `p_actor`
-   arguments in the same step. SQL first, redeploy second: either one alone breaks the endpoint
+2. **Redeployed the `question-bank` Edge Function** immediately after — the deployed handler now has the
+   new `p_actor` arguments. SQL first, redeploy second; either one alone breaks the endpoint
    (missing or extra rpc arguments).
-3. Run `supabase/tests/question_bank_isolation_test.sql` (one request; it ends with
-   `raise exception`, so the pass message arrives as an HTTP 400 body:
-   `QUESTION BANK ISOLATION TESTS PASSED (…)`).
-4. Record the result in the migration header, here, and in `.ai/`.
+3. `supabase/tests/question_bank_isolation_test.sql` passed live (finished with the
+   `QUESTION BANK ISOLATION TESTS PASSED (...)` raise, delivered as an HTTP 400 body).
+4. Result recorded: this section, the migration header, and `.ai/`. One fixture fault found and fixed in
+   the SQL test file itself (assigning uuid into a jsonb variable); no product change.
 
 Status: **written 2026-10-03, not yet applied live** (no Management credential in the session).
 Existing data needs no repair — every row already carries its true `created_by`.
