@@ -22,6 +22,9 @@ const SIMILARITY_THRESHOLD = 0.55;
 /**
  * Question bank for teachers and admins. One endpoint, POST { action, ... }.
  * All writes are database functions (one transaction each, with the audit entry inside).
+ * Every call — read or write — hands the signed-in person over as `p_actor`: the SQL functions scope
+ * questions and reading texts to `created_by = p_actor` unless the actor is an active admin
+ * (TASK-048, DEC-041). A foreign id gets the same answer a missing one gets.
  */
 export function createHandler(getDb: () => Db) {
   return handle(async (req) => {
@@ -33,10 +36,10 @@ export function createHandler(getDb: () => Db) {
 
     switch (action) {
       case "list":
-        return await callRpc(db, "list_questions", { p: parseListFilters(b) });
+        return await callRpc(db, "list_questions", { p: parseListFilters(b), p_actor: me.userId });
 
       case "get": {
-        const question = await callRpc(db, "get_question", { p_id: asUuid(b.id, "id") });
+        const question = await callRpc(db, "get_question", { p_id: asUuid(b.id, "id"), p_actor: me.userId });
         if (!question) throw notFound("That question no longer exists.");
         return { question };
       }
@@ -70,24 +73,25 @@ export function createHandler(getDb: () => Db) {
           p_options: options,
           p_exclude: optional(b.exclude_id, (v) => asUuid(v, "exclude_id")) ?? null,
           p_threshold: SIMILARITY_THRESHOLD,
+          p_actor: me.userId,
         });
         return { matches };
       }
 
       case "duplicate_groups":
-        return await callRpc(db, "find_duplicate_groups");
+        return await callRpc(db, "find_duplicate_groups", { p_actor: me.userId });
 
       case "topics":
-        return { topics: await callRpc(db, "list_topics") };
+        return { topics: await callRpc(db, "list_topics", { p_actor: me.userId }) };
 
       case "class_labels":
-        return { labels: await callRpc(db, "list_class_labels", { p_prefix: optional(b.prefix, (v) => asPlain(v, "Prefix", { max: 40 })) ?? null }) };
+        return { labels: await callRpc(db, "list_class_labels", { p_prefix: optional(b.prefix, (v) => asPlain(v, "Prefix", { max: 40 })) ?? null, p_actor: me.userId }) };
 
       case "passages":
-        return { passages: await callRpc(db, "list_passages", { p_q: optional(b.q, (v) => asString(v, "Search", { max: 100 })) ?? null }) };
+        return { passages: await callRpc(db, "list_passages", { p_q: optional(b.q, (v) => asString(v, "Search", { max: 100 })) ?? null, p_actor: me.userId }) };
 
       case "passage_get": {
-        const passage = await callRpc(db, "get_passage", { p_id: asUuid(b.id, "id") });
+        const passage = await callRpc(db, "get_passage", { p_id: asUuid(b.id, "id"), p_actor: me.userId });
         if (!passage) throw notFound("That reading text no longer exists.");
         return { passage };
       }
@@ -99,7 +103,7 @@ export function createHandler(getDb: () => Db) {
 
       case "import_check": {
         const items = parseImportCheckItems(b.items);
-        const results = await callRpc(db, "find_similar_batch", { p_items: items, p_threshold: SIMILARITY_THRESHOLD });
+        const results = await callRpc(db, "find_similar_batch", { p_items: items, p_threshold: SIMILARITY_THRESHOLD, p_actor: me.userId });
         return { results };
       }
 

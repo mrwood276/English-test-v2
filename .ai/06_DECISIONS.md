@@ -288,7 +288,55 @@ Only decisions that can be verified from the repository, `docs/design.md`, the l
 - Consequences: TASK-037 is COMPLETED (INS-13/14/15, ISSUE-057/058); `grep -r` for the address returns nothing in the working tree; every live check now needs `SUPABASE_TEST_EMAIL` in the environment (documented in `docs/verification-checklist.md` and the checks' own messages).
 - Affected: `.ai/{01,02,03,04,05,06,07,08,09,10}.md`, `README.md`, `.ai/00_AI_RULES.md`, `frontend/tests/live_*_check.py`, `docs/{sql-accounts,sql-duplicates,verification-checklist}.md`. Active: yes.
 
-## DECISION REQUIRED (owner) — not yet decided, therefore not yet numbered
+## DEC-041 — Teacher data isolation: the strict model, enforced in SQL (2026-10-03)
+
+- Context: the owner's new product roadmap makes **teacher data isolation P0 / security critical** —
+  "teacher A must not see or change teacher B's questions, exams, results, or monitor", and "the
+  security boundary must be enforced in the backend/database, not by hiding things in the frontend".
+  The measured state it answered: `requireStaff` checks only the role; `created_by` has been recorded
+  on every question and passage since the beginning but was never used as a filter — teacher A could
+  read, edit, archive, bulk-change and delete teacher B's questions. The owner was offered three
+  models (strict own-only; read-only cross-teacher; folders + isolation in one migration) and chose
+  **the strict one**, starting with the question bank as the first slice.
+- Decision: (1) a **teacher** sees and changes only rows with `created_by = p_actor`; (2) an **active
+  admin** (`role = 'admin' and is_active`) sees and changes the whole school; (3) a **null actor
+  fails closed** (empty results, never the whole bank); (4) a **foreign id is exactly as invisible as
+  a missing one** — the same sentence and the same `hint = 'validation'`, so nothing leaks existence;
+  (5) the bypass lives in a SQL helper (`public._is_staff_admin`), so it holds for any future caller,
+  the same reasoning as DEC-031's guards; (6) **topics and class labels stay a shared taxonomy** with
+  counts scoped to the actor's own questions; (7) an **import cannot match another person's reading
+  text by title** — it creates a fresh own copy instead; (8) **students are untouched** (they join by
+  exam code); (9) the slice order is **question bank first, then exams, then results/monitor** — each
+  slice is its own migration, its own test matrix (A→own allowed, A→B denied, admin appropriate), and
+  its own red proof. Exams/results/monitor are explicitly **still role-checked only** until their
+  slice lands (see `docs/sql-question-bank.md`).
+- Alternatives: (a) read-only cross-teacher visibility (rejected for now — the school scenario does
+  not need it today, and the strict model is simpler to audit; it can be relaxed per-function later
+  without re-doing the migration); (b) RLS policies instead of function-level filters (rejected —
+  DEC-002's baseline is RLS-on with zero policies and all access through service-role Edge Functions;
+  the functions are the one door); (c) folders in the same migration (rejected — smallest safe
+  change).
+- Affected: `supabase/migrations/20261003000000_question_bank_isolation.sql` (APPLIED LIVE: pending,
+  apply + redeploy `question-bank` + run `supabase/tests/question_bank_isolation_test.sql`),
+  `backend/functions/question-bank/handler.ts` (every read RPC now carries `p_actor`),
+  `backend/tests/question_bank.test.ts` (173), `frontend/tests/mock_server.py` (the mock mirrors the
+  scoping: u1 owns every third seeded question), `frontend/tests/question_bank_e2e.py` (**161**),
+  `docs/sql-question-bank.md` (new domain contract). Active: yes.
+
+## DEC-042 — Teacher email verification stays deferred; DEC-031's handover remains the account flow (2026-10-03)
+
+- Context: the owner's roadmap asks for a real email-verification flow (admin creates teacher →
+  verification email → verify → set password → log in) as P0. The recorded constraint still holds:
+  the free Supabase plan has no mailer (DEC-017/DEC-032), and DEC-031 deliberately chose in-person
+  handover of a temporary password precisely so the project would not depend on infrastructure it
+  does not have. The owner was offered: defer and record, supply SMTP credentials, or upgrade the
+  plan — and chose to **defer**.
+- Decision: the account flow stays as DEC-031 built it (admin types email + temporary password on
+  `#/accounts`; Auth Admin API through the `accounts` Edge Function; deactivate never delete). The
+  verification flow is **not started** until the owner supplies SMTP credentials or upgrades the
+  plan; when that happens, Supabase Auth's own email verification is the mechanism (no custom email
+  system). This is a re-affirmation of DEC-031 under the new roadmap, not a new direction.
+- Affected: none in code. Active: yes. Revisit trigger: the owner providing SMTP or a paid plan.
 
 These are product/security choices an inspector must not make. Each one names the task it blocks and the
 place its evidence lives. When the owner answers one, write a normal DEC entry with the answer and move the
@@ -301,3 +349,5 @@ task out of BLOCKED.
 | D-4 | Must `SESSION_TOKEN_SECRET` be required (the app refuses to start exam sessions without it), or is the documented fallback to the service-role key acceptable? | TASK-039b | `10_ROADMAP.md` INS-17b; `docs/production-deployment.md` step 3 already tells the owner to set it before the first exam day. Failing loudly can lock a class out if it is set at the wrong moment — hence the question. |
 | D-5 | May an offline-capable student shell (a service worker) be added? (The visibility half is **answered — DEC-040**: the repository is public and the staff test account's address is stripped from the tree.) | TASK-042 | `10_ROADMAP.md` INS-20 (the visibility/email half was INS-15, closed 2026-10-02 by DEC-040). |
 | D-6 | May a Supabase Management API token live as a repository secret so a nightly **read-only** live job can run (SQL tests + `run_live_checks.py --read-only`)? | TASK-047 | `10_ROADMAP.md` INS-25; the guide already tells the owner to rotate credentials that travelled through chats. |
+| D-7 | Which isolation model should teacher data use, and when does the next slice (exams, then results/monitor) start? | TASK-048, next slices | The model is **answered — DEC-041** (strict: own rows + admin sees all). The next slice's timing is open. |
+| D-8 | How do teacher accounts get email verification while the free Supabase plan has no mailer (DEC-017/DEC-032)? | master prompt PHASE 1 (email flow) | Answered for now — **DEC-042**: deferred; DEC-031's in-person handover stands until the owner supplies SMTP credentials or a paid plan. |

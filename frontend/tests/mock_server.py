@@ -46,9 +46,12 @@ def make_questions():
         out.append({
             "id": f"00000000-0000-4000-8000-{i:012d}", "n": i, "type": TYPES[(i - 1) % 4], "difficulty": DIFFS[(i - 1) % 3],
             "topic": "Narrative Text" if i <= 15 else "Simple Past", "body": body,
-            "class_labels": ["XII TKJ B", "XII TKJ A"] if i % 3 == 0 else (["XII TKJ A"] if i % 2 else []),
+            "class_labels": ["XII TKJ B", "XII TKJ A"] if i % 3 == 0 else (["XI TKJ A"] if i == 2 else (["XII TKJ A"] if i % 2 else [])),
             "has_audio": i % 5 == 0, "has_image": i % 7 == 0, "has_passage": i % 2 == 0, "used_in_exams": i % 4,
             "is_archived": False, "weight": 2 if i % 4 == 0 else 1, "created": 31 - i,
+            # teacher data isolation (TASK-048, DEC-041): the admin (u1) owns every third question,
+            # the teacher (u2) the rest — the isolation section of question_bank_e2e depends on it
+            "created_by": "u1" if i % 3 == 0 else "u2",
         })
     return out
 
@@ -106,7 +109,26 @@ class Server:
              "created_at": "2026-09-21T08:00:00Z", "last_sign_in_at": None},
         ]
         self.fail_account = False; self.account_passwords = []
-        self.passages = [{"id": "pa1", "title": "The Lost Wallet", "body": "Dina found a <u>brown</u> wallet.", "question_count": 3}, {"id": "pa2", "title": "The Smart Monkey", "body": "A clever monkey sat on a branch.", "question_count": 1}]
+        self.passages = [{"id": "pa1", "title": "The Lost Wallet", "body": "Dina found a <u>brown</u> wallet.", "question_count": 3, "created_by": "u1"}, {"id": "pa2", "title": "The Smart Monkey", "body": "A clever monkey sat on a branch.", "question_count": 1, "created_by": "u2"}]
+    # ---------- teacher data isolation (TASK-048, DEC-041) ----------
+    # The signed-in person (self.role) sees only their own questions and reading texts; the admin
+    # (u1) sees the whole school. A foreign id behaves exactly like a missing one.
+    def actor_id(self):
+        return "u1" if self.role == "admin" else "u2"
+
+    def own_visible(self, mid):
+        """Whether the question with this id exists for the signed-in person."""
+        if self.role == "admin":
+            return True
+        q = next((q for q in self.qs if q["id"] == mid), None)
+        return q is not None and q.get("created_by") == "u2"
+
+    def own_qs(self, rows):
+        return rows if self.role == "admin" else [q for q in rows if q.get("created_by") == "u2"]
+
+    def not_found(self, route, text):
+        return route.fulfill(status=404, content_type="application/json", body=json.dumps({"error": text, "code": "not_found"}))
+
     def item(self, q):
         return {k: q[k] for k in ["id", "type", "body", "topic", "difficulty", "weight", "class_labels", "has_audio", "has_image", "has_passage", "used_in_exams", "is_archived"]} | {"updated_at": "2026-09-20T00:00:00Z"}
     def full(self, q):
@@ -147,7 +169,11 @@ class Server:
         err(400, "Unknown action")
 
     def passages_list(self):
-        return [{"id": x["id"], "title": x["title"], "excerpt": x["body"][:60], "question_count": x["question_count"]} for x in self.passages]
+        rows = self.passages if self.role == "admin" else [x for x in self.passages if x.get("created_by") == "u2"]
+        return [{"id": x["id"], "title": x["title"], "excerpt": x["body"][:60], "question_count": x["question_count"]} for x in rows]
+
+    def own_passages(self):
+        return self.passages if self.role == "admin" else [x for x in self.passages if x.get("created_by") == "u2"]
     def handle(self, route):
         req = route.request
         if req.method == "OPTIONS": return route.fulfill(status=204, body="")
@@ -178,7 +204,7 @@ class Server:
             if self.fail_list > 0:
                 self.fail_list -= 1
                 return route.fulfill(status=500, content_type="application/json", body=json.dumps({"error": "Something went wrong. Please try again.", "code": "internal_error"}))
-            rows = [q for q in self.qs if q["is_archived"] == bool(body.get("archived"))]
+            rows = self.own_qs([q for q in self.qs if q["is_archived"] == bool(body.get("archived"))])
             if body.get("q"): rows = [q for q in rows if body["q"].lower() in q["body"].lower()]
             for k in ["topic", "difficulty", "type"]:
                 if body.get(k): rows = [q for q in rows if str(q[k]).lower() == str(body[k]).lower()]
@@ -192,31 +218,43 @@ class Server:
             size = body.get("page_size", 25); page = body.get("page", 1)
             return ok({"items": [self.item(q) for q in rows[(page - 1) * size: page * size]], "total": self.fake_total if self.fake_total is not None else len(rows), "page": page, "page_size": size})
         if a == "get":
-            q = next((q for q in self.qs if q["id"] == body["id"]), None)
+            q = next((q for q in self.own_qs(self.qs) if q["id"] == body["id"]), None)
             return ok({"question": self.full(q)}) if q else route.fulfill(status=404, content_type="application/json", body=json.dumps({"error": "That question no longer exists.", "code": "not_found"}))
         if a == "save":
             self.saved.append(body)
             if not str(body.get("body", "")).strip(): return route.fulfill(status=400, content_type="application/json", body=json.dumps({"error": "The question text is required.", "code": "bad_request"}))
             if "FORCE_SERVER_ERROR" in body.get("body", ""): return route.fulfill(status=400, content_type="application/json", body=json.dumps({"error": "Choose exactly one correct answer.", "code": "bad_request"}))
             if body.get("id"):
-                q = next(q for q in self.qs if q["id"] == body["id"])
+                q = next((q for q in self.own_qs(self.qs) if q["id"] == body["id"]), None)
+                if q is None: return self.not_found(route, "That question no longer exists.")
                 q.update(type=body["type"], difficulty=body["difficulty"], topic=body.get("topic") or "", body=body["body"], class_labels=body.get("class_labels", []))
                 return ok({"id": q["id"]})
             n = len(self.qs) + 100
             nid = f"00000000-0000-4000-8000-{n:012d}"
-            self.qs.append({"id": nid, "n": n, "type": body["type"], "difficulty": body["difficulty"], "topic": body.get("topic") or "", "body": body["body"], "class_labels": body.get("class_labels", []), "has_audio": False, "has_image": False, "has_passage": bool(body.get("passage_id")), "used_in_exams": 0, "is_archived": False, "weight": body.get("weight", 1), "created": 100 + len(self.qs)})
+            self.qs.append({"id": nid, "n": n, "type": body["type"], "difficulty": body["difficulty"], "topic": body.get("topic") or "", "body": body["body"], "class_labels": body.get("class_labels", []), "has_audio": False, "has_image": False, "has_passage": bool(body.get("passage_id")), "used_in_exams": 0, "is_archived": False, "weight": body.get("weight", 1), "created": 100 + len(self.qs), "created_by": self.actor_id()})
             return ok({"id": nid})
         if a == "check_duplicates":
             self.dup_calls.append(body)
             text = body.get("body", "")
-            if "EXACT" in text: return ok({"matches": [{"id": "00000000-0000-4000-8000-00000000000a", "body": "What did Dina do first?", "similarity": 1.0, "exact": True, "is_archived": False, "used_in_exams": 1}]})
-            if "wallet" in text.lower(): return ok({"matches": [{"id": "00000000-0000-4000-8000-000000000009", "body": "What did Dina do first when she found the wallet?", "similarity": 0.91, "exact": False, "is_archived": False, "used_in_exams": 2}]})
-            return ok({"matches": []})
+            matches = []
+            if "EXACT" in text:
+                matches.append({"id": "00000000-0000-4000-8000-00000000000a", "body": "What did Dina do first?", "similarity": 1.0, "exact": True, "is_archived": False, "used_in_exams": 1})
+            elif "wallet" in text.lower():
+                matches.append({"id": "00000000-0000-4000-8000-000000000009", "body": "What did Dina do first when she found the wallet?", "similarity": 0.91, "exact": False, "is_archived": False, "used_in_exams": 2})
+            return ok({"matches": [m for m in matches if self.own_visible(m["id"])]})
         if a == "duplicate_groups":
             self.dup_scans.append(body)
             if self.fail_duplicates:
                 return route.fulfill(status=500, content_type="application/json", body=json.dumps({"error": "Something went wrong. Please try again.", "code": "internal_error"}))
-            return ok(self.dup_groups)
+            if self.role == "admin": return ok(self.dup_groups)
+            out = {"question_count": 0, "exact_groups": [], "similar_pairs": []}
+            for key in ("exact_groups", "similar_pairs"):
+                for g in self.dup_groups.get(key, []):
+                    qs = [x for x in g.get("questions", []) if self.own_visible(x["id"])]
+                    if len(qs) >= 2:
+                        kept = dict(g); kept["questions"] = qs
+                        out[key].append(kept); out["question_count"] += len(qs)
+            return ok(out)
         if a == "bulk_update":
             self.bulk_calls.append(body)
             def bad(msg): return route.fulfill(status=400, content_type="application/json", body=json.dumps({"error": msg, "code": "bad_request"}))
@@ -239,7 +277,7 @@ class Server:
                 if mode not in ("add", "remove", "replace"): return bad("Choose what to do with the class labels.")
                 if not [x for x in (ch["class_labels"].get("labels") or []) if str(x).strip()] and mode != "remove":
                     return bad("Add at least one class label.")
-            rows = [q for q in self.qs if q["id"] in ids]
+            rows = [q for q in self.own_qs(self.qs) if q["id"] in ids]
             if not rows: return bad("Those questions no longer exist. Refresh the list and try again.")
             norm = lambda t: " ".join(str(t).split()).lower()
             changed = set()
@@ -277,6 +315,7 @@ class Server:
                     matches.append({"id": "00000000-0000-4000-8000-00000000000a", "body": "What did Dina do first?", "similarity": 1.0, "exact": True, "is_archived": False, "used_in_exams": 1})
                 elif "similar" in text.lower():
                     matches.append({"id": "00000000-0000-4000-8000-000000000009", "body": "What did Dina do first when she found the wallet?", "similarity": 0.91, "exact": False, "is_archived": False, "used_in_exams": 2})
+                matches = [m for m in matches if self.own_visible(m["id"])]
                 if matches:
                     results.append({"i": item.get("i", 0), "matches": matches})
             return ok({"results": results})
@@ -289,29 +328,44 @@ class Server:
             n0 = len(self.qs)
             for k, it in enumerate(items):
                 n = n0 + 100 + k + 1
-                self.qs.append({"id": f"00000000-0000-4000-8000-{n:012d}", "n": n, "type": it["type"], "difficulty": it.get("difficulty", "medium"), "topic": it.get("topic") or "", "body": it["body"], "class_labels": it.get("class_labels", []), "has_audio": False, "has_image": False, "has_passage": bool(it.get("passage")), "used_in_exams": 0, "is_archived": False, "weight": it.get("weight", 1), "created": 200 + len(self.qs)})
+                self.qs.append({"id": f"00000000-0000-4000-8000-{n:012d}", "n": n, "type": it["type"], "difficulty": it.get("difficulty", "medium"), "topic": it.get("topic") or "", "body": it["body"], "class_labels": it.get("class_labels", []), "has_audio": False, "has_image": False, "has_passage": bool(it.get("passage")), "used_in_exams": 0, "is_archived": False, "weight": it.get("weight", 1), "created": 200 + len(self.qs), "created_by": self.actor_id()})
             new_passages = {it["passage"]["title"] for it in items if isinstance(it.get("passage"), dict) and it["passage"].get("body")}
             return ok({"created": len(items), "passages_created": len(new_passages), "ids": [f"00000000-0000-4000-8000-{n0 + 100 + k + 1:012d}" for k in range(len(items))]})
         if a == "passages": return ok({"passages": self.passages_list()})
         if a == "passage_get":
-            pa = next((x for x in self.passages if x["id"] == body["id"]), None)
+            pa = next((x for x in self.own_passages() if x["id"] == body["id"]), None)
             return ok({"passage": {**pa, "question_count": pa["question_count"], "media": []}}) if pa else route.fulfill(status=404, content_type="application/json", body=json.dumps({"error": "That reading text no longer exists.", "code": "not_found"}))
         if a == "passage_save":
             self.saved_passages = getattr(self, "saved_passages", []) + [body]
             if body.get("id"):
-                pa = next(x for x in self.passages if x["id"] == body["id"]); pa.update(title=body["title"], body=body["body"]); return ok({"id": pa["id"]})
+                pa = next((x for x in self.own_passages() if x["id"] == body["id"]), None)
+                if pa is None: return self.not_found(route, "That reading text no longer exists.")
+                pa.update(title=body["title"], body=body["body"]); return ok({"id": pa["id"]})
             pid = f"pa{len(self.passages) + 1}"
-            self.passages.append({"id": pid, "title": body["title"], "body": body["body"], "question_count": 0})
+            self.passages.append({"id": pid, "title": body["title"], "body": body["body"], "question_count": 0, "created_by": self.actor_id()})
             return ok({"id": pid})
-        if a == "topics": return ok({"topics": [{"id": "t1", "name": "Narrative Text", "question_count": 15}, {"id": "t2", "name": "Simple Past", "question_count": 15}]})
+        if a == "topics":
+            own = [q for q in self.own_qs(self.qs) if not q["is_archived"]]
+            names = sorted({q["topic"] for q in own if q["topic"]})
+            return ok({"topics": [{"id": f"t{i + 1}", "name": n, "question_count": sum(1 for q in own if q["topic"] == n)} for i, n in enumerate(names)]})
         if a == "class_labels":
-            labels = [{"label": "XII TKJ A", "question_count": 20}, {"label": "XII TKJ B", "question_count": 10}, {"label": "XI TKJ A", "question_count": 4}]
+            own = [q for q in self.own_qs(self.qs) if not q["is_archived"]]
+            counts = {}
+            for q in own:
+                for l in q["class_labels"]:
+                    counts[l] = counts.get(l, 0) + 1
+            labels = sorted(({"label": l, "question_count": c} for l, c in counts.items()), key=lambda x: (-x["question_count"], x["label"]))
             pre = " ".join(str(body.get("prefix") or "").lower().split())
             return ok({"labels": [l for l in labels if l["label"].lower().startswith(pre)]})
-        q = next((q for q in self.qs if q["id"] == body.get("id")), None)
-        if a == "archive": q["is_archived"] = True; return ok({"ok": True})
-        if a == "restore": q["is_archived"] = False; return ok({"ok": True})
+        q = next((q for q in self.own_qs(self.qs) if q["id"] == body.get("id")), None)
+        if a == "archive":
+            if q is None: return self.not_found(route, "That question no longer exists.")
+            q["is_archived"] = True; return ok({"ok": True})
+        if a == "restore":
+            if q is None: return self.not_found(route, "That question no longer exists.")
+            q["is_archived"] = False; return ok({"ok": True})
         if a == "remove":
+            if q is None: return self.not_found(route, "That question no longer exists.")
             if q["used_in_exams"] > 0: q["is_archived"] = True; return ok({"result": "archived"})
             self.qs.remove(q); return ok({"result": "deleted"})
         route.fulfill(status=400, content_type="application/json", body=json.dumps({"error": "Unknown action"}))

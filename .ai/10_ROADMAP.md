@@ -413,6 +413,29 @@ PHASE F — OPTIONAL CONTINUOUS VERIFICATION (needs the owner's secret)
   TASK-047  a nightly read-only live job                        (INS-25, P3 + DECISION)
 ```
 
+**Owner roadmap (master prompt, adopted 2026-10-03) — PHASE 1 sits ON TOP of the phases above:**
+
+- **Multi-teacher accounts (P0): already exist** — DEC-031's `accounts` Edge Function + `#/accounts`
+  screen create/activate/deactivate any number of teachers. Only the profile fields (subject,
+  description) are missing; no rebuild (master prompt §1, §7).
+- **Email verification (P0): deferred — DEC-042.** The free plan has no mailer (DEC-017/DEC-032);
+  DEC-031's in-person handover stays the account flow until the owner supplies SMTP or a plan.
+  Decision D-8 records where to return to.
+- **Teacher data isolation (P0, security): slice 1 DONE — TASK-048 / DEC-041 (2026-10-03).**
+  Question bank is now strict (own rows + admin sees all, enforced in SQL, red-proved at three
+  layers: 2 backend tests, 10 browser checks, the rolled-back `question_bank_isolation_test.sql`
+  which has NOT run live). **Remaining slices, in dependency order: exams → results → monitor →
+  media** — each with the same matrix (A→own allowed, A→B denied, admin appropriate) and its own
+  migration + SQL test + red proof. Timing of the next slice: D-7.
+- **Question bank folders (P0, PHASE 2 of the master prompt): not started** — no folder table exists
+  (0 `folder` hits in 37 migrations). Build them AFTER the isolation slices so folders are born
+  owner-scoped (`created_by` from day one), never as a second search system (§12).
+- Then PHASE 3 exam↔folder integration (existing exams/questions data must survive — §14), PHASE 4
+  Monitor 2.0 / activity timeline / anti-cheating 2.0 (extend `session_events`, honest "suspicious
+  activity" wording, no auto-submit default — §16–21), PHASE 5 onboarding, PHASE 6 skeleton loading
+  + UI simplification + empty states, PHASE 7 productivity/analytics. Explicitly NOT on the list:
+  AI generators, webcam/face, screen recording, gamification, native mobile (§29).
+
 **Progress (2026-10-01, later the same day — implementation session):** PHASE A is two-thirds done.
 **TASK-035** (`27e51ec`), **TASK-028** (`555fdf0`) and **TASK-029** (`d80be83`) are complete and pushed,
 each with a check that was proved to fail on the pre-fix code first (2 checks red on the old mock, 1 on the

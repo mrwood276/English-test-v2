@@ -498,6 +498,67 @@ with sync_playwright() as pw:
     check("a phone can start over", page.is_hidden(".bulkbar"))
     page.set_viewport_size({"width": 1280, "height": 900})
 
+    # --- teacher data isolation (TASK-048, DEC-041): the bank is scoped on the server.
+    # A fresh seed makes the numbers exact: 30 questions, the admin's (u1) every third one, so for a
+    # signed-in teacher the admin's ten must be exactly as invisible as missing ones.
+    dup_before = srv.dup_groups
+    srv.qs = make_questions()
+    srv.passages = [
+        {"id": "pa1", "title": "The Lost Wallet", "body": "Dina found a <u>brown</u> wallet.", "question_count": 3, "created_by": "u1"},
+        {"id": "pa2", "title": "The Smart Monkey", "body": "A clever monkey sat on a branch.", "question_count": 1, "created_by": "u2"}]
+    srv.role = "teacher"; page.reload(); page.wait_for_selector(".qtable")
+    page.wait_for_function("['20 questions','30 questions'].includes(document.querySelector('.head .sub')?.textContent)")
+    teacher_count = page.inner_text(".head .sub")
+    check("a teacher's count is their own (the admin's ten are not theirs)", teacher_count == "20 questions", teacher_count)
+    check("a teacher's list hides the admin's questions", page.query_selector(f"tr[data-id='{qid(3)}']") is None)
+    foreign = page.evaluate("""async () => {
+        const call = (body) => fetch('/functions/v1/question-bank', { method: 'POST',
+            headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+        const get = await call({ action: 'get', id: '%s' });
+        const save = await call({ action: 'save', id: '%s', type: 'multiple_choice', difficulty: 'medium',
+            topic: 'Simple Past', body: 'Hijack attempt',
+            options: [{ body: 'a', is_correct: true }, { body: 'b', is_correct: false }] });
+        const bulk = await call({ action: 'bulk_update', ids: ['%s', '%s'], changes: { difficulty: 'easy' } });
+        return { get: get.status, save: save.status, bulk: await bulk.json() };
+    }""" % (qid(3), qid(3), qid(1), qid(3)))
+    check("reading the admin's question reads like a missing one", foreign["get"] == 404, str(foreign))
+    check("editing the admin's question is refused the same way", foreign["save"] == 404, str(foreign))
+    check("a bulk change simply does not see the admin's questions",
+          foreign["bulk"].get("matched") == 1 and foreign["bulk"].get("missing") == 1, str(foreign))
+    dup = page.evaluate("""async () => {
+        const r = await fetch('/functions/v1/question-bank', { method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'check_duplicates', body: 'wallet', options: [] }) });
+        return (await r.json()).matches;
+    }""")
+    check("the duplicate check does not match against the admin's questions", dup == [], str(dup))
+    srv.dup_groups = {"question_count": 4, "exact_groups": [], "similar_pairs": [
+        {"kind": "similar", "similarity": 0.9, "questions": [
+            {"id": qid(1), "body": "the teacher's own", "used_in_exams": 0},
+            {"id": qid(3), "body": "the admin's", "used_in_exams": 0}]},
+        {"kind": "similar", "similarity": 0.8, "questions": [
+            {"id": qid(1), "body": "the teacher's own", "used_in_exams": 0},
+            {"id": qid(4), "body": "also the teacher's", "used_in_exams": 0}]}]}
+    scan = page.evaluate("""async () => (await (await fetch('/functions/v1/question-bank',
+        { method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ action: 'duplicate_groups' }) })).json())""")
+    scan_ids = [q["id"] for pair in scan.get("similar_pairs", []) for q in pair.get("questions", [])]
+    check("the whole-bank scan keeps the teacher's own pair and drops the cross-owner one",
+          qid(1) in scan_ids and qid(4) in scan_ids and qid(3) not in scan_ids, str(scan))
+    srv.dup_groups = dup_before
+    passages_seen = page.evaluate("""async () => {
+        const call = (body) => fetch('/functions/v1/question-bank', { method: 'POST',
+            headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+        const list = await (await call({ action: 'passages' })).json();
+        const foreign = await call({ action: 'passage_get', id: 'pa1' });
+        return { titles: (list.passages || []).map((p) => p.title), foreign: foreign.status };
+    }""")
+    check("a teacher's reading-text list is their own", passages_seen["titles"] == ["The Smart Monkey"], str(passages_seen))
+    check("the admin's reading text is as good as missing", passages_seen["foreign"] == 404, str(passages_seen))
+    srv.role = "admin"; page.reload(); page.wait_for_selector(".qtable")
+    page.wait_for_function("document.querySelector('.head .sub')?.textContent === '30 questions'")
+    check("the admin still sees every question in the school", page.query_selector(f"tr[data-id='{qid(3)}']") is not None)
+
     # --- session ended while on the page
     srv.status_all = 401; page.select_option("#qb-difficulty", "hots")
     page.wait_for_selector(".login"); 
