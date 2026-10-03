@@ -41,6 +41,7 @@ with sync_playwright() as pw:
     check("empty question is refused with a message and focus", page.is_visible("#err-body") and "Write the question" in page.inner_text("#err-body") and page.evaluate("document.activeElement.id") == "q-body")
     check("nothing was sent to the server", len(srv.saved) == 0)
     page.fill("#q-body", "What did Dina do first?")
+    check("editing shows the unsaved-changes state", page.inner_text("#q-save-status") == "Unsaved changes.")
     page.click("button:has-text('Save question')")
     check("needs at least two answers", "Add at least 2 answers" in page.inner_text("#err-answers"))
     check("summary shows the same message", page.is_visible(".editor .notice.error"))
@@ -174,8 +175,11 @@ with sync_playwright() as pw:
     page.click("dialog button:has-text('Close')"); page.wait_for_function("document.querySelector('dialog') === null")
 
     # ---- saving
+    page.evaluate("window.__saveStates=[];new MutationObserver(function(ms){for(var m of ms){if(m.type==='characterData')window.__saveStates.push(m.target.textContent);else for(var n of m.addedNodes)if(n.textContent)window.__saveStates.push(n.textContent);}}).observe(document.getElementById('q-save-status'),{childList:true,characterData:true,subtree:true})")
     page.click("button:has-text('Save question')")
     page.wait_for_selector(".toast:has-text('Question saved.')"); page.wait_for_selector(".qtable")
+    states = page.evaluate("window.__saveStates")
+    check("saving and saved states showed while saving", "Saving…" in states and "Saved." in states, str(states))
     sent = srv.saved[-1]
     check("saved and back to the list", page.url.endswith("#/questions") and "31 questions" in page.inner_text(".head .sub"))
     check("payload: type, text, difficulty, topic, points", sent["type"] == "multiple_choice" and sent["body"] == "What did <u>Dina</u> do first?" and sent["difficulty"] == "hots" and sent["topic"] == "Narrative Text" and sent["weight"] == 2 and "id" not in sent)
@@ -222,6 +226,10 @@ with sync_playwright() as pw:
     page.fill("#q-body", "FORCE_SERVER_ERROR"); page.click("label[for=qtype-essay]"); page.fill("#q-guidance", "x")
     page.click("button:has-text('Save question')"); page.wait_for_selector(".editor .notice.error:not([hidden])")
     check("a message from the server is shown and the form stays usable", "Choose exactly one correct answer." in page.inner_text(".editor .notice.error") and page.is_enabled("button:has-text('Save question')") and page.inner_text("button:has-text('Save question')") == "Save question")
+    check("the failed save is shown persistently too", page.inner_text("#q-save-status") == "Save failed.")
+    page.fill("#q-guidance", "One mark per idea. Edited.")
+    check("editing after a failed save goes back to unsaved", page.inner_text("#q-save-status") == "Unsaved changes.")
+    page.fill("#q-guidance", "x")
 
     # ---- unsaved changes guard
     page.click("a.back"); page.wait_for_selector("dialog[open]")

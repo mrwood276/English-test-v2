@@ -98,6 +98,21 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
   const snapshot = () => JSON.stringify([draft(), state.mc, state.accepted, state.guidance]);
   const isDirty = () => snapshot() !== baseline;
 
+  // Persistent save state next to the form (the exam editor's `saveStatus` pattern,
+  // same wording): a long edit or a failed save must not leave only a toast behind.
+  const saveStatus = h("p", { class: "sub", id: "q-save-status", role: "status" });
+  let savePhase = ""; // "" | "dirty" | "saving" | "saved" | "failed"
+  function renderSaveStatus() {
+    saveStatus.textContent =
+      savePhase === "saving" ? "Saving…" :
+      savePhase === "failed" ? "Save failed." :
+      savePhase === "saved" ? "Saved." :
+      isDirty() ? "Unsaved changes." : "";
+  }
+  function noteEdit() { if (savePhase !== "saving") { savePhase = "dirty"; renderSaveStatus(); } }
+  container.addEventListener("input", noteEdit);
+  container.addEventListener("change", noteEdit);
+
   // ---------- controls ----------
   const errors = {};
   const errorBox = (field) => h("div", { class: "field-error", id: `err-${field}`, role: "alert", hidden: true });
@@ -110,7 +125,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
     el.hidden = !message;
   }
 
-  const typeSeg = segmented({ label: "Question type", name: "qtype", options: Object.entries(TYPE_LABEL), value: state.type, onChange: (v) => { state.type = v; setError("answers", ""); renderAnswers(); scheduleDup(); } });
+  const typeSeg = segmented({ label: "Question type", name: "qtype", options: Object.entries(TYPE_LABEL), value: state.type, onChange: (v) => { state.type = v; setError("answers", ""); renderAnswers(); scheduleDup(); noteEdit(); } });
 
   const bodyField = richTextarea({ id: "q-body", label: "the question", rows: 3, value: state.body, describedBy: "err-body" });
   bodyField.textarea.addEventListener("input", () => { state.body = bodyField.textarea.value; setError("body", ""); scheduleDup(); });
@@ -119,7 +134,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
 
   const answersBox = h("div", { class: "answers" });
   const answerNote = h("p", { class: "visually-hidden", id: "q-answer-note", role: "status", "aria-live": "polite" });
-  const filesPicker = mediaPicker({ items: state.media, id: "q-media", describedBy: "files-hint", onChange: (list) => { state.media = list; } });
+  const filesPicker = mediaPicker({ items: state.media, id: "q-media", describedBy: "files-hint", onChange: (list) => { state.media = list; noteEdit(); } });
 
   // passage
   const passageSelect = h("select", { class: "inp", id: "q-passage", "aria-label": "Reading text" });
@@ -173,13 +188,13 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
   const labels = chipsInput({
     id: "q-labels", label: "Class label", values: state.labels, placeholder: "Type a class, then press Enter",
     suggest: (prefix) => questionBank.classLabels(prefix),
-    onChange: (values) => { state.labels = values; },
+    onChange: (values) => { state.labels = values; noteEdit(); },
   });
   const topicInput = h("input", { class: "inp", id: "q-topic", type: "text", list: "q-topics", maxlength: "120", autocomplete: "off" });
   topicInput.value = state.topic;
   topicInput.addEventListener("input", () => { state.topic = topicInput.value; });
   const topicList = h("datalist", { id: "q-topics" }, topics.map((t) => h("option", { value: t.name })));
-  const difficultySeg = segmented({ label: "Difficulty", name: "qdiff", options: [["easy", "Easy"], ["medium", "Medium"], ["hots", "HOTS"]], value: state.difficulty, onChange: (v) => { state.difficulty = v; } });
+  const difficultySeg = segmented({ label: "Difficulty", name: "qdiff", options: [["easy", "Easy"], ["medium", "Medium"], ["hots", "HOTS"]], value: state.difficulty, onChange: (v) => { state.difficulty = v; noteEdit(); } });
   const weightInput = h("input", { class: "inp narrow", id: "q-weight", type: "number", min: "0.01", max: "100", step: "0.5", inputmode: "decimal", "aria-describedby": "err-weight" });
   weightInput.value = state.weight;
   weightInput.addEventListener("input", () => { state.weight = weightInput.value; setError("weight", ""); });
@@ -242,6 +257,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
       state.mc = rows.map((row) => answerOf.get(row)).filter(Boolean);
       renderAnswers();
       scheduleDup();
+      noteEdit();
     },
   });
 
@@ -256,18 +272,18 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
         const grip = h("button", { class: "btn small ghost grip", type: "button", draggable: "false", title: "Drag to reorder, or press ↑ ↓",
           "aria-label": `Reorder answer ${LETTERS[i]}: drag it, or press the arrow keys` }, icon("grip"));
         const remove = h("button", { class: "icon-btn", type: "button", "aria-label": `Remove answer ${LETTERS[i]}`, disabled: state.mc.length <= MIN_MC }, icon("plus"));
-        remove.addEventListener("click", () => { state.mc.splice(i, 1); renderAnswers(); scheduleDup(); });
+        remove.addEventListener("click", () => { state.mc.splice(i, 1); renderAnswers(); scheduleDup(); noteEdit(); });
         const row = h("div", { class: "optrow" }, grip,
-          bubbleButton(LETTERS[i], o.correct, `Mark answer ${LETTERS[i]} as the correct one`, () => { state.mc.forEach((x, j) => (x.correct = j === i)); setError("answers", ""); renderAnswers(); }), input, remove);
+          bubbleButton(LETTERS[i], o.correct, `Mark answer ${LETTERS[i]} as the correct one`, () => { state.mc.forEach((x, j) => (x.correct = j === i)); setError("answers", ""); renderAnswers(); noteEdit(); }), input, remove);
         answerOf.set(row, o);
         answersBox.append(row);
       });
       const add = h("button", { class: "btn small ghost", type: "button", disabled: state.mc.length >= MAX_MC }, icon("plus"), "Add an answer");
-      add.addEventListener("click", () => { state.mc.push({ body: "", correct: false }); renderAnswers(); answersBox.querySelectorAll("input")[state.mc.length - 1].focus(); });
+      add.addEventListener("click", () => { state.mc.push({ body: "", correct: false }); renderAnswers(); answersBox.querySelectorAll("input")[state.mc.length - 1].focus(); noteEdit(); });
       answersBox.append(add, h("p", { class: "hint" }, "Select the bubble of the correct answer."));
     } else if (state.type === "true_false") {
       ["True", "False"].forEach((text, i) => {
-        answersBox.append(h("div", { class: "optrow" }, bubbleButton(text[0], state.tf === i, `Mark ${text} as the correct answer`, () => { state.tf = i; setError("answers", ""); renderAnswers(); }), h("div", { class: state.tf === i ? "inp static correct" : "inp static" }, text)));
+        answersBox.append(h("div", { class: "optrow" }, bubbleButton(text[0], state.tf === i, `Mark ${text} as the correct answer`, () => { state.tf = i; setError("answers", ""); renderAnswers(); noteEdit(); }), h("div", { class: state.tf === i ? "inp static correct" : "inp static" }, text)));
       });
       answersBox.append(h("p", { class: "hint" }, "Select the bubble of the right answer to your statement."));
     } else if (state.type === "short_answer") {
@@ -276,11 +292,11 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
         input.value = text;
         input.addEventListener("input", () => { state.accepted[i] = input.value; setError("answers", ""); scheduleDup(); });
         const remove = h("button", { class: "icon-btn", type: "button", "aria-label": `Remove accepted answer ${i + 1}`, disabled: state.accepted.length <= 1 }, icon("plus"));
-        remove.addEventListener("click", () => { state.accepted.splice(i, 1); renderAnswers(); scheduleDup(); });
+        remove.addEventListener("click", () => { state.accepted.splice(i, 1); renderAnswers(); scheduleDup(); noteEdit(); });
         answersBox.append(h("div", { class: "optrow" }, input, remove));
       });
       const add = h("button", { class: "btn small ghost", type: "button", disabled: state.accepted.length >= MAX_ACCEPTED }, icon("plus"), "Add another accepted answer");
-      add.addEventListener("click", () => { state.accepted.push(""); renderAnswers(); answersBox.querySelectorAll("input")[state.accepted.length - 1].focus(); });
+      add.addEventListener("click", () => { state.accepted.push(""); renderAnswers(); answersBox.querySelectorAll("input")[state.accepted.length - 1].focus(); noteEdit(); });
       answersBox.append(add, h("p", { class: "hint" }, "Letter case and extra spaces are ignored when checking. Add every spelling you accept."));
     } else {
       const guide = richTextarea({ id: "q-guidance", label: "the grading guide", rows: 3, value: state.guidance });
@@ -339,10 +355,12 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
     const buttons = [saveBtn, saveMoreBtn, previewBtn].filter(Boolean);
     buttons.forEach((b) => (b.disabled = true));
     saveBtn.textContent = "Saving…";
+    savePhase = "saving"; renderSaveStatus();
     try {
       const payload = { ...draft(), weight: Number(state.weight), topic: state.topic.trim() || null, explanation: state.explanation.trim() || null, essay_guidance: state.type === "essay" ? state.guidance.trim() || null : null };
       await questionBank.save({ id: isEdit ? id : undefined, ...payload });
       baseline = snapshot();
+      savePhase = "saved"; renderSaveStatus();
       clearLeaveGuard();
       toast("Question saved.");
       if (addAnother) {
@@ -353,11 +371,12 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
         location.hash = "#/questions";
       }
     } catch (err) {
-      if (ignorable(err)) return;
+      if (ignorable(err)) { savePhase = "dirty"; renderSaveStatus(); return; }
       showSummary([err.message || "Could not save the question. Please try again."]);
       summary.scrollIntoView({ block: "nearest" });
       buttons.forEach((b) => (b.disabled = false));
       saveBtn.textContent = "Save question";
+      savePhase = "failed"; renderSaveStatus();
     }
   }
   saveBtn.addEventListener("click", () => save(false));
@@ -385,7 +404,7 @@ export async function renderQuestionEditor(container, ctx, { id, carry = {} } = 
       h("div", { class: "head" },
         h("div", {}, h("a", { class: "back", href: "#/questions" }, icon("left"), "Question bank"), h("h1", {}, isEdit ? "Edit question" : "Add question")),
         h("div", { class: "row-flex" }, previewBtn, saveMoreBtn, saveBtn)),
-      ...notes, summary,
+      ...notes, summary, saveStatus,
       h("div", { class: "editor-grid" },
         h("div", { class: "editor-main" },
           h("section", { class: "card sec", "aria-labelledby": "h-type" }, h("h2", { id: "h-type" }, "Type"), typeSeg.el),
