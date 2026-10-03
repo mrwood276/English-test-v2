@@ -5,15 +5,15 @@ Order follows dependencies. Completed tasks are listed at the end for history (a
 
 ## NEXT RECOMMENDED TASK
 
-**2026-10-03 — THE PENDING MIGRATIONS ARE LIVE: TASK-031, TASK-032 AND TASK-048 WERE APPLIED (each with its ledger row), THEIR THREE ROLLED-BACK SQL TESTS PASSED LIVE, AND `exams` + `question-bank` WERE REDEPLOYED (`70b3ce2`); TASK-036 IS COMPLETE (`26ad3b7`, question editor save-status, frontend-only); EMAIL IS DEFERRED (DEC-042); THE NEXT READY TASK IS TASK-034.**
+**2026-10-03 — TASK-034 COMPLETE (`a348919`, accessibility pass). THE PENDING MIGRATIONS ARE LIVE: TASK-031/032/048 APPLIED (`70b3ce2`); TASK-036 COMPLETE (`26ad3b7`); EMAIL DEFERRED (DEC-042). NEXT READY: TASK-039 (half waits on D-4) OR THE EXAMS ISOLATION SLICE (roadmap, D-7).**
 
 | | |
 |---|---|
-| Status | **Owner roadmap adopted 2026-10-03** (the master prompt: continue, never rebuild). Its PHASE 1 against reality: multi-teacher accounts already exist (DEC-031's `#/accounts` flow); **isolation slice 1 (question bank) is DONE and LIVE — TASK-048 / DEC-041**, strict model, enforced in SQL (`_is_staff_admin` + `created_by = p_actor`), every denial proved red on the pre-fix code first, migration applied with its ledger row and the isolation SQL test passed live; **email verification is DEFERRED — DEC-042** (free plan has no mailer; DEC-031's handover stands until SMTP/plan). Next isolation slices: **exams, then results/monitor** (D-7's timing half open). **PHASE A/B/C complete — TASK-031/032/048 are applied live.** |
-| Open tasks | **TASK-033 (D-2), TASK-034, TASK-039 (D-4 half), TASK-040 .. TASK-047** — definitions below, evidence in `10_ROADMAP.md`; **the live halves of TASK-031, TASK-032 and TASK-048 are DONE** (three migrations applied in order `20261002000002` → `20261002000003` → `20261003000000`, three ledger rows, three rolled-back SQL tests passed live, `exams` redeployed after the first and `question-bank` after the third). **TASK-036 is done as `26ad3b7`** (no live half — frontend only). |
-| Next recommended task | **TASK-034** (or the **exams isolation slice** if the owner prefers the roadmap over the queue: same test matrix as TASK-048 — A→own allowed, A→B denied, admin appropriate). Then TASK-039 (its secret half waits on D-4). The shared live apply session the queue used to carry as "first" is **done** (2026-10-03, `70b3ce2`). |
-| Branch + commit | `ai-development` @ `70b3ce2` (the live-apply record, 2026-10-03) — on top of `450e757`/`26ad3b7` (TASK-036), `ea48ec4`/`307abf8` (TASK-048), `8f5c089`/`8435b14` (TASK-032), `b7ed106` (TASK-031) and the owner's `d85734e`/`5989f08`; pushed with this record commit. `main` untouched at the orphan snapshot `8b7aeba`. |
-| Deliberately not verified | **The whole live board (`run_live_checks.py`) and the writable live checks have not been re-run since the applies** — the three applies replaced function bodies only (every rolled-back test ran in one transaction, so no data changed), but the board is the next live run's job. Local: backend **173**, unit **44** (re-run after the applies, unchanged — nothing local changed); **all 14 browser suites were green before the applies (846 checks)** and nothing they exercise changed (the deployed functions now match the committed handler/SQL). Last full live picture: the 2026-10-01 whole board (12 PASSED / 1 HELD, 415 checks). |
+| Status | **Owner roadmap adopted 2026-10-03.** Multi-teacher accounts exist (DEC-031); **isolation slice 1 (question bank) DONE AND LIVE — TASK-048**; **email deferred — DEC-042**. **TASK-034 (accessibility) DONE.** Next slices: exams, then results/monitor (D-7 timing). PHASE A/B/C complete — TASK-031/032/048 applied live. |
+| Open tasks | **TASK-033 (D-2), TASK-039 (D-4 half), TASK-040 .. TASK-047** — definitions below; TASK-034 done (`a348919`). Live halves of TASK-031/032/048 done (`70b3ce2`). TASK-036 done (`26ad3b7`). |
+| Next recommended task | **TASK-039** (secret half waits on D-4) or **the exams isolation slice** (roadmap follow-on, same test matrix as TASK-048). The shared live apply for TASK-031/032/048 is done (`70b3ce2`). |
+| Branch + commit | `ai-development` @ `a348919` (TASK-034, 2026-10-03) — on top of `2af5702` (live-apply record), `450e757`/`26ad3b7` (TASK-036), `ea48ec4`/`307abf8` (TASK-048), `8f5c089`/`8435b14` (TASK-032), `b7ed106` (TASK-031), owner `d85734e`/`5989f08`; pushed with this record commit. `main` untouched at `8b7aeba`. |
+| Deliberately not verified | Whole live board (`run_live_checks.py`) not re-run since the 2026-10-03 apply session — the apply session only replaced function bodies (tests ran rolled back). Local: backend 173, unit 44, all 14 browser suites 846 checks green. Last full live picture: 2026-10-01 (12 PASSED / 1 HELD, 415 checks). |
 | History | The session narratives that used to be stacked here (2026-09-21 .. 2026-10-03) are in **`07_CHANGELOG.md`** with their commit hashes; the task list below is current, and the completed-task records are under `## HISTORY`. |
 
 ## OPEN TASKS (created by the 2026-10-01 inspection; detail and evidence in `10_ROADMAP.md`)
@@ -77,6 +77,11 @@ file's CRITICAL/HIGH/MEDIUM/LOW vocabulary.
 - Dependencies: owner decision D-1..D-2 (do not implement the "show my result" option silently — it changes who can read a score).
 
 ### TASK-034 — accessibility pass: contrast, live regions, a real dialog
+- Priority: **MEDIUM (P2)**. Status: **COMPLETED 2026-10-03** (`a348919`). Findings: INS-07/08/09 / ISSUE-051/052/053. Features: F-11/F-15.
+- Done: (1) `--red` #b3202f / `--green` #146b45 in tokens.css (AA on tints); contrast table added as comment. (2) `aria-live` dropped from `#app` in both index.html; `.saved` gained `role="status"`. (3) Answer sheet rebuilt as native `<dialog>` with `showModal()`/`close()`; keyboard trap + Escape work; CSS uses `::backdrop`.
+- Tests: student_e2e.py 91 (sheet keyboard), all 14 suites 846 checks green. Screen-reader pass = VISUAL-VERIFICATION-REQUIRED.
+- Dependencies: after PHASE A (done).
+
 - Priority: **MEDIUM (P2)**. Status: READY. Findings: INS-07/08/09 / ISSUE-051/052/053. Features: F-11/F-15.
 - Problem (three items): measured sub-AA contrast on status text; `aria-live` on `#app`; the answer sheet is a fake dialog.
 - Goal: status text is AA-legible, live regions are small and purposeful, and the sheet behaves like the app's other dialogs.

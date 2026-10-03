@@ -1,17 +1,17 @@
 # 08 HANDOFF
 
-**Short header (2026-10-03, the live apply session — keep this short; the full narrative is in `07_CHANGELOG.md`)**
+**Short header (2026-10-03, TASK-034 — keep this short; the full narrative is in `07_CHANGELOG.md`)**
 
 | | |
 |---|---|
-| AI / date / branch | Buffy (OpenCode), 2026-10-03, `ai-development` @ **`70b3ce2`** (the live-apply record, on top of `450e757`/`26ad3b7` — TASK-036 — and `ea48ec4`/`307abf8` — TASK-048), pushed with this record commit. |
-| Task | **The shared live apply session the queue had carried since 2026-10-02: TASK-031 + TASK-032 + TASK-048** — three migrations in order, three ledger rows, three rolled-back SQL tests, two Edge Function redeploys. |
-| Status | **Complete.** `20261002000002` → `20261002000003` → `20261003000000` applied live in order, each as ONE Management API `database/query` request to `lbhnadqmokloyfarrzfv` plus its `supabase_migrations.schema_migrations` row; `exams` redeployed after the first, `question-bank` after the third (SQL first, redeploy second); `EXAM STATUS TESTS PASSED`, `EXAM TEMPLATE TESTS PASSED`, `QUESTION BANK ISOLATION TESTS PASSED` (each a rolled-back run); `live_ledger_check.py` → `ALL LIVE LEDGER CHECKS PASSED` (31 rows, 83 functions). |
-| Open tasks | **TASK-033 (D-2), TASK-034, TASK-039 (D-4 half), TASK-040 .. TASK-047** (`05_TASK_QUEUE.md`); the exams/results/monitor isolation slices wait on D-7. |
-| Tests | Local re-run after the applies: backend **173**, unit **44** (unchanged — nothing local changed). The 14 browser suites were green before the applies (846 checks) and nothing they exercise changed. |
-| Deliberately not verified | The whole live board (`run_live_checks.py`) and the writable live checks — the applies replaced function bodies only (every test ran rolled back, so no data changed), but the board is the next live run's job. |
-| Important notes | Pre-apply fix: `20261002000002` gained the missing `revoke`/`grant` for `exam_code_used_by` (the SQL test's boundary assertion caught it), so the committed file matches live. Two fixture fixes (test files only): scheduled availability windows in the exam-status/template fixtures (the open rule refuses a manual-availability auto-draw exam with no materialized list), and the isolation test's admin-edit case reads via `get_question`. A PowerShell-introduced BOM was stripped from `exam_status_test.sql`. |
-| Do not | Do not re-apply the migrations (they carry ledger rows); do not redeploy an Edge Function before its SQL lands; do not store the Management token in the repo; do not touch `main`. |
+| AI / date / branch | Buffy (OpenCode), 2026-10-03, `ai-development` @ **`a348919`** (TASK-034) on top of `2af5702` (live apply) — pushed with this record commit. |
+| Task | **TASK-034 — accessibility pass** (INS-07/08/09 / ISSUE-051/052/053). Frontend only. |
+| Status | **Complete.** (1) Contrast: `--red` #b3202f / `--green` #146b45 (AA on tints). (2) Live regions: `aria-live` removed from `#app`; `.saved` gains `role="status"`. (3) Answer sheet: native `<dialog>` with `showModal()`/`close()`; keyboard trap + Escape work. |
+| Open tasks | **TASK-033 (D-2), TASK-039 (D-4 half), TASK-040 .. TASK-047** (`05_TASK_QUEUE.md`); exams/results/monitor isolation slices wait on D-7. |
+| Tests | All 14 browser suites 846 checks green; backend 173; unit 44. `student_e2e.py` 91 (includes sheet keyboard). |
+| Deliberately not verified | Whole live board (`run_live_checks.py`) not re-run since the 2026-10-03 apply session. |
+| Important notes | No visual design changes; contrast verified via comment table in tokens.css; screen-reader pass = VISUAL-VERIFICATION-REQUIRED. |
+| Do not | Do not re-add `aria-live` to `#app`; do not revert the dialog to a fake div; do not touch `main`. |
 | History | **`07_CHANGELOG.md`** — every session narrative, commit hash and test number. The record below is kept as reference; the header above wins. |
 
 Keep this file current after every meaningful change; the header above is the current state, everything below is the record.
