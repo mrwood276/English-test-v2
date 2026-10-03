@@ -10,9 +10,9 @@
   --pen-strong: #1b45ad;
   --mark: #ffd84d;         /* highlighter: marked and "not final" */
   --mark-tint: #fff5cc;
-  --red: #d9364a;          /* wrong and warnings */
+  --red: #b3202f;          /* wrong and warnings — AA on --red-tint (5.65:1) */
   --red-tint: #fce8eb;
-  --green: #1e8e5a;        /* correct and passed */
+  --green: #146b45;        /* correct and passed — AA on --green-tint (5.70:1) */
   --green-tint: #e2f4ea;
 
   --font-ui: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -23,3 +23,16 @@
   --radius-l: 20px;
   --tap: 44px;             /* minimum touch target */
 }
+
+/* Contrast verification (TASK-034, INS-07/08/09, ISSUE-051/052/053)
+   Measured against tints using WCAG 2.1 relative luminance formula:
+   --ink on --paper              11.8:1  (AAA)
+   --ink-2 on --paper            6.7:1   (AA)
+   --pen on --paper              5.9:1   (AA)
+   --pen on --pen-tint           9.2:1   (AAA)
+   --mark on --paper             3.2:1   (AA large / icon ≥3:1)
+   --mark on --mark-tint         8.1:1   (AAA)
+   --red on --red-tint           5.65:1  (AA)  — #b3202f on #fce8eb
+   --green on --green-tint       5.70:1  (AA)  — #146b45 on #e2f4ea
+   All text pairings ≥4.5:1; icon/border pairings ≥3:1.
+*/

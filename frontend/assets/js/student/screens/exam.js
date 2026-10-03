@@ -50,7 +50,7 @@ export function renderExam(root, ctx) {
   const counter = h("span", { class: "q" });
   const timerEl = h("span", { class: "timer" });
   const progress = h("i", { style: "width:0%" });
-  const saveLine = h("div", { class: "saved" });
+  const saveLine = h("div", { class: "saved", role: "status" });
   const offlineBar = h("div", { class: "offbar", hidden: true },
     icon("offline"),
     h("span", {}, "No connection. Keep going. Your answers are kept on this phone and will be sent when you are back online."));
@@ -319,12 +319,13 @@ export function renderExam(root, ctx) {
     if (sheet) paintSheet();
   }
 
-  // ---------- answer sheet ----------
+  // ---------- answer sheet (real <dialog> for keyboard trapping and Escape handling) ----------
   function closeSheet() {
-    if (sheet) sheet.remove();
-    if (dim) dim.remove();
-    sheet = null;
-    dim = null;
+    if (sheet) {
+      sheet.close();
+      sheet.remove();
+      sheet = null;
+    }
   }
 
   function paintSheet() {
@@ -349,7 +350,7 @@ export function renderExam(root, ctx) {
         onclick: () => { closeSheet(); showQuestion(i); },
         "aria-label": `Question ${i + 1}${store.isAnswered(question.question_id) ? ", answered" : ", still empty"}`,
       }, String(i + 1))));
-    sheet = h("div", { class: "sheet", role: "dialog", "aria-label": "Answer sheet" },
+    sheet = h("dialog", { class: "sheet", "aria-label": "Answer sheet" },
       h("div", { class: "grab" }),
       h("h2", {}, "Answer sheet"),
       h("div", { class: "sub" }, ""),
@@ -361,8 +362,13 @@ export function renderExam(root, ctx) {
       h("button", { class: "btn ghost block", type: "button", style: "margin-bottom:8px", onclick: closeSheet }, "Back to question"),
       h("button", { class: "btn block", type: "button", onclick: () => { closeSheet(); askSubmit(); } }, "Submit test"),
       h("p", { class: "hint", style: "text-align:center;margin-top:10px" }, "You will be asked to confirm before it is sent."));
-    dim = h("div", { class: "dim", onclick: closeSheet });
-    document.body.append(dim, sheet);
+    document.body.append(sheet);
+    try {
+      sheet.showModal();
+      console.log("Dialog shown:", sheet.open);
+    } catch (e) {
+      console.error("showModal failed:", e);
+    }
     paintSheet();
   }
 
