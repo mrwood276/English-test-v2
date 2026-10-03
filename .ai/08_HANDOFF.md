@@ -1,17 +1,17 @@
 # 08 HANDOFF
 
-**Short header (2026-10-03, TASK-036 — keep this short; the full narrative is in `07_CHANGELOG.md`)**
+**Short header (2026-10-03, the live apply session — keep this short; the full narrative is in `07_CHANGELOG.md`)**
 
 | | |
 |---|---|
-| AI / date / branch | (new session, OpenCode) 2026-10-03, `ai-development` @ **`26ad3b7`** (on top of `ea48ec4` + the owner commits), pushed with this record commit. |
-| Task | **TASK-036 — the question editor says Saved / Unsaved / Saving / failed** (INS-12 / ISSUE-056, F-05). Frontend-only; no decision needed. |
-| Status | **Complete, red-proofed first.** `questionEditor.js` now shows a persistent `#q-save-status` under the header with the four states; `question_editor_e2e.py` grew 4 checks (83 → **87**). Red proof: the suite crashes at the first new check when the editor file is stashed (no `#q-save-status`). |
-| Open tasks | **TASK-033 (D-2), TASK-034, TASK-039 (D-4 half), TASK-040 .. TASK-047** (`05_TASK_QUEUE.md`); plus the shared live session for **TASK-031 + TASK-032 + TASK-048** (three migrations in order, three ledger rows, three rolled-back SQL tests, redeploy `exams` after the first and `question-bank` after the third). |
-| Tests | `question_editor_e2e.py` **87** green; `question_bank_e2e.py` **161** green (its editor flow includes the new status element). Backend/unit untouched. |
-| Deliberately not verified | Nothing live (no credential this session); no other browser suite re-run — nothing they exercise changed. |
-| Important notes | The status element wording deliberately mirrors `examEditor.js` (`Saving…` / `Saved.`) plus `Unsaved changes.` / `Save failed.`; any further edit flips it back to `Unsaved changes.`; no autosave was added; the leave guard is unchanged. |
-| Do not | Do not add autosave to this editor; do not weaken the guard; do not merge `etv-bulk`/`feat-bulk`; do not touch `main`. |
+| AI / date / branch | Buffy (OpenCode), 2026-10-03, `ai-development` @ **`70b3ce2`** (the live-apply record, on top of `450e757`/`26ad3b7` — TASK-036 — and `ea48ec4`/`307abf8` — TASK-048), pushed with this record commit. |
+| Task | **The shared live apply session the queue had carried since 2026-10-02: TASK-031 + TASK-032 + TASK-048** — three migrations in order, three ledger rows, three rolled-back SQL tests, two Edge Function redeploys. |
+| Status | **Complete.** `20261002000002` → `20261002000003` → `20261003000000` applied live in order, each as ONE Management API `database/query` request to `lbhnadqmokloyfarrzfv` plus its `supabase_migrations.schema_migrations` row; `exams` redeployed after the first, `question-bank` after the third (SQL first, redeploy second); `EXAM STATUS TESTS PASSED`, `EXAM TEMPLATE TESTS PASSED`, `QUESTION BANK ISOLATION TESTS PASSED` (each a rolled-back run); `live_ledger_check.py` → `ALL LIVE LEDGER CHECKS PASSED` (31 rows, 83 functions). |
+| Open tasks | **TASK-033 (D-2), TASK-034, TASK-039 (D-4 half), TASK-040 .. TASK-047** (`05_TASK_QUEUE.md`); the exams/results/monitor isolation slices wait on D-7. |
+| Tests | Local re-run after the applies: backend **173**, unit **44** (unchanged — nothing local changed). The 14 browser suites were green before the applies (846 checks) and nothing they exercise changed. |
+| Deliberately not verified | The whole live board (`run_live_checks.py`) and the writable live checks — the applies replaced function bodies only (every test ran rolled back, so no data changed), but the board is the next live run's job. |
+| Important notes | Pre-apply fix: `20261002000002` gained the missing `revoke`/`grant` for `exam_code_used_by` (the SQL test's boundary assertion caught it), so the committed file matches live. Two fixture fixes (test files only): scheduled availability windows in the exam-status/template fixtures (the open rule refuses a manual-availability auto-draw exam with no materialized list), and the isolation test's admin-edit case reads via `get_question`. A PowerShell-introduced BOM was stripped from `exam_status_test.sql`. |
+| Do not | Do not re-apply the migrations (they carry ledger rows); do not redeploy an Edge Function before its SQL lands; do not store the Management token in the repo; do not touch `main`. |
 | History | **`07_CHANGELOG.md`** — every session narrative, commit hash and test number. The record below is kept as reference; the header above wins. |
 
 Keep this file current after every meaningful change; the header above is the current state, everything below is the record.
