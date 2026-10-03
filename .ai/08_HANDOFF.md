@@ -1,17 +1,17 @@
 # 08 HANDOFF
 
-**Short header (2026-10-03, TASK-048 — keep this short; the full narrative is in `07_CHANGELOG.md`)**
+**Short header (2026-10-03, TASK-036 — keep this short; the full narrative is in `07_CHANGELOG.md`)**
 
 | | |
 |---|---|
-| AI / date / branch | Buffy, 2026-10-03, `ai-development` @ **`307abf8`** (on top of the owner's own `d85734e`/`5989f08`, pulled this session; `main` untouched), pushed with this record commit. |
-| Task | **TASK-048 — teacher data isolation, the question bank slice** (owner master-prompt roadmap, P0/security). Decisions: **DEC-041** (strict: own rows + admin sees all, enforced in SQL), **DEC-042** (email verification deferred — free plan has no mailer; DEC-031's handover stands). The owner answered D-7's model half and D-8; D-7's next-slice timing is open. |
-| Status | **Complete locally, red-proofed first.** Migration `20261003000000_question_bank_isolation.sql` + `public._is_staff_admin`; all nine read functions gained `p_actor`, the nine old unscoped signatures dropped; handler forwards `p_actor` on every action; the mock mirrors the model (u1 owns every third seeded question). **PHASE A/B complete; PHASE C half done (031/032); isolation slice 1 done.** **Next: TASK-036** (or the **exams isolation slice** if the owner prefers the roadmap over the queue). |
-| Open tasks | **TASK-033 (D-2), TASK-034, TASK-036, TASK-039 (D-4 half), TASK-040 .. TASK-047** (`05_TASK_QUEUE.md`); plus the shared live session now covering **TASK-031 + TASK-032 + TASK-048**: apply `20261002000002` → `20261002000003` → `20261003000000` in order, each with its `schema_migrations` row, run `supabase/tests/{exam_status,exam_template,question_bank_isolation}_test.sql`, redeploy `exams` after the first and **`question-bank` after the third** (SQL first, redeploy second — either order alone breaks the rpc arguments). |
-| Tests | Local 2026-10-03: backend **173** (2 new, red first), unit **44**, **all 14 browser suites green / 846 checks** (`question_bank_e2e.py` **161**, 10 new red first). Red evidence: the backend isolation tests failed on the pre-fix handler; the e2e section failed on the pre-fix mock (count 30, get/save 200, cross-owner scan). |
-| Deliberately not verified | **Nothing live (no Management credential):** migration `20261003000000` unapplied (no ledger row), `question_bank_isolation_test.sql` never run, `question-bank` Edge Function not redeployed, `live_ledger_check.py` will flag the new files until the apply — same pending state as TASK-031/032. Exams/results/monitor isolation is **not done** (still role-checked only) and media endpoints are not owner-filtered. |
-| Important notes | The isolation contract is `docs/sql-question-bank.md`; the old signatures were **dropped**, so the handler and SQL must land together live; topics/labels are a shared taxonomy with own counts (do not "isolate" them into per-teacher copies); a foreign id must always answer like a missing one — never a distinct "forbidden" message (no existence leak). |
-| Do not | Do not rebuild accounts (DEC-031 exists), do not start email verification before SMTP/plan (DEC-042), do not merge `etv-bulk`/`feat-bulk`, do not touch `main`, do not drop the ownership filters to make a test green. |
+| AI / date / branch | (new session, OpenCode) 2026-10-03, `ai-development` @ **`26ad3b7`** (on top of `ea48ec4` + the owner commits), pushed with this record commit. |
+| Task | **TASK-036 — the question editor says Saved / Unsaved / Saving / failed** (INS-12 / ISSUE-056, F-05). Frontend-only; no decision needed. |
+| Status | **Complete, red-proofed first.** `questionEditor.js` now shows a persistent `#q-save-status` under the header with the four states; `question_editor_e2e.py` grew 4 checks (83 → **87**). Red proof: the suite crashes at the first new check when the editor file is stashed (no `#q-save-status`). |
+| Open tasks | **TASK-033 (D-2), TASK-034, TASK-039 (D-4 half), TASK-040 .. TASK-047** (`05_TASK_QUEUE.md`); plus the shared live session for **TASK-031 + TASK-032 + TASK-048** (three migrations in order, three ledger rows, three rolled-back SQL tests, redeploy `exams` after the first and `question-bank` after the third). |
+| Tests | `question_editor_e2e.py` **87** green; `question_bank_e2e.py` **161** green (its editor flow includes the new status element). Backend/unit untouched. |
+| Deliberately not verified | Nothing live (no credential this session); no other browser suite re-run — nothing they exercise changed. |
+| Important notes | The status element wording deliberately mirrors `examEditor.js` (`Saving…` / `Saved.`) plus `Unsaved changes.` / `Save failed.`; any further edit flips it back to `Unsaved changes.`; no autosave was added; the leave guard is unchanged. |
+| Do not | Do not add autosave to this editor; do not weaken the guard; do not merge `etv-bulk`/`feat-bulk`; do not touch `main`. |
 | History | **`07_CHANGELOG.md`** — every session narrative, commit hash and test number. The record below is kept as reference; the header above wins. |
 
 Keep this file current after every meaningful change; the header above is the current state, everything below is the record.
