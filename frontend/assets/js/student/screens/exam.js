@@ -49,7 +49,11 @@ export function renderExam(root, ctx) {
   // ---------- chrome ----------
   const counter = h("span", { class: "q" });
   const timerEl = h("span", { class: "timer" });
-  const progress = h("i", { style: "width:0%" });
+  // The bar is the only progress feedback; screen readers get the same numbers.
+  const progress = h("i", {
+    style: "width:0%", role: "progressbar", "aria-label": "Questions answered",
+    "aria-valuemin": "0", "aria-valuemax": "0", "aria-valuenow": "0",
+  });
   const saveLine = h("div", { class: "saved", role: "status" });
   const offlineBar = h("div", { class: "offbar", hidden: true },
     icon("offline"),
@@ -308,6 +312,8 @@ export function renderExam(root, ctx) {
     const { answered, flagged } = store.progress();
     counter.textContent = `Question ${index + 1} of ${total}`;
     progress.style.width = `${total ? Math.round((answered / total) * 100) : 0}%`;
+    progress.setAttribute("aria-valuemax", String(total));
+    progress.setAttribute("aria-valuenow", String(answered));
     const marked = !!(requestId() && store.answerOf(requestId()).is_flagged);
     markBtn.classList.toggle("on", marked);
     markBtn.setAttribute("aria-pressed", String(marked));
@@ -363,12 +369,7 @@ export function renderExam(root, ctx) {
       h("button", { class: "btn block", type: "button", onclick: () => { closeSheet(); askSubmit(); } }, "Submit test"),
       h("p", { class: "hint", style: "text-align:center;margin-top:10px" }, "You will be asked to confirm before it is sent."));
     document.body.append(sheet);
-    try {
-      sheet.showModal();
-      console.log("Dialog shown:", sheet.open);
-    } catch (e) {
-      console.error("showModal failed:", e);
-    }
+    sheet.showModal();
     paintSheet();
   }
 

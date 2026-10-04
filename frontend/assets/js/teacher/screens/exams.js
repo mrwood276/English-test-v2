@@ -140,9 +140,34 @@ export function renderExams(container, ctx) {
     }
   }
 
+  /**
+   * Placeholders while the first page loads, so an empty table is never
+   * mistaken for "no exams". Replaced by the real rows (or the error
+   * state) the moment the answer arrives.
+   */
+  function paintSkeleton() {
+    const bar = (width) => h("span", { class: "skel", style: `width:${width}` });
+    tbody.replaceChildren(...Array.from({ length: 6 }, () =>
+      h("tr", { class: "skel-row", "aria-hidden": "true" },
+        h("td", {}, bar("60%"), bar("38%")),
+        h("td", { class: "col-code" }, bar("55%")),
+        h("td", { class: "col-status" }, bar("45%")),
+        h("td", { class: "col-count" }, bar("60%")),
+        h("td", { class: "col-actions" }, bar("70%")),
+      )));
+  }
+
+  function renderLoadError(err) {
+    tbody.replaceChildren();
+    const retry = h("button", { class: "btn small", type: "button" }, "Try again");
+    retry.addEventListener("click", load);
+    status.replaceChildren(h("p", { class: "sub" }, `Could not load exams. ${errorText(err)}`), retry);
+  }
+
   async function load() {
     const id = ++state.requestId;
     status.className = "list-status";
+    if (state.items.length === 0) paintSkeleton();
     try {
       const filters = { ...Object.fromEntries(Object.entries(state.filters).filter(([, v]) => v !== "" && v !== false)) };
       const items = await exams.list(filters);
@@ -152,7 +177,7 @@ export function renderExams(container, ctx) {
       renderList();
     } catch (err) {
       if (id !== state.requestId || ignorable(err)) return;
-      status.replaceChildren(h("p", { class: "sub" }, errorText(err)));
+      renderLoadError(err);
     }
   }
 

@@ -70,6 +70,9 @@ export function startRouter(container, nav, ctx) {
     container.dataset.render = String((Number(container.dataset.render) || 0) + 1);
     document.title = `${route.title} | English Daily Test`;
     route.render(container, ctx, m);
+    // Land keyboard and screen-reader focus on the new screen, not on the menu
+    // link that was clicked. The shell gives <main> tabindex="-1" for exactly this.
+    container.focus({ preventScroll: true });
   };
 
   const onChange = async () => {

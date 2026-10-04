@@ -23,6 +23,23 @@ export function renderGradingHub(container, ctx, mode = "grading") {
   const tbody = h("tbody");
   const status = h("div", { class: "list-status", role: "status" });
 
+  /** Placeholders while the first page loads, so an empty table is never
+   * mistaken for "no exams". Replaced by the real rows (or the error
+   * state) the moment the answer arrives. */
+  function paintSkeleton() {
+    const bar = (width) => h("span", { class: "skel", style: `width:${width}` });
+    tbody.replaceChildren(...Array.from({ length: 6 }, () =>
+      h("tr", { class: "skel-row", "aria-hidden": "true" },
+        h("td", {}, bar("55%"), bar("35%")),
+        h("td", { class: "col-code" }, bar("55%")),
+        h("td", {}, bar("40%")),
+        h("td", {}, bar("45%")),
+        h("td", {}, bar("40%")),
+        h("td", {}, bar("55%")),
+        h("td", { class: "col-actions" }, bar("60%")),
+      )));
+  }
+
   mount(
     container,
     h("div", { class: "head" },
@@ -70,6 +87,7 @@ export function renderGradingHub(container, ctx, mode = "grading") {
   async function load() {
     const id = ++state.requestId;
     status.replaceChildren(h("p", { class: "sub" }, "Loading…"));
+    if (state.items.length === 0) paintSkeleton();
     try {
       const all = await results.activity();
       if (id !== state.requestId) return;
@@ -87,7 +105,9 @@ export function renderGradingHub(container, ctx, mode = "grading") {
       }
     } catch (err) {
       if (id !== state.requestId || ignorable(err)) return;
-      status.replaceChildren(h("p", { class: "sub" }, errorText(err)));
+      const retry = h("button", { class: "btn small", type: "button" }, "Try again");
+      retry.addEventListener("click", load);
+      status.replaceChildren(h("p", { class: "sub" }, errorText(err)), retry);
     }
   }
 

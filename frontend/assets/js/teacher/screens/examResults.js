@@ -178,7 +178,14 @@ export function renderExamResults(container, ctx, { examId }) {
     const reports = settled.filter((one) => one.status === "fulfilled").map((one) => one.value);
     if (reports.length === 0) {
       const first = settled.find((one) => one.status === "rejected");
-      questionsPanel.replaceChildren(h("p", { class: "sub" }, first ? errorText(first.reason) : "No reports could be loaded."));
+      // dataset.loaded is only set on success, so clicking the tab again
+      // simply re-runs the load.
+      const retry = h("button", { class: "btn small", type: "button" }, "Try again");
+      retry.addEventListener("click", () => questionsTab.click());
+      questionsPanel.replaceChildren(
+        h("p", { class: "sub" }, first ? errorText(first.reason) : "No reports could be loaded."),
+        retry,
+      );
       return;
     }
     const attempts = `${reports.length} finished ${reports.length === 1 ? "attempt" : "attempts"}`;

@@ -28,6 +28,15 @@ export function renderJoin(root, { notice, onJoined }) {
     errorBox.hidden = false;
   }
 
+  /** Marks the field the student must fix; cleared the moment they type again. */
+  const fail = (input, message) => {
+    input.setAttribute("aria-invalid", "true");
+    showError(message);
+  };
+  for (const input of [name, klass, code]) {
+    input.addEventListener("input", () => input.removeAttribute("aria-invalid"));
+  }
+
   const form = h("form", { novalidate: true },
     h("div", { class: "field" }, h("label", { for: "student-name" }, "Full name"), name),
     h("div", { class: "field" },
@@ -49,9 +58,9 @@ export function renderJoin(root, { notice, onJoined }) {
     const nameValue = name.value.trim();
     const classValue = klass.value.trim();
     const codeValue = code.value.replace(/\s+/g, "").toUpperCase();
-    if (nameValue.length < 2) return showError("Type your full name.");
-    if (!classValue) return showError("Type your class.");
-    if (codeValue.length < 4) return showError("Type the test code from the board.");
+    if (nameValue.length < 2) return fail(name, "Type your full name.");
+    if (!classValue) return fail(klass, "Type your class.");
+    if (codeValue.length < 4) return fail(code, "Type the test code from the board.");
 
     submit.disabled = true;
     submit.textContent = "Checking the code…";

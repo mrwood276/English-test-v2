@@ -49,7 +49,10 @@ function buildBell() {
   const badge = h("span", { class: "notif-badge", hidden: true });
   const btn = h(
     "button",
-    { id: "notif-bell", class: "bell-btn", type: "button", "aria-label": "Notifications", "aria-expanded": "false", title: "Notifications" },
+    {
+      id: "notif-bell", class: "bell-btn", type: "button", "aria-label": "Notifications",
+      "aria-expanded": "false", "aria-controls": "notif-panel", title: "Notifications",
+    },
     icon("bell"),
     badge,
   );
@@ -57,7 +60,7 @@ function buildBell() {
   const body = h("div", { class: "notif-body" }, h("div", { class: "notif-empty" }, "Loading…"));
   const panel = h(
     "div",
-    { class: "notif-panel", hidden: true },
+    { class: "notif-panel", id: "notif-panel", hidden: true },
     h("div", { class: "notif-head" }, h("strong", {}, "Notifications"), sub),
     body,
     h("div", { class: "hint notif-foot" }, "Email summaries are not switched on yet."),
@@ -128,7 +131,15 @@ function buildBell() {
   };
 
   const paintProblem = () => {
-    body.replaceChildren(h("div", { class: "notif-empty" }, "The bell could not be read. Try again in a moment."));
+    const retry = h("button", { class: "btn small ghost", type: "button" }, "Try again");
+    retry.addEventListener("click", (e) => {
+      e.stopPropagation(); // the document-level closer must not shut the panel on the same tap
+      load();
+    });
+    body.replaceChildren(
+      h("div", { class: "notif-empty", role: "alert" }, "The bell could not be read."),
+      h("div", { class: "notif-retry" }, retry),
+    );
   };
 
   const load = async () => {
@@ -175,6 +186,10 @@ function buildBell() {
 export function renderShell(root, ctx) {
   const { user } = ctx;
 
+  // First focusable element: keyboard users never have to tab through the
+  // whole menu to reach the content (the router moves focus to <main> too).
+  const skip = h("a", { class: "skip", href: "#content" }, "Skip to content");
+
   /** How many essays still wait; the badge stays quiet until there is something to do. */
   const badge = h("span", { class: "pill warn nav-badge", hidden: true });
   const refreshBadge = async () => {
@@ -201,6 +216,7 @@ export function renderShell(root, ctx) {
 
   mount(
     root,
+    skip,
     h(
       "div",
       { class: "shell" },

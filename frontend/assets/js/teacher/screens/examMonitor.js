@@ -75,7 +75,9 @@ function renderActiveExams(container) {
         : []));
     } catch (err) {
       if (id !== state.requestId || ignorable(err)) return;
-      status.replaceChildren(h("p", { class: "sub" }, errorText(err)));
+      const retry = h("button", { class: "btn small", type: "button" }, "Try again");
+      retry.addEventListener("click", load);
+      status.replaceChildren(h("p", { class: "sub" }, errorText(err)), retry);
     }
   }
 
@@ -190,7 +192,9 @@ function renderExamSessions(container, examId) {
         : []));
     } catch (err) {
       if (id !== state.requestId || ignorable(err)) return;
-      status.replaceChildren(h("p", { class: "sub" }, errorText(err)));
+      const retry = h("button", { class: "btn small", type: "button" }, "Try again");
+      retry.addEventListener("click", load);
+      status.replaceChildren(h("p", { class: "sub" }, errorText(err)), retry);
     }
   }
 

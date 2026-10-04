@@ -12,7 +12,14 @@ export function debounce(fn, ms) {
 
 let toastRegion;
 
-/** A short message at the bottom of the screen. Read out by screen readers (role="status"). */
+/** How long a toast stays: errors need to be readable, so they outlive the rest. */
+const TOAST_MS = { info: 4500, error: 9000 };
+
+/**
+ * A short message at the bottom of the screen. Read out by screen readers (role="status").
+ * `kind` is kept as the CSS class verbatim: screens say "bad", "error", "warn" or
+ * "info", and the stylesheet paints "bad" and "error" as the same red error toast.
+ */
 export function toast(message, kind = "info") {
   if (!toastRegion || !toastRegion.isConnected) {
     toastRegion = h("div", { class: "toasts", role: "status", "aria-live": "polite" });
@@ -20,7 +27,8 @@ export function toast(message, kind = "info") {
   }
   const el = h("div", { class: `toast ${kind}` }, message);
   toastRegion.append(el);
-  setTimeout(() => el.remove(), 4500);
+  const isError = kind === "bad" || kind === "error";
+  setTimeout(() => el.remove(), isError ? TOAST_MS.error : TOAST_MS.info);
 }
 
 /** Replaces window.confirm: a proper dialog with focus kept inside and Escape to cancel. Resolves to true or false. */
@@ -28,11 +36,19 @@ export function confirmDialog({ title, message, confirmLabel = "Confirm", cancel
   return new Promise((resolve) => {
     const cancel = h("button", { class: "btn ghost", type: "button", value: "cancel" }, cancelLabel);
     const ok = h("button", { class: danger ? "btn danger" : "btn", type: "button", value: "ok" }, confirmLabel);
-    const dialog = h("dialog", { class: "dialog", "aria-labelledby": "dialog-title" }, h("h2", { id: "dialog-title" }, title), h("p", {}, message), h("div", { class: "dialog-actions" }, cancel, ok));
+    const dialog = h("dialog", { class: "dialog", "aria-labelledby": "dialog-title", "aria-describedby": "dialog-message" }, h("h2", { id: "dialog-title" }, title), h("p", { id: "dialog-message" }, message), h("div", { class: "dialog-actions" }, cancel, ok));
     let result = false;
+    // Focus comes back to the element that opened the dialog, so keyboard
+    // users are not dropped onto <body> when it closes. It may have gone
+    // away or been disabled meanwhile; both are fine to leave alone.
+    const opener = document.activeElement;
     ok.addEventListener("click", () => { result = true; dialog.close(); });
     cancel.addEventListener("click", () => dialog.close());
-    dialog.addEventListener("close", () => { dialog.remove(); resolve(result); });
+    dialog.addEventListener("close", () => {
+      dialog.remove();
+      resolve(result);
+      if (opener && opener.isConnected) opener.focus();
+    });
     document.body.append(dialog);
     dialog.showModal();
     cancel.focus();

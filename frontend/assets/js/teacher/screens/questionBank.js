@@ -91,10 +91,29 @@ export function renderQuestionBank(container) {
   );
 
   // ---------- loading the list ----------
+  /**
+   * Placeholders while the first page loads, so an empty table is never
+   * mistaken for "no questions". Replaced by the real rows (or the error
+   * state) the moment the answer arrives. Later pages keep the old rows.
+   */
+  function paintSkeleton() {
+    const bar = (width) => h("span", { class: "skel", style: `width:${width}` });
+    tbody.replaceChildren(...Array.from({ length: 6 }, () =>
+      h("tr", { class: "skel-row", "aria-hidden": "true" },
+        h("td", { class: "col-pick" }, bar("16px")),
+        h("td", {}, bar("72%"), bar("42%")),
+        h("td", { class: "col-class" }, bar("55%")),
+        h("td", { class: "col-diff" }, bar("45%")),
+        h("td", { class: "col-media" }),
+        h("td", { class: "col-used" }, bar("55%")),
+      )));
+  }
+
   async function load() {
     const id = ++state.requestId; // an older answer must never replace a newer one
     status.className = "list-status";
     status.replaceChildren(h("span", {}, "Loading…"));
+    if (state.items.length === 0) paintSkeleton();
     try {
       const res = await questionBank.list(filtersFor(state.page, PAGE_SIZE));
       if (id !== state.requestId) return;
