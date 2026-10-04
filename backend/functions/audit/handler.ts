@@ -2,7 +2,13 @@ import { handle, readJson } from "../_shared/http.ts";
 import { methodNotAllowed } from "../_shared/errors.ts";
 import { requireStaff, type StaffDb } from "../_shared/auth.ts";
 import { callRpc, type RpcDb } from "../_shared/rpc.ts";
-import { asEnum, asInt, asObject, asString, optional } from "../_shared/validate.ts";
+import {
+  asEnum,
+  asInt,
+  asObject,
+  asString,
+  optional,
+} from "../_shared/validate.ts";
 
 export type Db = StaffDb & RpcDb;
 
@@ -30,11 +36,16 @@ export function createHandler(getDb: () => Db) {
       case "list":
         return {
           logs: await callRpc(db, "list_audit_logs", {
-            p_limit: optional(b.limit, (v) => asInt(v, "Limit", { min: 1, max: 200 })) ?? 50,
-            p_offset: optional(b.offset, (v) => asInt(v, "Offset", { min: 0, max: 1_000_000 })) ?? 0,
-            p_action: optional(b.filter_action, (v) => asString(v, "Action", { min: 1, max: 80 })) ?? null,
-            p_entity_type: optional(b.entity_type, (v) => asString(v, "Entity type", { min: 1, max: 60 })) ?? null,
-            p_days: optional(b.days, (v) => asInt(v, "Days", { min: 1, max: 3650 })) ?? null,
+            p_limit: optional(b.limit, (v) =>
+              asInt(v, "Limit", { min: 1, max: 200 })) ?? 50,
+            p_offset: optional(b.offset, (v) =>
+              asInt(v, "Offset", { min: 0, max: 1_000_000 })) ?? 0,
+            p_action: optional(b.filter_action, (v) =>
+              asString(v, "Action", { min: 1, max: 80 })) ?? null,
+            p_entity_type: optional(b.entity_type, (v) =>
+              asString(v, "Entity type", { min: 1, max: 60 })) ?? null,
+            p_days: optional(b.days, (v) =>
+              asInt(v, "Days", { min: 1, max: 3650 })) ?? null,
           }),
         };
     }

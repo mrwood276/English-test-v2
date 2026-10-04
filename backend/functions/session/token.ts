@@ -14,17 +14,25 @@
  * student never hits it. A token from a closed/finished exam can still show the student's own
  * result (if that stays the rule) but cannot fetch the snapshot or write answers.
  */
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const GRACE_SECONDS = 120; // matches BR-20 tolerance used in SQL (ends_at + 2 min)
 
 function base64url(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(
+    /=+$/,
+    "",
+  );
 }
 
 function base64urlDecode(str: string): Uint8Array {
-  const padded = str + "=".repeat((4 - (str.length % 4)) % 4).replace(/-/g, "+").replace(/_/g, "/");
+  const padded = str +
+    "=".repeat((4 - (str.length % 4)) % 4).replace(/-/g, "+").replace(
+      /_/g,
+      "/",
+    );
   const binary = atob(padded);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -46,7 +54,11 @@ function decodeExp(expB64: string): number {
   return Number(view.getBigUint64(0, false));
 }
 
-async function signature(sessionId: string, exp: number, secret: string): Promise<string> {
+async function signature(
+  sessionId: string,
+  exp: number,
+  secret: string,
+): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -64,16 +76,27 @@ async function signature(sessionId: string, exp: number, secret: string): Promis
 }
 
 /** Sign a session token with an explicit expiry (Unix seconds). */
-export async function signSessionToken(sessionId: string, secret: string, expiresAt: number): Promise<string> {
+export async function signSessionToken(
+  sessionId: string,
+  secret: string,
+  expiresAt: number,
+): Promise<string> {
   const expB64 = encodeExp(expiresAt);
-  return `${sessionId}.${expB64}.${await signature(sessionId, expiresAt, secret)}`;
+  return `${sessionId}.${expB64}.${await signature(
+    sessionId,
+    expiresAt,
+    secret,
+  )}`;
 }
 
 /**
  * Verify a session token and return the session id when it is really ours and not expired,
  * otherwise null.
  */
-export async function verifySessionToken(token: string, secret: string): Promise<string | null> {
+export async function verifySessionToken(
+  token: string,
+  secret: string,
+): Promise<string | null> {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
   const [id, expB64, givenSig] = parts;
@@ -83,7 +106,9 @@ export async function verifySessionToken(token: string, secret: string): Promise
   const expected = await signature(id, exp, secret);
   if (expected.length !== givenSig.length) return null;
   let diff = 0;
-  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ givenSig.charCodeAt(i);
+  for (let i = 0; i < expected.length; i++) {
+    diff |= expected.charCodeAt(i) ^ givenSig.charCodeAt(i);
+  }
   return diff === 0 ? id : null;
 }
 
@@ -95,7 +120,12 @@ export function computeTokenExpiry(endsAt: string | Date): number {
 }
 
 export function sessionTokenSecret(): string {
-  const secret = Deno.env.get("SESSION_TOKEN_SECRET") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!secret) throw new Error("Missing SESSION_TOKEN_SECRET (and SUPABASE_SERVICE_ROLE_KEY)");
+  const secret = Deno.env.get("SESSION_TOKEN_SECRET") ??
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!secret) {
+    throw new Error(
+      "Missing SESSION_TOKEN_SECRET (and SUPABASE_SERVICE_ROLE_KEY)",
+    );
+  }
   return secret;
 }

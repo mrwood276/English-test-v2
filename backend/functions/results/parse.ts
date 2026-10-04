@@ -1,6 +1,7 @@
 import { asInt, asNumber, asString } from "../_shared/validate.ts";
 
-const isBlank = (v: unknown) => v === undefined || v === null || (typeof v === "string" && v.trim() === "");
+const isBlank = (v: unknown) =>
+  v === undefined || v === null || (typeof v === "string" && v.trim() === "");
 
 /** The screen talks in minutes; the database stores seconds. The window matches the SQL guard. */
 export function asSeconds(v: unknown, path: string): number {

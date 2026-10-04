@@ -7,15 +7,26 @@ import { SessionExpiredError } from "../../core/auth.js";
 
 const AUDIO_MAX = 10 * 1024 * 1024;
 const AUDIO_TYPES = { mp3: "audio/mpeg", m4a: "audio/mp4" };
-const ACCEPT = "image/jpeg,image/png,image/webp,audio/mpeg,audio/mp4,audio/x-m4a,.mp3,.m4a";
+const ACCEPT =
+  "image/jpeg,image/png,image/webp,audio/mpeg,audio/mp4,audio/x-m4a,.mp3,.m4a";
 
-const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
-const durationText = (s) => (Number.isFinite(s) && s !== null ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}` : "");
+const sizeText = (
+  bytes,
+) => (bytes >= 1024 * 1024
+  ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  : `${Math.max(1, Math.round(bytes / 1024))} KB`);
+const durationText = (
+  s,
+) => (Number.isFinite(s) && s !== null
+  ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`
+  : "");
 const extension = (name) => (String(name).split(".").pop() || "").toLowerCase();
 
 function audioMime(file) {
   if (Object.values(AUDIO_TYPES).includes(file.type)) return file.type;
-  if (file.type === "audio/x-m4a" || file.type === "audio/m4a") return "audio/mp4";
+  if (file.type === "audio/x-m4a" || file.type === "audio/m4a") {
+    return "audio/mp4";
+  }
   return AUDIO_TYPES[extension(file.name)] || null;
 }
 
@@ -23,11 +34,20 @@ function readDuration(file) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const audio = new Audio();
-    const done = (value) => { URL.revokeObjectURL(url); resolve(value); };
+    const done = (value) => {
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
     const timer = setTimeout(() => done(null), 4000);
     audio.preload = "metadata";
-    audio.addEventListener("loadedmetadata", () => { clearTimeout(timer); done(Number.isFinite(audio.duration) ? Math.round(audio.duration) : null); });
-    audio.addEventListener("error", () => { clearTimeout(timer); done(null); });
+    audio.addEventListener("loadedmetadata", () => {
+      clearTimeout(timer);
+      done(Number.isFinite(audio.duration) ? Math.round(audio.duration) : null);
+    });
+    audio.addEventListener("error", () => {
+      clearTimeout(timer);
+      done(null);
+    });
     audio.src = url;
   });
 }
@@ -38,15 +58,28 @@ function readDuration(file) {
  *  onChange: called with the new list after every successful upload or removal
  * Files are uploaded one at a time; images are shrunk to about 1 MB first.
  */
-export function mediaPicker({ items = [], max = 4, id, describedBy, onChange }) {
+export function mediaPicker(
+  { items = [], max = 4, id, describedBy, onChange },
+) {
   let list = items.map((m) => ({ ...m }));
   const queue = [];
   let working = false;
   let pending = 0; // files being prepared or uploaded
 
-  const listEl = h("ul", { class: "media-list", "aria-label": "Attached files" });
-  const messages = h("div", { class: "media-messages", role: "status", "aria-live": "polite" });
-  const reorderNote = h("div", { class: "visually-hidden", role: "status", "aria-live": "polite" });
+  const listEl = h("ul", {
+    class: "media-list",
+    "aria-label": "Attached files",
+  });
+  const messages = h("div", {
+    class: "media-messages",
+    role: "status",
+    "aria-live": "polite",
+  });
+  const reorderNote = h("div", {
+    class: "visually-hidden",
+    role: "status",
+    "aria-live": "polite",
+  });
 
   // The order of this list is the order the files are stored in (`set_question_media` numbers them from it),
   // so the grip on each attached file is what decides how they appear. A file that is still uploading has no
@@ -54,7 +87,9 @@ export function mediaPicker({ items = [], max = 4, id, describedBy, onChange }) 
   enableReorder(listEl, {
     note: reorderNote,
     noun: "file",
-    describe: (row) => (list.find((m) => m.id === row.dataset.mediaId) || {}).name || "That file",
+    describe: (row) =>
+      (list.find((m) => m.id === row.dataset.mediaId) || {}).name ||
+      "That file",
     onOrder: (rows) => {
       const byId = new Map(list.map((m) => [m.id, m]));
       list = rows.map((row) => byId.get(row.dataset.mediaId)).filter(Boolean);
@@ -62,29 +97,119 @@ export function mediaPicker({ items = [], max = 4, id, describedBy, onChange }) 
       notify();
     },
   });
-  const input = h("input", { type: "file", id, accept: ACCEPT, multiple: true, class: "visually-hidden", "aria-describedby": describedBy });
-  const choose = h("label", { class: "btn small ghost", for: id }, icon("plus"), "Add images or audio");
-  const zone = h("div", { class: "drop", "data-dropzone": "" }, icon("image"), h("span", {}, "Drop files here, or "), choose, h("span", { class: "hint" }, "JPG, PNG, WebP (shrunk to about 1 MB), MP3 or M4A (up to 10 MB). At most " + max + " files."));
-  const el = h("div", { class: "media-picker" }, listEl, zone, input, messages, reorderNote);
+  const input = h("input", {
+    type: "file",
+    id,
+    accept: ACCEPT,
+    multiple: true,
+    class: "visually-hidden",
+    "aria-describedby": describedBy,
+  });
+  const choose = h(
+    "label",
+    { class: "btn small ghost", for: id },
+    icon("plus"),
+    "Add images or audio",
+  );
+  const zone = h(
+    "div",
+    { class: "drop", "data-dropzone": "" },
+    icon("image"),
+    h("span", {}, "Drop files here, or "),
+    choose,
+    h(
+      "span",
+      { class: "hint" },
+      "JPG, PNG, WebP (shrunk to about 1 MB), MP3 or M4A (up to 10 MB). At most " +
+        max + " files.",
+    ),
+  );
+  const el = h(
+    "div",
+    { class: "media-picker" },
+    listEl,
+    zone,
+    input,
+    messages,
+    reorderNote,
+  );
 
   const notify = () => onChange && onChange(list.map((m) => ({ ...m })));
-  const say = (text, kind = "error") => { messages.append(h("div", { class: `media-msg ${kind}` }, text)); };
+  const say = (text, kind = "error") => {
+    messages.append(h("div", { class: `media-msg ${kind}` }, text));
+  };
 
   function render() {
     listEl.replaceChildren(
       ...list.map((m, i) => {
-        const remove = h("button", { class: "icon-btn", type: "button", "aria-label": `Remove ${m.name || "file"}` }, icon("plus"));
-        remove.addEventListener("click", () => { list = list.filter((x) => x.id !== m.id); render(); notify(); });
-        const grip = h("button", { class: "btn small ghost grip", type: "button", draggable: "false", disabled: list.length < 2,
+        const remove = h("button", {
+          class: "icon-btn",
+          type: "button",
+          "aria-label": `Remove ${m.name || "file"}`,
+        }, icon("plus"));
+        remove.addEventListener("click", () => {
+          list = list.filter((x) => x.id !== m.id);
+          render();
+          notify();
+        });
+        const grip = h("button", {
+          class: "btn small ghost grip",
+          type: "button",
+          draggable: "false",
+          disabled: list.length < 2,
           title: "Drag to reorder, or press ↑ ↓",
-          "aria-label": `Reorder ${m.name || "file"} (number ${i + 1}): drag it, or press the arrow keys` }, icon("grip"));
+          "aria-label": `Reorder ${m.name || "file"} (number ${
+            i + 1
+          }): drag it, or press the arrow keys`,
+        }, icon("grip"));
         const preview = m.kind === "image"
-          ? (m.url ? h("img", { class: "thumb", src: m.url, alt: "" }) : h("span", { class: "thumb ph" }, icon("image")))
-          : (m.url ? h("audio", { class: "player", controls: true, preload: "none", src: m.url }) : h("span", { class: "thumb ph" }, icon("audio")));
-        const meta = [m.kind === "image" ? "Image" : "Audio", sizeText(m.size_bytes), durationText(m.duration_seconds)].filter(Boolean).join(", ");
-        return h("li", { class: "media-item", "data-media-id": m.id }, grip, preview, h("div", { class: "media-info" }, h("strong", {}, m.name || "File"), h("span", { class: "hint" }, meta)), remove);
+          ? (m.url
+            ? h("img", { class: "thumb", src: m.url, alt: "" })
+            : h("span", { class: "thumb ph" }, icon("image")))
+          : (m.url
+            ? h("audio", {
+              class: "player",
+              controls: true,
+              preload: "none",
+              src: m.url,
+            })
+            : h("span", { class: "thumb ph" }, icon("audio")));
+        const meta = [
+          m.kind === "image" ? "Image" : "Audio",
+          sizeText(m.size_bytes),
+          durationText(m.duration_seconds),
+        ].filter(Boolean).join(", ");
+        return h(
+          "li",
+          { class: "media-item", "data-media-id": m.id },
+          grip,
+          preview,
+          h(
+            "div",
+            { class: "media-info" },
+            h("strong", {}, m.name || "File"),
+            h("span", { class: "hint" }, meta),
+          ),
+          remove,
+        );
       }),
-      ...queue.map((q) => h("li", { class: "media-item uploading" }, h("span", { class: "thumb ph" }, icon(q.kind === "audio" ? "audio" : "image")), h("div", { class: "media-info" }, h("strong", {}, q.name), h("span", { class: "hint" }, q.stage)))),
+      ...queue.map((q) =>
+        h(
+          "li",
+          { class: "media-item uploading" },
+          h(
+            "span",
+            { class: "thumb ph" },
+            icon(q.kind === "audio" ? "audio" : "image"),
+          ),
+          h(
+            "div",
+            { class: "media-info" },
+            h("strong", {}, q.name),
+            h("span", { class: "hint" }, q.stage),
+          ),
+        )
+      ),
     );
     zone.classList.toggle("full", list.length + pending >= max);
   }
@@ -94,20 +219,45 @@ export function mediaPicker({ items = [], max = 4, id, describedBy, onChange }) 
     try {
       let blob = file, mime, name = file.name, duration = null;
       if (file.type.startsWith("image/")) {
-        job.kind = "image"; job.stage = "Shrinking…"; render();
+        job.kind = "image";
+        job.stage = "Shrinking…";
+        render();
         ({ blob, mime, name } = await prepareImage(file));
       } else {
         job.kind = "audio";
         mime = audioMime(file);
-        if (!mime) throw new Error("This file type is not supported. Use JPG, PNG, WebP, MP3, or M4A.");
-        if (file.size > AUDIO_MAX) throw new Error(`This audio is ${sizeText(file.size)}. The limit is 10 MB.`);
+        if (!mime) {
+          throw new Error(
+            "This file type is not supported. Use JPG, PNG, WebP, MP3, or M4A.",
+          );
+        }
+        if (file.size > AUDIO_MAX) {
+          throw new Error(
+            `This audio is ${sizeText(file.size)}. The limit is 10 MB.`,
+          );
+        }
         duration = await readDuration(file);
       }
-      job.stage = "Uploading…"; job.progress = 0; render();
-      const upload = await media.createUpload({ mime_type: mime, size_bytes: blob.size });
-      await uploadToSignedUrl(upload.upload_url, blob, name, { onProgress: (p) => { job.stage = `Uploading… ${Math.round(p * 100)}%`; render(); } });
-      job.stage = "Saving…"; render();
-      const saved = await media.register({ path: upload.path, name, duration_seconds: duration });
+      job.stage = "Uploading…";
+      job.progress = 0;
+      render();
+      const upload = await media.createUpload({
+        mime_type: mime,
+        size_bytes: blob.size,
+      });
+      await uploadToSignedUrl(upload.upload_url, blob, name, {
+        onProgress: (p) => {
+          job.stage = `Uploading… ${Math.round(p * 100)}%`;
+          render();
+        },
+      });
+      job.stage = "Saving…";
+      render();
+      const saved = await media.register({
+        path: upload.path,
+        name,
+        duration_seconds: duration,
+      });
       try {
         const urls = await media.signedUrls([saved.id]);
         saved.url = urls[saved.id] || null;
@@ -138,25 +288,63 @@ export function mediaPicker({ items = [], max = 4, id, describedBy, onChange }) 
     for (const file of files) {
       const isImage = /^image\/(jpeg|png|webp)$/.test(file.type);
       const isAudio = Boolean(audioMime(file));
-      if (!isImage && !isAudio) { say(`${file.name}: This file type is not supported. Use JPG, PNG, WebP, MP3, or M4A.`); continue; }
-      if (list.length + pending >= max) { say(`${file.name}: You can attach at most ${max} files. Remove one first.`); continue; }
+      if (!isImage && !isAudio) {
+        say(
+          `${file.name}: This file type is not supported. Use JPG, PNG, WebP, MP3, or M4A.`,
+        );
+        continue;
+      }
+      if (list.length + pending >= max) {
+        say(
+          `${file.name}: You can attach at most ${max} files. Remove one first.`,
+        );
+        continue;
+      }
       pending++;
-      queue.push({ file, name: file.name, kind: isImage ? "image" : "audio", stage: "Waiting…" });
+      queue.push({
+        file,
+        name: file.name,
+        kind: isImage ? "image" : "audio",
+        stage: "Waiting…",
+      });
     }
     render();
     work();
   }
 
-  input.addEventListener("change", () => { add([...input.files]); input.value = ""; });
-  for (const type of ["dragenter", "dragover"]) zone.addEventListener(type, (e) => { e.preventDefault(); zone.classList.add("over"); });
-  for (const type of ["dragleave", "drop"]) zone.addEventListener(type, (e) => { e.preventDefault(); zone.classList.remove("over"); });
-  zone.addEventListener("drop", (e) => add([...(e.dataTransfer ? e.dataTransfer.files : [])]));
+  input.addEventListener("change", () => {
+    add([...input.files]);
+    input.value = "";
+  });
+  for (const type of ["dragenter", "dragover"]) {
+    zone.addEventListener(type, (e) => {
+      e.preventDefault();
+      zone.classList.add("over");
+    });
+  }
+  for (const type of ["dragleave", "drop"]) {
+    zone.addEventListener(type, (e) => {
+      e.preventDefault();
+      zone.classList.remove("over");
+    });
+  }
+  zone.addEventListener(
+    "drop",
+    (e) => add([...(e.dataTransfer ? e.dataTransfer.files : [])]),
+  );
 
   render();
   return {
     el,
-    get items() { return list.map((m) => ({ ...m })); },
-    get busy() { return pending > 0; },
-    set(next) { list = next.map((m) => ({ ...m })); render(); },
+    get items() {
+      return list.map((m) => ({ ...m }));
+    },
+    get busy() {
+      return pending > 0;
+    },
+    set(next) {
+      list = next.map((m) => ({ ...m }));
+      render();
+    },
   };
 }

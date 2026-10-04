@@ -8,18 +8,18 @@ import { asFeedback, asPoints, asSeconds } from "./parse.ts";
 export type Db = StaffDb & RpcDb;
 
 const ACTIONS = [
-  "activity",          // every exam that has sessions, with its counts (the Grading and Results hubs)
-  "pending",           // how many essays still wait (the menu badge)
-  "overview",          // the results table of one exam
-  "report",            // one session: answers, grades, events, and what can be done with it
+  "activity", // every exam that has sessions, with its counts (the Grading and Results hubs)
+  "pending", // how many essays still wait (the menu badge)
+  "overview", // the results table of one exam
+  "report", // one session: answers, grades, events, and what can be done with it
   "grading_questions", // the essay questions of an exam and how far the grading is
-  "queue",             // one essay question against every student who took it
-  "grade",             // grade one answer by hand (BR-07, BR-18)
-  "add_time",          // BR-11: more time while the test runs
-  "add_exam_time",     // BR-11 at exam scope: more time for everyone still working
-  "reopen",            // BR-11: let a collected student continue
-  "grant_retake",      // BR-02: the teacher allows one more attempt
-  "revoke_retake",     // take an unused permission back
+  "queue", // one essay question against every student who took it
+  "grade", // grade one answer by hand (BR-07, BR-18)
+  "add_time", // BR-11: more time while the test runs
+  "add_exam_time", // BR-11 at exam scope: more time for everyone still working
+  "reopen", // BR-11: let a collected student continue
+  "grant_retake", // BR-02: the teacher allows one more attempt
+  "revoke_retake", // take an unused permission back
 ] as const;
 
 /**
@@ -38,27 +38,52 @@ export function createHandler(getDb: () => Db) {
 
     switch (action) {
       case "activity": {
-        const includeTemplates = b.include_templates === undefined ? false : asBool(b.include_templates, "Templates");
-        return { exams: await callRpc(db, "list_exam_activity", { p_include_templates: includeTemplates, p_actor: me.userId }) };
+        const includeTemplates = b.include_templates === undefined
+          ? false
+          : asBool(b.include_templates, "Templates");
+        return {
+          exams: await callRpc(db, "list_exam_activity", {
+            p_include_templates: includeTemplates,
+            p_actor: me.userId,
+          }),
+        };
       }
 
       case "pending":
-        return { pending: await callRpc<number>(db, "count_pending_grading", { p_actor: me.userId }) };
+        return {
+          pending: await callRpc<number>(db, "count_pending_grading", {
+            p_actor: me.userId,
+          }),
+        };
 
       case "overview": {
-        const overview = await callRpc<Record<string, unknown> | null>(db, "list_exam_results", {
-          p_exam_id: asUuid(b.exam_id, "Exam"),
-          p_actor: me.userId,
-        });
+        const overview = await callRpc<Record<string, unknown> | null>(
+          db,
+          "list_exam_results",
+          {
+            p_exam_id: asUuid(b.exam_id, "Exam"),
+            p_actor: me.userId,
+          },
+        );
         if (!overview) throw notFound("That exam no longer exists.");
         return { overview };
       }
 
       case "report":
-        return { report: await callRpc(db, "get_session_report", { p_session_id: asUuid(b.session_id, "Session"), p_actor: me.userId }) };
+        return {
+          report: await callRpc(db, "get_session_report", {
+            p_session_id: asUuid(b.session_id, "Session"),
+            p_actor: me.userId,
+          }),
+        };
 
       case "grading_questions":
-        return { questions: await callRpc(db, "list_grading_questions", { p_exam_id: asUuid(b.exam_id, "Exam"), p_actor: me.userId }) };
+        return {
+          questions: await callRpc(db, "list_grading_questions", {
+            p_exam_id: asUuid(b.exam_id, "Exam"),
+            p_actor: me.userId,
+          }),
+        };
 
       case "queue":
         return {
@@ -108,10 +133,20 @@ export function createHandler(getDb: () => Db) {
         };
 
       case "grant_retake":
-        return { retake: await callRpc(db, "grant_retake", { p_session_id: asUuid(b.session_id, "Session"), p_actor: me.userId }) };
+        return {
+          retake: await callRpc(db, "grant_retake", {
+            p_session_id: asUuid(b.session_id, "Session"),
+            p_actor: me.userId,
+          }),
+        };
 
       case "revoke_retake":
-        return { retake: await callRpc(db, "revoke_retake", { p_session_id: asUuid(b.session_id, "Session"), p_actor: me.userId }) };
+        return {
+          retake: await callRpc(db, "revoke_retake", {
+            p_session_id: asUuid(b.session_id, "Session"),
+            p_actor: me.userId,
+          }),
+        };
     }
   });
 }

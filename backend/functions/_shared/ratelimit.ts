@@ -2,7 +2,10 @@ import { tooManyRequests } from "./errors.ts";
 
 /** The part of the database client this module needs, so it can be tested without a database. */
 export interface RpcClient {
-  rpc(name: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  rpc(
+    name: string,
+    args: Record<string, unknown>,
+  ): PromiseLike<{ data: unknown; error: { message: string } | null }>;
 }
 
 /**
@@ -28,5 +31,6 @@ export async function rateLimit(
 /** Best effort caller address, used only as a rate limit key. */
 export function clientKey(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return fwd || req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || "unknown";
+  return fwd || req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-real-ip") || "unknown";
 }

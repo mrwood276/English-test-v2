@@ -15,7 +15,8 @@ const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g;
 
 /** Every character the file's own bytes can hold; anything wider than one byte becomes "?". */
 function toLatin1(value) {
-  const cleaned = String(value === null || value === undefined ? "" : value).replace(CONTROL, "");
+  const cleaned = String(value === null || value === undefined ? "" : value)
+    .replace(CONTROL, "");
   let out = "";
   for (const ch of cleaned) out += ch.codePointAt(0) <= 255 ? ch : "?";
   return out;
@@ -23,7 +24,12 @@ function toLatin1(value) {
 
 /** A PDF literal string: backslash and parentheses are the only characters that must be escaped. */
 function pdfString(value) {
-  return `(${toLatin1(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)")})`;
+  return `(${
+    toLatin1(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(
+      /\)/g,
+      "\\)",
+    )
+  })`;
 }
 
 const FONT_KEY = { regular: "F1", bold: "F2" };
@@ -32,13 +38,25 @@ const FONT_KEY = { regular: "F1", bold: "F2" };
 function contentStream(page) {
   const parts = [];
   for (const line of page.lines || []) {
-    parts.push(`${(line.width || 0.5).toFixed(2)} w ${(line.gray === undefined ? 0.6 : line.gray).toFixed(2)} G`);
-    parts.push(`${line.x1.toFixed(2)} ${line.y1.toFixed(2)} m ${line.x2.toFixed(2)} ${line.y2.toFixed(2)} l S`);
+    parts.push(
+      `${(line.width || 0.5).toFixed(2)} w ${
+        (line.gray === undefined ? 0.6 : line.gray).toFixed(2)
+      } G`,
+    );
+    parts.push(
+      `${line.x1.toFixed(2)} ${line.y1.toFixed(2)} m ${line.x2.toFixed(2)} ${
+        line.y2.toFixed(2)
+      } l S`,
+    );
   }
   for (const t of page.texts || []) {
     const font = FONT_KEY[t.font] || FONT_KEY.regular;
     const gray = (t.gray === undefined ? 0 : t.gray).toFixed(2);
-    parts.push(`BT /${font} ${t.size} Tf ${gray} g 1 0 0 1 ${t.x.toFixed(2)} ${t.y.toFixed(2)} Tm ${pdfString(t.text)} Tj ET`);
+    parts.push(
+      `BT /${font} ${t.size} Tf ${gray} g 1 0 0 1 ${t.x.toFixed(2)} ${
+        t.y.toFixed(2)
+      } Tm ${pdfString(t.text)} Tj ET`,
+    );
   }
   return parts.join("\n");
 }
@@ -55,16 +73,20 @@ export function buildPdf(pages) {
   objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
   const kids = list.map((_, i) => `${firstPageObj + i * 2} 0 R`).join(" ");
   objects[2] = `<< /Type /Pages /Kids [${kids}] /Count ${list.length} >>`;
-  objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
-  objects[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>";
+  objects[3] =
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
+  objects[4] =
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>";
 
   list.forEach((page, i) => {
     const pageObj = firstPageObj + i * 2;
     const contentObj = pageObj + 1;
-    objects[pageObj] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] `
-      + `/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObj} 0 R >>`;
+    objects[pageObj] =
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] ` +
+      `/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObj} 0 R >>`;
     const stream = contentStream(page);
-    objects[contentObj] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+    objects[contentObj] =
+      `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
   });
 
   // ---- assemble, tracking byte offsets: every character above is ASCII or Latin-1, one byte each ----
@@ -82,7 +104,9 @@ export function buildPdf(pages) {
     xref += `${String(offsets[n]).padStart(10, "0")} 00000 n \n`;
   }
   body += xref;
-  body += `trailer\n<< /Size ${highest + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  body += `trailer\n<< /Size ${
+    highest + 1
+  } /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
 
   const bytes = new Uint8Array(body.length);
   for (let i = 0; i < body.length; i++) bytes[i] = body.charCodeAt(i) & 0xff;

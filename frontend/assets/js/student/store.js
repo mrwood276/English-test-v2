@@ -32,10 +32,16 @@ export function reset() {
 
 // `problem` is set on an answer the server (or the phone) refused: it stays on screen and out of the
 // save queue until the student changes it, so one bad answer can never block the others (INS-02).
-const emptyAnswer = () => ({ text: "", is_flagged: false, pending: false, problem: null });
+const emptyAnswer = () => ({
+  text: "",
+  is_flagged: false,
+  pending: false,
+  problem: null,
+});
 
 export function answerOf(questionId) {
-  return state.answers[questionId] || (state.answers[questionId] = emptyAnswer());
+  return state.answers[questionId] ||
+    (state.answers[questionId] = emptyAnswer());
 }
 
 export function textOf(questionId) {
@@ -79,7 +85,12 @@ export function pendingAnswers({ maxAnswers = 40, maxChars = 200_000 } = {}) {
     const text = answer.text ?? "";
     if (out.length >= maxAnswers) break;
     if (out.length > 0 && chars + text.length > maxChars) break; // the first answer always gets through
-    out.push({ question_id: questionId, answer: { text }, is_flagged: !!answer.is_flagged, client_saved_at: now });
+    out.push({
+      question_id: questionId,
+      answer: { text },
+      is_flagged: !!answer.is_flagged,
+      client_saved_at: now,
+    });
     chars += text.length;
   }
   return out;
@@ -149,9 +160,10 @@ export function hydrate(payload, { keepLocal = true } = {}) {
     const local = state.answers[id];
     const server = fromServer[id] || emptyAnswer();
     // An answer typed here that never reached the server must not be overwritten (BR-12).
-    merged[id] = keepLocal && local && local.pending && local.text !== server.text
-      ? { ...local, pending: true }
-      : server;
+    merged[id] =
+      keepLocal && local && local.pending && local.text !== server.text
+        ? { ...local, pending: true }
+        : server;
   }
   state.answers = merged;
   persist();
@@ -167,7 +179,9 @@ export function loadStored() {
     state.token = data.token;
     state.session = data.session || null;
     state.questions = Array.isArray(data.questions) ? data.questions : [];
-    state.answers = data.answers && typeof data.answers === "object" ? data.answers : {};
+    state.answers = data.answers && typeof data.answers === "object"
+      ? data.answers
+      : {};
     return true;
   } catch {
     return false;
@@ -176,12 +190,15 @@ export function loadStored() {
 
 export function persist() {
   try {
-    localStorage.setItem(KEY, JSON.stringify({
-      token: state.token,
-      session: state.session,
-      questions: state.questions,
-      answers: state.answers,
-    }));
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        token: state.token,
+        session: state.session,
+        questions: state.questions,
+        answers: state.answers,
+      }),
+    );
   } catch {
     /* private mode or a full disk: the session still works in memory */
   }

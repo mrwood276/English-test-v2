@@ -20,14 +20,20 @@ export class NetworkError extends Error {
 }
 
 /** fetch + JSON with a timeout and friendly errors. */
-export async function requestJson(url, { method = "GET", headers = {}, body, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
+export async function requestJson(
+  url,
+  { method = "GET", headers = {}, body, timeoutMs = REQUEST_TIMEOUT_MS } = {},
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res;
   try {
     res = await fetch(url, {
       method,
-      headers: { ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...headers },
+      headers: {
+        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...headers,
+      },
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
@@ -48,8 +54,15 @@ export async function requestJson(url, { method = "GET", headers = {}, body, tim
     /* empty or non-JSON body */
   }
   if (!res.ok) {
-    const message = (data && (data.error || data.msg || data.error_description)) || `Something went wrong (${res.status}).`;
-    throw new HttpError(res.status, String(message), data && (data.code || data.error_code), data);
+    const message =
+      (data && (data.error || data.msg || data.error_description)) ||
+      `Something went wrong (${res.status}).`;
+    throw new HttpError(
+      res.status,
+      String(message),
+      data && (data.code || data.error_code),
+      data,
+    );
   }
   return data;
 }

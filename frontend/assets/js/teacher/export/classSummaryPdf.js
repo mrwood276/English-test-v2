@@ -13,7 +13,9 @@ const COLS = { name: MARGIN, class: 270, score: 410, status: 465 };
 
 function clipText(text, maxChars) {
   const s = String(text === null || text === undefined ? "" : text);
-  return s.length > maxChars ? `${s.slice(0, Math.max(0, maxChars - 3))}...` : s;
+  return s.length > maxChars
+    ? `${s.slice(0, Math.max(0, maxChars - 3))}...`
+    : s;
 }
 
 /** The same rounding `resultBits.js`'s `fmtScore` uses, kept local so this module has no DOM dependency. */
@@ -25,16 +27,28 @@ function fmtScore(value) {
   return s.endsWith(".0") ? s.slice(0, -2) : s;
 }
 
-const PASS_LABEL = { passed: "Passed", failed: "Failed", not_final: "Not final" };
+const PASS_LABEL = {
+  passed: "Passed",
+  failed: "Failed",
+  not_final: "Not final",
+};
 
 function statusLabel(row) {
-  if (row.has_result) return PASS_LABEL[row.pass_status] || row.pass_status || "-";
-  return row.status === "in_progress" || row.status === "reopened" ? "In progress" : (row.status || "-");
+  if (row.has_result) {
+    return PASS_LABEL[row.pass_status] || row.pass_status || "-";
+  }
+  return row.status === "in_progress" || row.status === "reopened"
+    ? "In progress"
+    : (row.status || "-");
 }
 
 /** One class name if every row shares it, a short joined list, or a count — never the full roster. */
 function classLabel(rows) {
-  const names = [...new Set(rows.map((r) => r.class_display || r.student_class || "").filter(Boolean))];
+  const names = [
+    ...new Set(
+      rows.map((r) => r.class_display || r.student_class || "").filter(Boolean),
+    ),
+  ];
   if (names.length === 0) return "-";
   if (names.length <= 3) return names.join(", ");
   return `${names.length} classes`;
@@ -48,9 +62,21 @@ function titleTexts({ schoolName, exam, rows, summary }, top) {
     texts.push({ x: MARGIN, y, text: schoolName, font: "bold", size: 14 });
     y -= 18;
   }
-  texts.push({ x: MARGIN, y, text: (exam && exam.title) || "Exam results", font: "bold", size: 16 });
+  texts.push({
+    x: MARGIN,
+    y,
+    text: (exam && exam.title) || "Exam results",
+    font: "bold",
+    size: 16,
+  });
   y -= 16;
-  texts.push({ x: MARGIN, y, text: `Class: ${classLabel(rows)}`, font: "regular", size: 10 });
+  texts.push({
+    x: MARGIN,
+    y,
+    text: `Class: ${classLabel(rows)}`,
+    font: "regular",
+    size: 10,
+  });
   y -= 20;
 
   const passed = (summary && summary.passed) || 0;
@@ -59,9 +85,15 @@ function titleTexts({ schoolName, exam, rows, summary }, top) {
   const withResult = (summary && summary.with_result) || 0;
   const stats = [
     `${withResult} result${withResult === 1 ? "" : "s"}`,
-    summary && summary.average !== null && summary.average !== undefined ? `average ${fmtScore(summary.average)}` : null,
-    summary && summary.highest !== null && summary.highest !== undefined ? `highest ${fmtScore(summary.highest)}` : null,
-    summary && summary.lowest !== null && summary.lowest !== undefined ? `lowest ${fmtScore(summary.lowest)}` : null,
+    summary && summary.average !== null && summary.average !== undefined
+      ? `average ${fmtScore(summary.average)}`
+      : null,
+    summary && summary.highest !== null && summary.highest !== undefined
+      ? `highest ${fmtScore(summary.highest)}`
+      : null,
+    summary && summary.lowest !== null && summary.lowest !== undefined
+      ? `lowest ${fmtScore(summary.lowest)}`
+      : null,
     pct !== null ? `${passed} of ${decided} passed (${pct}%)` : null,
   ].filter(Boolean).join("   \u00b7   ");
   texts.push({ x: MARGIN, y, text: stats, font: "regular", size: 10 });
@@ -82,16 +114,25 @@ function tableHeader(y, pageWidth) {
 }
 
 /** Builds the class-summary PDF for one exam's `overview` payload and returns its bytes. */
-export function buildClassSummaryPdf({ exam, summary, rows, schoolName, pageWidth = 595.28 }) {
+export function buildClassSummaryPdf(
+  { exam, summary, rows, schoolName, pageWidth = 595.28 },
+) {
   const allRows = rows || [];
   const sorted = [...allRows].sort((a, b) => {
-    const classCompare = (a.class_display || a.student_class || "").localeCompare(b.class_display || b.student_class || "");
-    return classCompare || (a.student_name || "").localeCompare(b.student_name || "");
+    const classCompare = (a.class_display || a.student_class || "")
+      .localeCompare(b.class_display || b.student_class || "");
+    return classCompare ||
+      (a.student_name || "").localeCompare(b.student_name || "");
   });
 
   const pages = [];
   let page = { texts: [], lines: [] };
-  const { texts: header, nextY } = titleTexts({ schoolName, exam, rows: allRows, summary }, PAGE_HEIGHT - MARGIN);
+  const { texts: header, nextY } = titleTexts({
+    schoolName,
+    exam,
+    rows: allRows,
+    summary,
+  }, PAGE_HEIGHT - MARGIN);
   page.texts.push(...header);
   const firstTh = tableHeader(nextY, pageWidth);
   page.texts.push(...firstTh.texts);
@@ -104,7 +145,13 @@ export function buildClassSummaryPdf({ exam, summary, rows, schoolName, pageWidt
       pages.push(page);
       page = { texts: [], lines: [] };
       let cy = PAGE_HEIGHT - MARGIN;
-      page.texts.push({ x: MARGIN, y: cy, text: `${(exam && exam.title) || "Exam results"} (continued)`, font: "bold", size: 12 });
+      page.texts.push({
+        x: MARGIN,
+        y: cy,
+        text: `${(exam && exam.title) || "Exam results"} (continued)`,
+        font: "bold",
+        size: 12,
+      });
       cy -= 24;
       const cont = tableHeader(cy, pageWidth);
       page.texts.push(...cont.texts);
@@ -112,15 +159,39 @@ export function buildClassSummaryPdf({ exam, summary, rows, schoolName, pageWidt
       y = cy - ROW_HEIGHT;
     }
     page.texts.push(
-      { x: COLS.name, y, text: clipText(row.student_name, 32), font: "regular", size: 9 },
-      { x: COLS.class, y, text: clipText(row.class_display || row.student_class, 20), font: "regular", size: 9 },
-      { x: COLS.score, y, text: row.has_result ? fmtScore(row.percentage) : "-", font: "regular", size: 9 },
+      {
+        x: COLS.name,
+        y,
+        text: clipText(row.student_name, 32),
+        font: "regular",
+        size: 9,
+      },
+      {
+        x: COLS.class,
+        y,
+        text: clipText(row.class_display || row.student_class, 20),
+        font: "regular",
+        size: 9,
+      },
+      {
+        x: COLS.score,
+        y,
+        text: row.has_result ? fmtScore(row.percentage) : "-",
+        font: "regular",
+        size: 9,
+      },
       { x: COLS.status, y, text: statusLabel(row), font: "regular", size: 9 },
     );
     y -= ROW_HEIGHT;
   }
   if (sorted.length === 0) {
-    page.texts.push({ x: MARGIN, y, text: "Nobody has joined this test yet.", font: "regular", size: 10 });
+    page.texts.push({
+      x: MARGIN,
+      y,
+      text: "Nobody has joined this test yet.",
+      font: "regular",
+      size: 10,
+    });
   }
   pages.push(page);
   return buildPdf(pages);

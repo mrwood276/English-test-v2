@@ -1,4 +1,5 @@
 import { h } from "./dom.js";
+import { errorText } from "./error.js";
 
 export function debounce(fn, ms) {
   let timer;
@@ -22,7 +23,11 @@ const TOAST_MS = { info: 4500, error: 9000 };
  */
 export function toast(message, kind = "info") {
   if (!toastRegion || !toastRegion.isConnected) {
-    toastRegion = h("div", { class: "toasts", role: "status", "aria-live": "polite" });
+    toastRegion = h("div", {
+      class: "toasts",
+      role: "status",
+      "aria-live": "polite",
+    });
     document.body.append(toastRegion);
   }
   const el = h("div", { class: `toast ${kind}` }, message);
@@ -32,17 +37,46 @@ export function toast(message, kind = "info") {
 }
 
 /** Replaces window.confirm: a proper dialog with focus kept inside and Escape to cancel. Resolves to true or false. */
-export function confirmDialog({ title, message, confirmLabel = "Confirm", cancelLabel = "Cancel", danger = false }) {
+export function confirmDialog(
+  {
+    title,
+    message,
+    confirmLabel = "Confirm",
+    cancelLabel = "Cancel",
+    danger = false,
+  },
+) {
   return new Promise((resolve) => {
-    const cancel = h("button", { class: "btn ghost", type: "button", value: "cancel" }, cancelLabel);
-    const ok = h("button", { class: danger ? "btn danger" : "btn", type: "button", value: "ok" }, confirmLabel);
-    const dialog = h("dialog", { class: "dialog", "aria-labelledby": "dialog-title", "aria-describedby": "dialog-message" }, h("h2", { id: "dialog-title" }, title), h("p", { id: "dialog-message" }, message), h("div", { class: "dialog-actions" }, cancel, ok));
+    const cancel = h("button", {
+      class: "btn ghost",
+      type: "button",
+      value: "cancel",
+    }, cancelLabel);
+    const ok = h("button", {
+      class: danger ? "btn danger" : "btn",
+      type: "button",
+      value: "ok",
+    }, confirmLabel);
+    const dialog = h(
+      "dialog",
+      {
+        class: "dialog",
+        "aria-labelledby": "dialog-title",
+        "aria-describedby": "dialog-message",
+      },
+      h("h2", { id: "dialog-title" }, title),
+      h("p", { id: "dialog-message" }, message),
+      h("div", { class: "dialog-actions" }, cancel, ok),
+    );
     let result = false;
     // Focus comes back to the element that opened the dialog, so keyboard
     // users are not dropped onto <body> when it closes. It may have gone
     // away or been disabled meanwhile; both are fine to leave alone.
     const opener = document.activeElement;
-    ok.addEventListener("click", () => { result = true; dialog.close(); });
+    ok.addEventListener("click", () => {
+      result = true;
+      dialog.close();
+    });
     cancel.addEventListener("click", () => dialog.close());
     dialog.addEventListener("close", () => {
       dialog.remove();
@@ -60,17 +94,101 @@ export function confirmDialog({ title, message, confirmLabel = "Confirm", cancel
  * `options` is a list of [value, label]. Returns { el, set(value) }.
  */
 export function segmented({ label, name, options, value, onChange }) {
-  const wrap = h("div", { class: "seg", role: "radiogroup", "aria-label": label });
+  const wrap = h("div", {
+    class: "seg",
+    role: "radiogroup",
+    "aria-label": label,
+  });
   const inputs = new Map();
   for (const [val, text] of options) {
     const id = `${name}-${val}`;
-    const input = h("input", { type: "radio", name, id, value: val, class: "visually-hidden" });
+    const input = h("input", {
+      type: "radio",
+      name,
+      id,
+      value: val,
+      class: "visually-hidden",
+    });
     input.checked = val === value;
     input.addEventListener("change", () => input.checked && onChange(val));
     inputs.set(val, input);
     wrap.append(input, h("label", { for: id }, text));
   }
-  return { el: wrap, set: (val) => { for (const [v, input] of inputs) input.checked = v === val; } };
+  return {
+    el: wrap,
+    set: (val) => {
+      for (const [v, input] of inputs) input.checked = v === val;
+    },
+  };
+}
+
+/**
+ * A small dialog with a promise: `build()` returns the body (an object with `.nodes`),
+ * `onSave` does the work and resolves true to close. `afterSave` is called after success
+ * to allow the caller to clear dirty state.
+ */
+export function dialog(
+  { title, id, build, confirmLabel, danger = false, onSave, afterSave },
+) {
+  return new Promise((resolve) => {
+    const error = h("p", { class: "field-error", role: "alert", hidden: true });
+    const cancel = h(
+      "button",
+      { class: "btn ghost", type: "button" },
+      "Cancel",
+    );
+    const save = h("button", {
+      class: `btn${danger ? " danger" : ""}`,
+      type: "button",
+    }, confirmLabel);
+    const body = build();
+    const el = h(
+      "dialog",
+      { class: "dialog", "aria-labelledby": `${id}-title` },
+      h("h2", { id: `${id}-title` }, title),
+      ...body.nodes,
+      error,
+      h("div", { class: "dialog-actions" }, cancel, save),
+    );
+
+    const showProblem = (message) => {
+      error.textContent = message;
+      error.hidden = false;
+    };
+    const hideProblem = () => {
+      error.textContent = "";
+      error.hidden = true;
+    };
+
+    save.addEventListener("click", async () => {
+      hideProblem();
+      save.disabled = true;
+      cancel.disabled = true;
+      try {
+        const ok = await onSave();
+        if (ok) {
+          afterSave?.();
+          el.close();
+          resolve(true);
+        } else {
+          save.disabled = false;
+          cancel.disabled = false;
+        }
+      } catch (err) {
+        save.disabled = false;
+        cancel.disabled = false;
+        showProblem(errorText(err));
+      }
+    });
+    cancel.addEventListener("click", () => el.close());
+    el.addEventListener("close", () => {
+      el.remove();
+      resolve(false);
+    });
+    document.body.append(el);
+    el.showModal();
+    cancel.focus();
+  });
 }
 
 /**
@@ -81,13 +199,18 @@ export function segmented({ label, name, options, value, onChange }) {
  */
 export function startRefresh(container, state, load, ms) {
   load();
-  state.timer = setInterval(() => { if (document.contains(container)) load(); }, ms);
+  state.timer = setInterval(() => {
+    if (document.contains(container)) load();
+  }, ms);
   const observer = new MutationObserver(() => {
     if (!document.contains(container)) cleanup();
   });
   observer.observe(document.body, { childList: true, subtree: true });
   function cleanup() {
-    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+    if (state.timer) {
+      clearInterval(state.timer);
+      state.timer = null;
+    }
     observer.disconnect();
   }
   return cleanup;

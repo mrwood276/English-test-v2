@@ -16,14 +16,31 @@ function wrapSelection(textarea, tag) {
 }
 
 /** A textarea with Bold, Italic, and Underline buttons (also Ctrl/Cmd + B, I, U). */
-export function richTextarea({ id, label, rows = 4, value = "", placeholder = "", describedBy }) {
-  const textarea = h("textarea", { class: "ta", id, rows: String(rows), placeholder, "aria-describedby": describedBy });
+export function richTextarea(
+  { id, label, rows = 4, value = "", placeholder = "", describedBy },
+) {
+  const textarea = h("textarea", {
+    class: "ta",
+    id,
+    rows: String(rows),
+    placeholder,
+    "aria-describedby": describedBy,
+  });
   textarea.value = value;
   const toolbar = h(
     "div",
-    { class: "format-bar", role: "toolbar", "aria-label": `Formatting for ${label}` },
+    {
+      class: "format-bar",
+      role: "toolbar",
+      "aria-label": `Formatting for ${label}`,
+    },
     TOOLS.map((t) => {
-      const btn = h("button", { class: "fmt", type: "button", title: `${t.label} (Ctrl+${t.key.toUpperCase()})`, "aria-label": t.label }, h(t.tag, {}, t.text));
+      const btn = h("button", {
+        class: "fmt",
+        type: "button",
+        title: `${t.label} (Ctrl+${t.key.toUpperCase()})`,
+        "aria-label": t.label,
+      }, h(t.tag, {}, t.text));
       btn.addEventListener("click", () => wrapSelection(textarea, t.tag));
       return btn;
     }),

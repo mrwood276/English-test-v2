@@ -13,30 +13,138 @@ import { renderSessionTimeline } from "./screens/sessionTimeline.js";
 import { renderAuditLog } from "./screens/auditLog.js";
 import { renderBackups } from "./screens/backups.js";
 import { renderAccounts } from "./screens/accounts.js";
-import { getLeaveGuard, clearLeaveGuard, hasUnsavedChanges } from "./guard.js";
+import { clearLeaveGuard, getLeaveGuard, hasUnsavedChanges } from "./guard.js";
 
-const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
+const UUID =
+  "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 
 const ROUTES = [
-  { pattern: /^#\/dashboard$/, nav: "#/dashboard", title: "Dashboard", render: (c, ctx) => renderDashboard(c, ctx) },
-  { pattern: /^#\/questions$/, nav: "#/questions", title: "Question bank", render: (c, ctx) => renderQuestionBank(c, ctx) },
-  { pattern: /^#\/questions\/new$/, nav: "#/questions", title: "New question", render: (c, ctx) => renderQuestionEditor(c, ctx, {}) },
-  { pattern: /^#\/questions\/import$/, nav: "#/questions", title: "Import questions", render: (c, ctx) => renderQuestionImport(c, ctx) },
-  { pattern: new RegExp(`^#/questions/edit/(${UUID})$`), nav: "#/questions", title: "Edit question", render: (c, ctx, m) => renderQuestionEditor(c, ctx, { id: m[1].toLowerCase() }) },
-  { pattern: /^#\/exams$/, nav: "#/exams", title: "Exams", render: (c, ctx) => renderExams(c, ctx) },
-  { pattern: /^#\/exams\/new$/, nav: "#/exams", title: "New exam", render: (c, ctx) => renderExamEditor(c, ctx, null) },
-  { pattern: new RegExp(`^#/exams/edit/(${UUID})$`), nav: "#/exams", title: "Edit exam", render: (c, ctx, m) => renderExamEditor(c, ctx, m) },
-  { pattern: /^#\/grading$/, nav: "#/grading", title: "Grading", render: (c, ctx) => renderGradingHub(c, ctx, "grading") },
-  { pattern: new RegExp(`^#/grading/(${UUID})$`), nav: "#/grading", title: "Grade essays", render: (c, ctx, m) => renderGradingQuestion(c, ctx, { examId: m[1].toLowerCase() }) },
-  { pattern: /^#\/results$/, nav: "#/results", title: "Results", render: (c, ctx) => renderGradingHub(c, ctx, "results") },
-  { pattern: new RegExp(`^#/results/(${UUID})/session/(${UUID})$`), nav: "#/results", title: "Attempt", render: (c, ctx, m) => renderSessionReport(c, ctx, { examId: m[1].toLowerCase(), sessionId: m[2].toLowerCase() }) },
-  { pattern: new RegExp(`^#/results/(${UUID})$`), nav: "#/results", title: "Results", render: (c, ctx, m) => renderExamResults(c, ctx, { examId: m[1].toLowerCase() }) },
-  { pattern: /^#\/monitor$/, nav: "#/monitor", title: "Monitor", render: (c, ctx) => renderExamMonitor(c, ctx) },
-  { pattern: new RegExp(`^#/monitor/(${UUID})$`), nav: "#/monitor", title: "Monitor", render: (c, ctx, m) => renderExamMonitor(c, ctx, { examId: m[1].toLowerCase() }) },
-  { pattern: new RegExp(`^#/monitor/(${UUID})/session/(${UUID})$`), nav: "#/monitor", title: "Session", render: (c, ctx, m) => renderSessionTimeline(c, ctx, { examId: m[1].toLowerCase(), sessionId: m[2].toLowerCase() }) },
-  { pattern: /^#\/audit$/, nav: "#/audit", title: "Audit log", render: (c, ctx) => renderAuditLog(c, ctx) },
-  { pattern: /^#\/backups$/, nav: "#/backups", title: "Backups", render: (c) => renderBackups(c) },
-  { pattern: /^#\/accounts$/, nav: "#/accounts", title: "Accounts", render: (c, ctx) => renderAccounts(c, ctx) },
+  {
+    pattern: /^#\/dashboard$/,
+    nav: "#/dashboard",
+    title: "Dashboard",
+    render: (c, ctx) => renderDashboard(c, ctx),
+  },
+  {
+    pattern: /^#\/questions$/,
+    nav: "#/questions",
+    title: "Question bank",
+    render: (c, ctx) => renderQuestionBank(c, ctx),
+  },
+  {
+    pattern: /^#\/questions\/new$/,
+    nav: "#/questions",
+    title: "New question",
+    render: (c, ctx) => renderQuestionEditor(c, ctx, {}),
+  },
+  {
+    pattern: /^#\/questions\/import$/,
+    nav: "#/questions",
+    title: "Import questions",
+    render: (c, ctx) => renderQuestionImport(c, ctx),
+  },
+  {
+    pattern: new RegExp(`^#/questions/edit/(${UUID})$`),
+    nav: "#/questions",
+    title: "Edit question",
+    render: (c, ctx, m) =>
+      renderQuestionEditor(c, ctx, { id: m[1].toLowerCase() }),
+  },
+  {
+    pattern: /^#\/exams$/,
+    nav: "#/exams",
+    title: "Exams",
+    render: (c, ctx) => renderExams(c, ctx),
+  },
+  {
+    pattern: /^#\/exams\/new$/,
+    nav: "#/exams",
+    title: "New exam",
+    render: (c, ctx) => renderExamEditor(c, ctx, null),
+  },
+  {
+    pattern: new RegExp(`^#/exams/edit/(${UUID})$`),
+    nav: "#/exams",
+    title: "Edit exam",
+    render: (c, ctx, m) => renderExamEditor(c, ctx, m),
+  },
+  {
+    pattern: /^#\/grading$/,
+    nav: "#/grading",
+    title: "Grading",
+    render: (c, ctx) => renderGradingHub(c, ctx, "grading"),
+  },
+  {
+    pattern: new RegExp(`^#/grading/(${UUID})$`),
+    nav: "#/grading",
+    title: "Grade essays",
+    render: (c, ctx, m) =>
+      renderGradingQuestion(c, ctx, { examId: m[1].toLowerCase() }),
+  },
+  {
+    pattern: /^#\/results$/,
+    nav: "#/results",
+    title: "Results",
+    render: (c, ctx) => renderGradingHub(c, ctx, "results"),
+  },
+  {
+    pattern: new RegExp(`^#/results/(${UUID})/session/(${UUID})$`),
+    nav: "#/results",
+    title: "Attempt",
+    render: (c, ctx, m) =>
+      renderSessionReport(c, ctx, {
+        examId: m[1].toLowerCase(),
+        sessionId: m[2].toLowerCase(),
+      }),
+  },
+  {
+    pattern: new RegExp(`^#/results/(${UUID})$`),
+    nav: "#/results",
+    title: "Results",
+    render: (c, ctx, m) =>
+      renderExamResults(c, ctx, { examId: m[1].toLowerCase() }),
+  },
+  {
+    pattern: /^#\/monitor$/,
+    nav: "#/monitor",
+    title: "Monitor",
+    render: (c, ctx) => renderExamMonitor(c, ctx),
+  },
+  {
+    pattern: new RegExp(`^#/monitor/(${UUID})$`),
+    nav: "#/monitor",
+    title: "Monitor",
+    render: (c, ctx, m) =>
+      renderExamMonitor(c, ctx, { examId: m[1].toLowerCase() }),
+  },
+  {
+    pattern: new RegExp(`^#/monitor/(${UUID})/session/(${UUID})$`),
+    nav: "#/monitor",
+    title: "Session",
+    render: (c, ctx, m) =>
+      renderSessionTimeline(c, ctx, {
+        examId: m[1].toLowerCase(),
+        sessionId: m[2].toLowerCase(),
+      }),
+  },
+  {
+    pattern: /^#\/audit$/,
+    nav: "#/audit",
+    title: "Audit log",
+    render: (c, ctx) => renderAuditLog(c, ctx),
+  },
+  {
+    pattern: /^#\/backups$/,
+    nav: "#/backups",
+    title: "Backups",
+    render: (c) => renderBackups(c),
+  },
+  {
+    pattern: /^#\/accounts$/,
+    nav: "#/accounts",
+    title: "Accounts",
+    render: (c, ctx) => renderAccounts(c, ctx),
+  },
 ];
 const DEFAULT_HASH = "#/dashboard";
 
@@ -67,7 +175,9 @@ export function startRouter(container, nav, ctx) {
       else link.removeAttribute("aria-current");
     }
     container.replaceChildren();
-    container.dataset.render = String((Number(container.dataset.render) || 0) + 1);
+    container.dataset.render = String(
+      (Number(container.dataset.render) || 0) + 1,
+    );
     document.title = `${route.title} | English Daily Test`;
     route.render(container, ctx, m);
     // Land keyboard and screen-reader focus on the new screen, not on the menu

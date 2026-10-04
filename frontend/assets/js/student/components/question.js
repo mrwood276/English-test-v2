@@ -17,17 +17,21 @@ const rich = (html, cls, tag = "div") => {
  */
 export function mediaBlock(files, urls) {
   if (!files || files.length === 0) return null;
-  return h("div", { class: "media-block" }, files.map((file) => {
-    const url = urls[file.id];
-    if (file.kind === "image") {
+  return h(
+    "div",
+    { class: "media-block" },
+    files.map((file) => {
+      const url = urls[file.id];
+      if (file.kind === "image") {
+        return url
+          ? h("img", { class: "q-image", src: url, alt: "", loading: "lazy" })
+          : h("span", { class: "tag" }, icon("image"), " Image");
+      }
       return url
-        ? h("img", { class: "q-image", src: url, alt: "", loading: "lazy" })
-        : h("span", { class: "tag" }, icon("image"), " Image");
-    }
-    return url
-      ? h("audio", { controls: true, preload: "none", src: url })
-      : h("span", { class: "tag" }, icon("audio"), " Audio");
-  }));
+        ? h("audio", { controls: true, preload: "none", src: url })
+        : h("span", { class: "tag" }, icon("audio"), " Audio");
+    }),
+  );
 }
 
 /**
@@ -44,10 +48,15 @@ export function questionBlock(question, urls, handlers) {
   const parts = [];
 
   if (question.passage) {
-    parts.push(h("div", { class: "passage" },
-      h("strong", { class: "passage-title" }, question.passage.title),
-      mediaBlock(question.passage.media, urls),
-      rich(question.passage.body, "passage-body serif")));
+    parts.push(
+      h(
+        "div",
+        { class: "passage" },
+        h("strong", { class: "passage-title" }, question.passage.title),
+        mediaBlock(question.passage.media, urls),
+        rich(question.passage.body, "passage-body serif"),
+      ),
+    );
   }
   const ownMedia = mediaBlock(question.media, urls);
   if (ownMedia) parts.push(ownMedia);
@@ -58,9 +67,18 @@ export function questionBlock(question, urls, handlers) {
   if (question.type === "multiple_choice" || question.type === "true_false") {
     const options = question.options || [];
     const buttons = options.map((option, index) => {
-      const button = h("button", { class: "opt", type: "button" },
-        h("span", { class: "bubble" }, question.type === "multiple_choice" ? (LETTERS[index] || String(index + 1)) : (option.body || "").slice(0, 1)),
-        rich(option.body, "opt-text", "span"));
+      const button = h(
+        "button",
+        { class: "opt", type: "button" },
+        h(
+          "span",
+          { class: "bubble" },
+          question.type === "multiple_choice"
+            ? (LETTERS[index] || String(index + 1))
+            : (option.body || "").slice(0, 1),
+        ),
+        rich(option.body, "opt-text", "span"),
+      );
       button.addEventListener("click", () => {
         handlers.onAnswer(id, option.body);
         paint(option.body);
@@ -79,20 +97,54 @@ export function questionBlock(question, urls, handlers) {
     // `maxlength` is the first of the two guard rails: the browser itself will not let an answer grow
     // past what `save_session_answers` accepts (INS-02). The screen also checks before it queues one.
     const input = h("input", {
-      class: "input", type: "text", autocomplete: "off", autocapitalize: "sentences", spellcheck: "false",
-      value: handlers.value(id) || "", placeholder: "Type your answer", maxlength: String(answerLimit(question.type)),
+      class: "input",
+      type: "text",
+      autocomplete: "off",
+      autocapitalize: "sentences",
+      spellcheck: "false",
+      value: handlers.value(id) || "",
+      placeholder: "Type your answer",
+      maxlength: String(answerLimit(question.type)),
     });
     input.addEventListener("input", () => handlers.onAnswer(id, input.value));
-    sync = () => { input.value = handlers.value(id) || ""; };
-    parts.push(h("div", { class: "answer-area" },
-      h("p", { class: "hint" }, "Spelling matters. Write your answer in the box."), input));
+    sync = () => {
+      input.value = handlers.value(id) || "";
+    };
+    parts.push(
+      h(
+        "div",
+        { class: "answer-area" },
+        h(
+          "p",
+          { class: "hint" },
+          "Spelling matters. Write your answer in the box.",
+        ),
+        input,
+      ),
+    );
   } else {
-    const area = h("textarea", { spellcheck: "true", placeholder: "Write your answer", maxlength: String(answerLimit(question.type)) });
+    const area = h("textarea", {
+      spellcheck: "true",
+      placeholder: "Write your answer",
+      maxlength: String(answerLimit(question.type)),
+    });
     area.value = handlers.value(id) || "";
     area.addEventListener("input", () => handlers.onAnswer(id, area.value));
-    sync = () => { area.value = handlers.value(id) || ""; };
-    parts.push(h("div", { class: "answer-area" },
-      h("p", { class: "hint" }, "Your teacher reads this answer and gives the points."), area));
+    sync = () => {
+      area.value = handlers.value(id) || "";
+    };
+    parts.push(
+      h(
+        "div",
+        { class: "answer-area" },
+        h(
+          "p",
+          { class: "hint" },
+          "Your teacher reads this answer and gives the points.",
+        ),
+        area,
+      ),
+    );
   }
 
   return { el: h("div", { class: "question" }, parts.filter(Boolean)), sync };

@@ -4,15 +4,25 @@ import { confirmDialog, toast } from "../../shared/ui.js";
 import { backups } from "../api/backups.js";
 import { SessionExpiredError } from "../../core/auth.js";
 
-const errorText = (err) => err.message || "Something went wrong. Please try again.";
+const errorText = (err) =>
+  err.message || "Something went wrong. Please try again.";
 // When the session ended, core/api.js already sent the person back to sign in; nothing more to show here.
 const ignorable = (err) => err instanceof SessionExpiredError;
 
-const fmtWhen = (iso) => new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const fmtWhen = (iso) =>
+  new Date(iso).toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 const fmtSize = (bytes) =>
-  bytes === null || bytes === undefined ? "—"
-    : bytes < 1000 ? `${bytes} B`
-    : bytes < 1_000_000 ? `${Math.round(bytes / 1000)} kB`
+  bytes === null || bytes === undefined
+    ? "—"
+    : bytes < 1000
+    ? `${bytes} B`
+    : bytes < 1_000_000
+    ? `${Math.round(bytes / 1000)} kB`
     : `${(bytes / 1_000_000).toFixed(1)} MB`;
 
 /** Backups (admin only, TASK-015): the copies that exist, a button to make one, and the files to keep. */
@@ -24,17 +34,38 @@ export function renderBackups(container) {
   const table = h(
     "table",
     { class: "qtable" },
-    h("thead", {}, h("tr", {}, h("th", {}, "When"), h("th", {}, "Kind"), h("th", {}, "Size"), h("th", {}, "Made by"), h("th", { class: "col-actions", "aria-label": "Actions" }, ""))),
+    h(
+      "thead",
+      {},
+      h(
+        "tr",
+        {},
+        h("th", {}, "When"),
+        h("th", {}, "Kind"),
+        h("th", {}, "Size"),
+        h("th", {}, "Made by"),
+        h("th", { class: "col-actions", "aria-label": "Actions" }, ""),
+      ),
+    ),
     tbody,
   );
   const status = h("div", { class: "list-status", role: "status" });
 
   const createLabel = h("span", {}, "Create backup now");
-  const createButton = h("button", { class: "btn", type: "button", id: "bk-create" }, icon("cloud"), createLabel);
+  const createButton = h(
+    "button",
+    { class: "btn", type: "button", id: "bk-create" },
+    icon("cloud"),
+    createLabel,
+  );
 
   mount(
     container,
-    h("div", { class: "head" }, h("div", {}, h("h1", {}, "Backups"), countText)),
+    h(
+      "div",
+      { class: "head" },
+      h("div", {}, h("h1", {}, "Backups"), countText),
+    ),
     h(
       "div",
       { class: "toolbar" },
@@ -65,25 +96,49 @@ export function renderBackups(container) {
 
   function renderLoadError(err) {
     tbody.replaceChildren();
-    const retry = h("button", { class: "btn small", type: "button" }, "Try again");
+    const retry = h(
+      "button",
+      { class: "btn small", type: "button" },
+      "Try again",
+    );
     retry.addEventListener("click", load);
     status.className = "list-status error";
-    status.replaceChildren(h("span", {}, `Could not load the backups. ${errorText(err)}`), retry);
+    status.replaceChildren(
+      h("span", {}, `Could not load the backups. ${errorText(err)}`),
+      retry,
+    );
   }
 
   function renderList() {
-    countText.textContent = state.total === 1 ? "1 backup" : `${state.total} backups`;
+    countText.textContent = state.total === 1
+      ? "1 backup"
+      : `${state.total} backups`;
     tbody.replaceChildren(...state.items.map(row));
     status.className = "list-status";
     status.replaceChildren(
-      state.items.length === 0 ? h("span", {}, "No backups yet. Make one before the next exam.") : h("span", {}),
+      state.items.length === 0
+        ? h("span", {}, "No backups yet. Make one before the next exam.")
+        : h("span", {}),
     );
   }
 
   function row(b) {
     const manual = b.kind === "manual";
-    const download = h("button", { class: "btn small ghost", type: "button", "aria-label": `Download the backup from ${fmtWhen(b.created_at)}` }, icon("download"), "Download");
-    const remove = h("button", { class: "btn small danger", type: "button", "aria-label": `Delete the backup from ${fmtWhen(b.created_at)}` }, "Delete");
+    const download = h(
+      "button",
+      {
+        class: "btn small ghost",
+        type: "button",
+        "aria-label": `Download the backup from ${fmtWhen(b.created_at)}`,
+      },
+      icon("download"),
+      "Download",
+    );
+    const remove = h("button", {
+      class: "btn small danger",
+      type: "button",
+      "aria-label": `Delete the backup from ${fmtWhen(b.created_at)}`,
+    }, "Delete");
 
     download.addEventListener("click", async () => {
       download.disabled = true;
@@ -103,7 +158,9 @@ export function renderBackups(container) {
     remove.addEventListener("click", async () => {
       const agreed = await confirmDialog({
         title: "Delete this backup?",
-        message: `The archive made on ${fmtWhen(b.created_at)} will be removed. This cannot be undone.`,
+        message: `The archive made on ${
+          fmtWhen(b.created_at)
+        } will be removed. This cannot be undone.`,
         confirmLabel: "Delete",
         danger: true,
       });
@@ -123,10 +180,22 @@ export function renderBackups(container) {
       "tr",
       { "data-id": b.id, "data-kind": b.kind },
       h("td", { title: b.created_at }, fmtWhen(b.created_at)),
-      h("td", {}, h("span", { class: manual ? "pill plain" : "pill" }, manual ? "Manual" : "Nightly")),
+      h(
+        "td",
+        {},
+        h(
+          "span",
+          { class: manual ? "pill plain" : "pill" },
+          manual ? "Manual" : "Nightly",
+        ),
+      ),
       h("td", {}, fmtSize(b.size_bytes)),
       h("td", {}, b.created_by_name || "Nightly job"),
-      h("td", { class: "col-actions" }, h("div", { class: "row gap" }, download, remove)),
+      h(
+        "td",
+        { class: "col-actions" },
+        h("div", { class: "row gap" }, download, remove),
+      ),
     );
   }
 
@@ -137,9 +206,20 @@ export function renderBackups(container) {
     createLabel.textContent = "Making a backup…";
     try {
       const res = await backups.create();
-      toast(`Backup created (${fmtSize(res.backup.size_bytes)}, ${res.files} files)`);
+      toast(
+        `Backup created (${
+          fmtSize(res.backup.size_bytes)
+        }, ${res.files} files)`,
+      );
       if (res.media_note) toast(res.media_note, "warn");
-      if (res.pruned > 0) toast(`${res.pruned} older nightly ${res.pruned === 1 ? "copy was" : "copies were"} removed`, "info");
+      if (res.pruned > 0) {
+        toast(
+          `${res.pruned} older nightly ${
+            res.pruned === 1 ? "copy was" : "copies were"
+          } removed`,
+          "info",
+        );
+      }
       await load();
     } catch (err) {
       if (!ignorable(err)) toast(errorText(err), "error");

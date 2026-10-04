@@ -2,8 +2,14 @@ import { handle, readJson } from "../_shared/http.ts";
 import { methodNotAllowed } from "../_shared/errors.ts";
 import { isScheduledJob, requireStaff, type StaffDb } from "../_shared/auth.ts";
 import { callRpc, type RpcDb } from "../_shared/rpc.ts";
-import { asEnum, asInt, asObject, asUuid, optional } from "../_shared/validate.ts";
-import { zipStore, type ZipEntry } from "./zip.ts";
+import {
+  asEnum,
+  asInt,
+  asObject,
+  asUuid,
+  optional,
+} from "../_shared/validate.ts";
+import { type ZipEntry, zipStore } from "./zip.ts";
 
 export const BUCKET = "backups";
 export const MEDIA_BUCKET = "question-media";
@@ -13,7 +19,9 @@ export const MAX_ARCHIVE_BYTES = 45_000_000;
 
 /** The part of the Storage client this function needs, so it can be tested without Supabase. */
 export interface BackupBucket {
-  download(path: string): PromiseLike<{ data: Blob | null; error: { message: string } | null }>;
+  download(
+    path: string,
+  ): PromiseLike<{ data: Blob | null; error: { message: string } | null }>;
   upload(
     path: string,
     body: Uint8Array,
@@ -24,9 +32,13 @@ export interface BackupBucket {
     path: string,
     expiresIn: number,
     options?: { download?: string },
-  ): PromiseLike<{ data: { signedUrl: string } | null; error: { message: string } | null }>;
+  ): PromiseLike<
+    { data: { signedUrl: string } | null; error: { message: string } | null }
+  >;
 }
-export type Db = StaffDb & RpcDb & { storage: { from(bucket: string): BackupBucket } };
+export type Db = StaffDb & RpcDb & {
+  storage: { from(bucket: string): BackupBucket };
+};
 
 const ACTIONS = ["create", "list", "download", "delete"] as const;
 
@@ -61,7 +73,8 @@ interface RecordedBackup {
 }
 
 const encoder = new TextEncoder();
-const fileNameOf = (path: string) => `english-test-v2_${path.split("/").pop() ?? "backup.zip"}`;
+const fileNameOf = (path: string) =>
+  `english-test-v2_${path.split("/").pop() ?? "backup.zip"}`;
 
 /**
  * Backups (TASK-015, design.md's Backup/Recovery module — an admin job). One endpoint, POST { action }.
@@ -93,25 +106,45 @@ export function createHandler(getDb: () => Db) {
       case "list":
         return {
           backups: await callRpc(db, "list_backups", {
-            p_limit: optional(b.limit, (v) => asInt(v, "Limit", { min: 1, max: 200 })) ?? 50,
-            p_offset: optional(b.offset, (v) => asInt(v, "Offset", { min: 0, max: 1_000_000 })) ?? 0,
+            p_limit: optional(b.limit, (v) =>
+              asInt(v, "Limit", { min: 1, max: 200 })) ?? 50,
+            p_offset: optional(b.offset, (v) =>
+              asInt(v, "Offset", { min: 0, max: 1_000_000 })) ?? 0,
           }),
         };
 
       case "download": {
         const id = asUuid(b.id, "id");
-        const row = await callRpc<{ storage_path: string }>(db, "get_backup", { p_id: id });
+        const row = await callRpc<{ storage_path: string }>(db, "get_backup", {
+          p_id: id,
+        });
         const name = fileNameOf(row.storage_path);
-        const { data, error } = await db.storage.from(BUCKET).createSignedUrl(row.storage_path, SIGNED_URL_SECONDS, { download: name });
-        if (error || !data) throw new Error(`could not create a download link: ${error?.message}`);
+        const { data, error } = await db.storage.from(BUCKET).createSignedUrl(
+          row.storage_path,
+          SIGNED_URL_SECONDS,
+          { download: name },
+        );
+        if (error || !data) {
+          throw new Error(
+            `could not create a download link: ${error?.message}`,
+          );
+        }
         return { url: data.signedUrl, name, expires_in: SIGNED_URL_SECONDS };
       }
 
       case "delete": {
         const id = asUuid(b.id, "id");
-        const gone = await callRpc<{ storage_path: string }>(db, "delete_backup", { p_id: id, p_actor: me.userId });
-        const { error } = await db.storage.from(BUCKET).remove([gone.storage_path]);
-        if (error) throw new Error(`could not remove the file: ${error.message}`);
+        const gone = await callRpc<{ storage_path: string }>(
+          db,
+          "delete_backup",
+          { p_id: id, p_actor: me.userId },
+        );
+        const { error } = await db.storage.from(BUCKET).remove([
+          gone.storage_path,
+        ]);
+        if (error) {
+          throw new Error(`could not remove the file: ${error.message}`);
+        }
         return { id, removed: 1 };
       }
     }
@@ -119,7 +152,11 @@ export function createHandler(getDb: () => Db) {
 }
 
 /** Builds one archive: the payload from the database, plus the media bytes while they fit. */
-async function createBackup(db: Db, kind: "manual" | "automatic", actorId: string | null) {
+async function createBackup(
+  db: Db,
+  kind: "manual" | "automatic",
+  actorId: string | null,
+) {
   const payload = await callRpc<BackupPayload>(db, "build_backup_payload");
   const bucket = db.storage.from(BUCKET);
   const mediaBucket = db.storage.from(MEDIA_BUCKET);
@@ -134,7 +171,8 @@ async function createBackup(db: Db, kind: "manual" | "automatic", actorId: strin
     if (mediaBytes + (m.size_bytes ?? 0) > MAX_ARCHIVE_BYTES) {
       m.included = false;
       m.reason = "over the archive size limit";
-      mediaNote ??= `This database's media is larger than the ${limit} MB a single archive can hold, so the ` +
+      mediaNote ??=
+        `This database's media is larger than the ${limit} MB a single archive can hold, so the ` +
         `remaining files were not copied. The data is complete; download those files from the question editor.`;
       continue;
     }
@@ -142,7 +180,8 @@ async function createBackup(db: Db, kind: "manual" | "automatic", actorId: strin
     if (error || !data) {
       m.included = false;
       m.reason = "missing from Storage";
-      mediaNote ??= "Some files were missing from Storage when this copy was made (the list says which).";
+      mediaNote ??=
+        "Some files were missing from Storage when this copy was made (the list says which).";
       continue;
     }
     const bytes = new Uint8Array(await data.arrayBuffer());
@@ -151,7 +190,11 @@ async function createBackup(db: Db, kind: "manual" | "automatic", actorId: strin
     files.push({ name: `media/${m.path}`, bytes });
   }
 
-  const counts = Object.fromEntries(Object.entries(payload.tables ?? {}).map(([table, rows]) => [table, rows.length]));
+  const counts = Object.fromEntries(
+    Object.entries(payload.tables ?? {}).map((
+      [table, rows],
+    ) => [table, rows.length]),
+  );
   const document = {
     ...payload,
     kind,
@@ -159,7 +202,9 @@ async function createBackup(db: Db, kind: "manual" | "automatic", actorId: strin
     media_included: media.every((m) => m.included === true),
     media_bytes: mediaBytes,
     media_note: mediaNote,
-    created_for: kind === "manual" ? "a signed-in admin" : "the nightly schedule",
+    created_for: kind === "manual"
+      ? "a signed-in admin"
+      : "the nightly schedule",
   };
 
   const archive = zipStore([
@@ -168,8 +213,13 @@ async function createBackup(db: Db, kind: "manual" | "automatic", actorId: strin
   ]);
   const path = archivePath(kind);
 
-  const { error: uploadError } = await bucket.upload(path, archive, { contentType: "application/zip", upsert: false });
-  if (uploadError) throw new Error(`could not store the backup: ${uploadError.message}`);
+  const { error: uploadError } = await bucket.upload(path, archive, {
+    contentType: "application/zip",
+    upsert: false,
+  });
+  if (uploadError) {
+    throw new Error(`could not store the backup: ${uploadError.message}`);
+  }
 
   try {
     const recorded = await callRpc<RecordedBackup>(db, "record_backup", {
@@ -189,7 +239,9 @@ async function createBackup(db: Db, kind: "manual" | "automatic", actorId: strin
     const pruned = recorded.pruned_paths ?? [];
     if (pruned.length > 0) {
       const { error } = await bucket.remove(pruned);
-      if (error) throw new Error(`could not remove old copies: ${error.message}`);
+      if (error) {
+        throw new Error(`could not remove old copies: ${error.message}`);
+      }
     }
 
     return {

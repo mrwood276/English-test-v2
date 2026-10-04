@@ -2,7 +2,12 @@ import { h, mount } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
 import { confirmDialog } from "../../shared/ui.js";
 import { questionBlock } from "../components/question.js";
-import { HttpError, isExpiredSession, NetworkError, sessionApi } from "../api.js";
+import {
+  HttpError,
+  isExpiredSession,
+  NetworkError,
+  sessionApi,
+} from "../api.js";
 import { answerLimit } from "../limits.js";
 import * as store from "../store.js";
 
@@ -51,33 +56,72 @@ export function renderExam(root, ctx) {
   const timerEl = h("span", { class: "timer" });
   // The bar is the only progress feedback; screen readers get the same numbers.
   const progress = h("i", {
-    style: "width:0%", role: "progressbar", "aria-label": "Questions answered",
-    "aria-valuemin": "0", "aria-valuemax": "0", "aria-valuenow": "0",
+    style: "width:0%",
+    role: "progressbar",
+    "aria-label": "Questions answered",
+    "aria-valuemin": "0",
+    "aria-valuemax": "0",
+    "aria-valuenow": "0",
   });
   const saveLine = h("div", { class: "saved", role: "status" });
-  const offlineBar = h("div", { class: "offbar", hidden: true },
+  const offlineBar = h(
+    "div",
+    { class: "offbar", hidden: true },
     icon("offline"),
-    h("span", {}, "No connection. Keep going. Your answers are kept on this phone and will be sent when you are back online."));
+    h(
+      "span",
+      {},
+      "No connection. Keep going. Your answers are kept on this phone and will be sent when you are back online.",
+    ),
+  );
   const body = h("div", { class: "qbody" });
   const markLabel = h("span", {}, "Mark");
-  const markBtn = h("button", { class: "btn mark small", type: "button", "aria-pressed": "false" }, icon("flag"), markLabel);
-  const sheetBtn = h("button", { class: "icobtn", type: "button", "aria-label": "Answer sheet" }, icon("grid"));
-  const prevBtn = h("button", { class: "icobtn", type: "button", "aria-label": "Previous question" }, icon("left"));
-  const nextBtn = h("button", { class: "btn small", type: "button", style: "flex:1" }, "Next", icon("right"));
+  const markBtn = h(
+    "button",
+    { class: "btn mark small", type: "button", "aria-pressed": "false" },
+    icon("flag"),
+    markLabel,
+  );
+  const sheetBtn = h("button", {
+    class: "icobtn",
+    type: "button",
+    "aria-label": "Answer sheet",
+  }, icon("grid"));
+  const prevBtn = h("button", {
+    class: "icobtn",
+    type: "button",
+    "aria-label": "Previous question",
+  }, icon("left"));
+  const nextBtn = h(
+    "button",
+    { class: "btn small", type: "button", style: "flex:1" },
+    "Next",
+    icon("right"),
+  );
 
   const setSave = (kind, text) => {
     saveLine.classList.toggle("warn", kind === "warn");
-    saveLine.replaceChildren(icon(kind === "warn" ? "offline" : "cloud"), h("span", {}, text));
+    saveLine.replaceChildren(
+      icon(kind === "warn" ? "offline" : "cloud"),
+      h("span", {}, text),
+    );
   };
-  const showOffline = () => { offlineBar.hidden = false; };
-  const hideOffline = () => { offlineBar.hidden = true; };
+  const showOffline = () => {
+    offlineBar.hidden = false;
+  };
+  const hideOffline = () => {
+    offlineBar.hidden = true;
+  };
 
   // ---------- saving ----------
   const idsOf = (answers) => answers.map((a) => a.question_id);
 
   function scheduleRetry() {
     if (retryTimer) return;
-    retryTimer = setTimeout(() => { retryTimer = null; flush(); }, RETRY_MS);
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      flush();
+    }, RETRY_MS);
   }
 
   function queueSave() {
@@ -105,7 +149,11 @@ export function renderExam(root, ctx) {
     }
 
     saveInFlight = sendPending(pending);
-    try { await saveInFlight; } finally { saveInFlight = null; }
+    try {
+      await saveInFlight;
+    } finally {
+      saveInFlight = null;
+    }
   }
 
   /** One save request; `saveInFlight` in `flush()` is what keeps a second one from overlapping it. */
@@ -113,7 +161,11 @@ export function renderExam(root, ctx) {
     setSave("ok", "Saving…");
     try {
       const res = await sessionApi.save(state.token, pending);
-      if (res.accepted === false) return goToResult(res.reason === "time_up" ? "time_up" : "already_submitted");
+      if (res.accepted === false) {
+        return goToResult(
+          res.reason === "time_up" ? "time_up" : "already_submitted",
+        );
+      }
       applyServerClock(res);
       store.markSaved(idsOf(pending));
       hideOffline();
@@ -126,7 +178,9 @@ export function renderExam(root, ctx) {
         return scheduleRetry();
       }
       if (isExpiredSession(err)) return ctx.onSessionLost(err.message);
-      if (err instanceof HttpError && err.status === 400 && pending.length > 1) return recoverRefused(pending);
+      if (
+        err instanceof HttpError && err.status === 400 && pending.length > 1
+      ) return recoverRefused(pending);
       setSave("warn", err.message || "This answer could not be saved.");
     }
   }
@@ -147,7 +201,11 @@ export function renderExam(root, ctx) {
     for (const item of pending) {
       try {
         const res = await sessionApi.save(state.token, [item]);
-        if (res && res.accepted === false) return goToResult(res.reason === "time_up" ? "time_up" : "already_submitted");
+        if (res && res.accepted === false) {
+          return goToResult(
+            res.reason === "time_up" ? "time_up" : "already_submitted",
+          );
+        }
         store.markSaved([item.question_id]);
       } catch (err) {
         if (err instanceof NetworkError) {
@@ -157,7 +215,10 @@ export function renderExam(root, ctx) {
         }
         if (isExpiredSession(err)) return ctx.onSessionLost(err.message);
         if (err instanceof HttpError && err.status === 400) {
-          store.setProblem(item.question_id, refusedMessage(item.question_id, err.message));
+          store.setProblem(
+            item.question_id,
+            refusedMessage(item.question_id, err.message),
+          );
           continue;
         }
         setSave("warn", err.message || "This answer could not be saved.");
@@ -197,7 +258,8 @@ export function renderExam(root, ctx) {
   }
 
   // ---------- timer ----------
-  const remaining = () => (Date.parse(state.session.ends_at) - store.serverNowMs()) / 1000;
+  const remaining = () =>
+    (Date.parse(state.session.ends_at) - store.serverNowMs()) / 1000;
 
   function tick() {
     const left = remaining();
@@ -223,8 +285,12 @@ export function renderExam(root, ctx) {
       const res = await sessionApi.heartbeat(state.token);
       applyServerClock(res);
       state.session.tab_switch_count = res.tab_switch_count;
-      if (res.status && res.status !== "in_progress" && res.status !== "reopened") {
-        return goToResult(res.status === "timed_out" ? "time_up" : "already_submitted");
+      if (
+        res.status && res.status !== "in_progress" && res.status !== "reopened"
+      ) {
+        return goToResult(
+          res.status === "timed_out" ? "time_up" : "already_submitted",
+        );
       }
     } catch (err) {
       if (isExpiredSession(err)) return ctx.onSessionLost(err.message);
@@ -262,8 +328,11 @@ export function renderExam(root, ctx) {
     const left = Math.max(0, res.autosubmit_limit - res.tab_switch_count);
     confirmDialog({
       title: "You left the test page",
-      message: `This was recorded and your teacher can see it. You have left the page ${res.tab_switch_count} ${res.tab_switch_count === 1 ? "time" : "times"}. `
-        + (left > 0
+      message:
+        `This was recorded and your teacher can see it. You have left the page ${res.tab_switch_count} ${
+          res.tab_switch_count === 1 ? "time" : "times"
+        }. ` +
+        (left > 0
           ? `Your test is submitted automatically after ${res.autosubmit_limit} times (${left} more).`
           : "Your test was submitted automatically."),
       confirmLabel: "Back to the test",
@@ -305,23 +374,33 @@ export function renderExam(root, ctx) {
     const limit = answerLimit(question.type);
     const length = String(text ?? "").length;
     if (length <= limit) return null;
-    return `Question ${place + 1} is too long to save: ${length} of ${limit} characters. Shorten it and it will be saved.`;
+    return `Question ${
+      place + 1
+    } is too long to save: ${length} of ${limit} characters. Shorten it and it will be saved.`;
   }
 
   function refreshChrome() {
     const { answered, flagged } = store.progress();
     counter.textContent = `Question ${index + 1} of ${total}`;
-    progress.style.width = `${total ? Math.round((answered / total) * 100) : 0}%`;
+    progress.style.width = `${
+      total ? Math.round((answered / total) * 100) : 0
+    }%`;
     progress.setAttribute("aria-valuemax", String(total));
     progress.setAttribute("aria-valuenow", String(answered));
     const marked = !!(requestId() && store.answerOf(requestId()).is_flagged);
     markBtn.classList.toggle("on", marked);
     markBtn.setAttribute("aria-pressed", String(marked));
     markLabel.textContent = marked ? "Marked" : "Mark";
-    markBtn.setAttribute("aria-label", marked ? "Remove the mark" : "Mark for review");
+    markBtn.setAttribute(
+      "aria-label",
+      marked ? "Remove the mark" : "Mark for review",
+    );
     prevBtn.disabled = index === 0;
     const last = index === total - 1;
-    nextBtn.replaceChildren(h("span", {}, last ? "Finish" : "Next"), icon(last ? "check" : "right"));
+    nextBtn.replaceChildren(
+      h("span", {}, last ? "Finish" : "Next"),
+      icon(last ? "check" : "right"),
+    );
     if (sheet) paintSheet();
   }
 
@@ -338,36 +417,82 @@ export function renderExam(root, ctx) {
     if (!sheet) return;
     const grid = sheet.querySelector(".sheetgrid");
     const { answered, empty } = store.progress();
-    sheet.querySelector(".sub").textContent = `${answered} answered, ${empty} still empty.`;
+    sheet.querySelector(".sub").textContent =
+      `${answered} answered, ${empty} still empty.`;
     const cells = grid.children;
     for (let i = 0; i < cells.length; i++) {
       const questionId = state.questions[i].question_id;
       cells[i].classList.toggle("answered", store.isAnswered(questionId));
-      cells[i].classList.toggle("marked", !!store.answerOf(questionId).is_flagged);
+      cells[i].classList.toggle(
+        "marked",
+        !!store.answerOf(questionId).is_flagged,
+      );
       cells[i].classList.toggle("current", i === index);
     }
   }
 
   function openSheet() {
     closeSheet();
-    const grid = h("div", { class: "sheetgrid" }, state.questions.map((question, i) =>
-      h("button", {
-        type: "button",
-        onclick: () => { closeSheet(); showQuestion(i); },
-        "aria-label": `Question ${i + 1}${store.isAnswered(question.question_id) ? ", answered" : ", still empty"}`,
-      }, String(i + 1))));
-    sheet = h("dialog", { class: "sheet", "aria-label": "Answer sheet" },
+    const grid = h(
+      "div",
+      { class: "sheetgrid" },
+      state.questions.map((question, i) =>
+        h("button", {
+          type: "button",
+          onclick: () => {
+            closeSheet();
+            showQuestion(i);
+          },
+          "aria-label": `Question ${i + 1}${
+            store.isAnswered(question.question_id)
+              ? ", answered"
+              : ", still empty"
+          }`,
+        }, String(i + 1))
+      ),
+    );
+    sheet = h(
+      "dialog",
+      { class: "sheet", "aria-label": "Answer sheet" },
       h("div", { class: "grab" }),
       h("h2", {}, "Answer sheet"),
       h("div", { class: "sub" }, ""),
-      h("div", { class: "legend" },
+      h(
+        "div",
+        { class: "legend" },
         h("span", {}, h("i", { class: "bubble" }), "Answered"),
-        h("span", {}, h("i", { class: "bubble", style: "background:#fff;border-color:var(--line)" }), "Empty"),
-        h("span", {}, h("i", { class: "bubble mk" }), "Marked")),
+        h(
+          "span",
+          {},
+          h("i", {
+            class: "bubble",
+            style: "background:#fff;border-color:var(--line)",
+          }),
+          "Empty",
+        ),
+        h("span", {}, h("i", { class: "bubble mk" }), "Marked"),
+      ),
       grid,
-      h("button", { class: "btn ghost block", type: "button", style: "margin-bottom:8px", onclick: closeSheet }, "Back to question"),
-      h("button", { class: "btn block", type: "button", onclick: () => { closeSheet(); askSubmit(); } }, "Submit test"),
-      h("p", { class: "hint", style: "text-align:center;margin-top:10px" }, "You will be asked to confirm before it is sent."));
+      h("button", {
+        class: "btn ghost block",
+        type: "button",
+        style: "margin-bottom:8px",
+        onclick: closeSheet,
+      }, "Back to question"),
+      h("button", {
+        class: "btn block",
+        type: "button",
+        onclick: () => {
+          closeSheet();
+          askSubmit();
+        },
+      }, "Submit test"),
+      h(
+        "p",
+        { class: "hint", style: "text-align:center;margin-top:10px" },
+        "You will be asked to confirm before it is sent.",
+      ),
+    );
     document.body.append(sheet);
     sheet.showModal();
     paintSheet();
@@ -379,7 +504,9 @@ export function renderExam(root, ctx) {
     const ok = await confirmDialog({
       title: "Send your test?",
       message: empty > 0
-        ? `${empty} ${empty === 1 ? "question is" : "questions are"} still empty. You cannot change your answers after sending.`
+        ? `${empty} ${
+          empty === 1 ? "question is" : "questions are"
+        } still empty. You cannot change your answers after sending.`
         : "You answered every question. You cannot change your answers after sending.",
       confirmLabel: "Send my test",
       cancelLabel: "Keep working",
@@ -410,10 +537,16 @@ export function renderExam(root, ctx) {
       if (isExpiredSession(err)) return ctx.onSessionLost(err.message);
       if (err instanceof NetworkError) {
         showOffline();
-        setSave("warn", "No connection. Your test is still on this phone — it will be sent as soon as you are back online.");
+        setSave(
+          "warn",
+          "No connection. Your test is still on this phone — it will be sent as soon as you are back online.",
+        );
         return scheduleRetry();
       }
-      setSave("warn", err.message || "Could not send your test. Please try again.");
+      setSave(
+        "warn",
+        err.message || "Could not send your test. Please try again.",
+      );
     }
   }
 
@@ -427,7 +560,13 @@ export function renderExam(root, ctx) {
       ctx.onSubmitted(result, reason);
     } catch (err) {
       if (isExpiredSession(err)) return ctx.onSessionLost(err.message);
-      ctx.onSubmitted({ submitted: true, status: "auto_submitted", visibility: "none", pending_review: false, pass_status: "not_final" }, reason);
+      ctx.onSubmitted({
+        submitted: true,
+        status: "auto_submitted",
+        visibility: "none",
+        pending_review: false,
+        pass_status: "not_final",
+      }, reason);
     }
   }
 
@@ -436,7 +575,11 @@ export function renderExam(root, ctx) {
     clearInterval(beatTimer);
     clearTimeout(saveTimer);
     clearTimeout(retryTimer);
-    tickTimer = beatTimer = saveTimer = retryTimer = null;
+    tickTimer =
+      beatTimer =
+      saveTimer =
+      retryTimer =
+        null;
   }
 
   // ---------- wiring ----------
@@ -449,9 +592,14 @@ export function renderExam(root, ctx) {
   });
   sheetBtn.addEventListener("click", openSheet);
   prevBtn.addEventListener("click", () => showQuestion(index - 1));
-  nextBtn.addEventListener("click", () => (index === total - 1 ? askSubmit() : showQuestion(index + 1)));
+  nextBtn.addEventListener(
+    "click",
+    () => (index === total - 1 ? askSubmit() : showQuestion(index + 1)),
+  );
 
-  const onVisibility = () => { if (document.hidden) onHidden(); };
+  const onVisibility = () => {
+    if (document.hidden) onHidden();
+  };
   const onBlur = async () => {
     if (document.hidden) return; // a real tab switch is already recorded
     const now = Date.now();
@@ -488,17 +636,25 @@ export function renderExam(root, ctx) {
   }
 
   // ---------- first paint ----------
-  mount(root,
-    h("main", { class: "phone" },
-      h("div", { class: "qtop" },
+  mount(
+    root,
+    h(
+      "main",
+      { class: "phone" },
+      h(
+        "div",
+        { class: "qtop" },
         counter,
         h("span", { class: "exam-title" }, exam.title),
-        timerEl),
+        timerEl,
+      ),
       h("div", { class: "bar" }, progress),
       saveLine,
       offlineBar,
       body,
-      h("div", { class: "qnav" }, sheetBtn, markBtn, prevBtn, nextBtn)));
+      h("div", { class: "qnav" }, sheetBtn, markBtn, prevBtn, nextBtn),
+    ),
+  );
 
   showQuestion(0);
   setSave("ok", "All answers saved");

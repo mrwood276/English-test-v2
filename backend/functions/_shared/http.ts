@@ -32,7 +32,8 @@ export function corsHeaders(req?: Request): Record<string, string> {
   const allow = allowOrigin(req);
   const headers: Record<string, string> = {
     "Access-Control-Allow-Origin": allow,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Max-Age": "86400",
   };
@@ -41,10 +42,19 @@ export function corsHeaders(req?: Request): Record<string, string> {
   return headers;
 }
 
-export function json(status: number, body: unknown, extra: Record<string, string> = {}, req?: Request): Response {
+export function json(
+  status: number,
+  body: unknown,
+  extra: Record<string, string> = {},
+  req?: Request,
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders(req), ...extra },
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      ...corsHeaders(req),
+      ...extra,
+    },
   });
 }
 
@@ -52,7 +62,10 @@ export interface RequestContext {
   requestId: string;
 }
 
-type Handler = (req: Request, ctx: RequestContext) => Promise<Response | unknown> | Response | unknown;
+type Handler = (
+  req: Request,
+  ctx: RequestContext,
+) => Promise<Response | unknown> | Response | unknown;
 
 /**
  * Wraps a handler with CORS, JSON output, and error handling:
@@ -72,18 +85,45 @@ export function handle(handler: Handler): (req: Request) => Promise<Response> {
     } catch (err) {
       if (err instanceof ApiError) {
         const headers: Record<string, string> = { "X-Request-Id": requestId };
-        const retry = (err.details as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds;
-        if (err.status === 429 && typeof retry === "number") headers["Retry-After"] = String(retry);
-        return json(err.status, { error: err.message, code: err.code, details: err.details }, headers, req);
+        const retry =
+          (err.details as { retryAfterSeconds?: number } | undefined)
+            ?.retryAfterSeconds;
+        if (err.status === 429 && typeof retry === "number") {
+          headers["Retry-After"] = String(retry);
+        }
+        return json(
+          err.status,
+          { error: err.message, code: err.code, details: err.details },
+          headers,
+          req,
+        );
       }
-      console.error(JSON.stringify({ requestId, message: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined }));
-      return json(500, { error: "Something went wrong. Please try again.", code: "internal_error", requestId }, { "X-Request-Id": requestId }, req);
+      console.error(
+        JSON.stringify({
+          requestId,
+          message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        }),
+      );
+      return json(
+        500,
+        {
+          error: "Something went wrong. Please try again.",
+          code: "internal_error",
+          requestId,
+        },
+        { "X-Request-Id": requestId },
+        req,
+      );
     }
   };
 }
 
 /** Reads a JSON body with a size limit. */
-export async function readJson(req: Request, maxBytes = 100_000): Promise<unknown> {
+export async function readJson(
+  req: Request,
+  maxBytes = 100_000,
+): Promise<unknown> {
   const declared = Number(req.headers.get("content-length") ?? "0");
   if (declared > maxBytes) throw payloadTooLarge();
   const text = await req.text();

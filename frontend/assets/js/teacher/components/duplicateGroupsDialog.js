@@ -18,21 +18,54 @@ export function duplicateGroupsDialog(groups) {
       h(
         "li",
         {},
-        h("a", { class: "qlink", href: `#/questions/edit/${q.id}` }, plainText(q.body, 120)),
-        h("span", { class: "hint" }, q.used_in_exams > 0 ? `used in ${q.used_in_exams} ${q.used_in_exams === 1 ? "exam" : "exams"}` : "not used yet"),
+        h(
+          "a",
+          { class: "qlink", href: `#/questions/edit/${q.id}` },
+          plainText(q.body, 120),
+        ),
+        h(
+          "span",
+          { class: "hint" },
+          q.used_in_exams > 0
+            ? `used in ${q.used_in_exams} ${
+              q.used_in_exams === 1 ? "exam" : "exams"
+            }`
+            : "not used yet",
+        ),
       );
     const exact = (groups.exact_groups || []).map((g) =>
-      h("section", { class: "dup-group" }, h("h3", {}, `Same text (${g.questions.length} questions)`), h("ul", {}, ...g.questions.map(item))));
+      h(
+        "section",
+        { class: "dup-group" },
+        h("h3", {}, `Same text (${g.questions.length} questions)`),
+        h("ul", {}, ...g.questions.map(item)),
+      )
+    );
     const similar = (groups.similar_pairs || []).map((p) =>
-      h("section", { class: "dup-group" }, h("h3", {}, `${Math.round(p.similarity * 100)}% alike`), h("ul", {}, ...p.questions.map(item))));
+      h(
+        "section",
+        { class: "dup-group" },
+        h("h3", {}, `${Math.round(p.similarity * 100)}% alike`),
+        h("ul", {}, ...p.questions.map(item)),
+      )
+    );
     const close = h("button", { class: "btn", type: "button" }, "Close");
 
     const dialog = h(
       "dialog",
-      { class: "dialog wide dup-dialog", "aria-labelledby": "dup-dialog-title" },
+      {
+        class: "dialog wide dup-dialog",
+        "aria-labelledby": "dup-dialog-title",
+      },
       h("h2", { id: "dup-dialog-title" }, "Questions that look alike"),
-      h("p", {}, "Two questions that read the same usually mean one of them is a copy. Open one to change it, or archive the one you do not want."),
-      exact.length || similar.length ? [...exact, ...similar] : h("p", { class: "hint" }, "Nothing looks duplicated any more."),
+      h(
+        "p",
+        {},
+        "Two questions that read the same usually mean one of them is a copy. Open one to change it, or archive the one you do not want.",
+      ),
+      exact.length || similar.length
+        ? [...exact, ...similar]
+        : h("p", { class: "hint" }, "Nothing looks duplicated any more."),
       h("div", { class: "dialog-actions" }, close),
     );
 

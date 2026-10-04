@@ -6,18 +6,28 @@ import { listZip, readZipEntry } from "./zip.js";
  * Returns { rows: string[][], numbers: number[] } where numbers[i] is the sheet row number of rows[i].
  */
 const parseXml = (bytes) => {
-  const doc = new DOMParser().parseFromString(new TextDecoder().decode(bytes), "application/xml");
-  if (doc.querySelector("parsererror")) throw new Error("This Excel file could not be read.");
+  const doc = new DOMParser().parseFromString(
+    new TextDecoder().decode(bytes),
+    "application/xml",
+  );
+  if (doc.querySelector("parsererror")) {
+    throw new Error("This Excel file could not be read.");
+  }
   return doc;
 };
 const byLocalName = (root, name) => [...root.getElementsByTagNameNS("*", name)];
-const text = (el) => byLocalName(el, "t").filter((t) => !t.closest || !t.closest("rPh")).map((t) => t.textContent).join("");
+const text = (el) =>
+  byLocalName(el, "t").filter((t) => !t.closest || !t.closest("rPh")).map((t) =>
+    t.textContent
+  ).join("");
 
 function columnIndex(ref) {
   const letters = /^[A-Z]+/i.exec(ref || "");
   if (!letters) return -1;
   let n = 0;
-  for (const ch of letters[0].toUpperCase()) n = n * 26 + (ch.charCodeAt(0) - 64);
+  for (const ch of letters[0].toUpperCase()) {
+    n = n * 26 + (ch.charCodeAt(0) - 64);
+  }
   return n - 1;
 }
 
@@ -39,15 +49,23 @@ export async function readXlsxRows(buffer) {
   const workbook = parseXml(workbookBytes);
   const firstSheet = byLocalName(workbook, "sheet")[0];
   if (!firstSheet) throw new Error("The workbook has no sheets.");
-  const rid = firstSheet.getAttribute("r:id") || firstSheet.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id");
+  const rid = firstSheet.getAttribute("r:id") ||
+    firstSheet.getAttributeNS(
+      "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+      "id",
+    );
 
   let sheetPath = "xl/worksheets/sheet1.xml";
   const relsBytes = await read("xl/_rels/workbook.xml.rels");
   if (relsBytes && rid) {
-    const rel = byLocalName(parseXml(relsBytes), "Relationship").find((r) => r.getAttribute("Id") === rid);
+    const rel = byLocalName(parseXml(relsBytes), "Relationship").find((r) =>
+      r.getAttribute("Id") === rid
+    );
     if (rel) {
       const target = rel.getAttribute("Target") || "";
-      sheetPath = target.startsWith("/") ? target.slice(1) : "xl/" + target.replace(/^\.\//, "");
+      sheetPath = target.startsWith("/")
+        ? target.slice(1)
+        : "xl/" + target.replace(/^\.\//, "");
     }
   }
   const sheetBytes = await read(sheetPath);
@@ -55,7 +73,11 @@ export async function readXlsxRows(buffer) {
 
   const shared = [];
   const sharedBytes = await read("xl/sharedstrings.xml");
-  if (sharedBytes) for (const si of byLocalName(parseXml(sharedBytes), "si")) shared.push(text(si));
+  if (sharedBytes) {
+    for (const si of byLocalName(parseXml(sharedBytes), "si")) {
+      shared.push(text(si));
+    }
+  }
 
   const rows = [];
   const numbers = [];
@@ -69,8 +91,9 @@ export async function readXlsxRows(buffer) {
       let value = "";
       if (type === "s") value = v ? shared[Number(v.textContent)] ?? "" : "";
       else if (type === "inlineStr") value = text(c);
-      else if (type === "b") value = v && v.textContent === "1" ? "TRUE" : "FALSE";
-      else if (type === "str" || type === "e") value = v ? v.textContent : "";
+      else if (type === "b") {
+        value = v && v.textContent === "1" ? "TRUE" : "FALSE";
+      } else if (type === "str" || type === "e") value = v ? v.textContent : "";
       else value = v ? numberText(v.textContent) : "";
       while (cells.length < idx) cells.push("");
       cells[idx] = value;

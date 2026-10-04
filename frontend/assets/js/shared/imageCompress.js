@@ -26,10 +26,16 @@ async function decode(file) {
   }
 }
 
-const withExtension = (name, ext) => `${String(name).replace(/\.[^.]*$/, "") || "image"}.${ext}`;
+const withExtension = (name, ext) =>
+  `${String(name).replace(/\.[^.]*$/, "") || "image"}.${ext}`;
 
-export async function prepareImage(file, { maxBytes = 1_000_000, maxSide = 1600 } = {}) {
-  if (!READABLE.includes(file.type)) throw new Error("Use a JPG, PNG, or WebP picture.");
+export async function prepareImage(
+  file,
+  { maxBytes = 1_000_000, maxSide = 1600 } = {},
+) {
+  if (!READABLE.includes(file.type)) {
+    throw new Error("Use a JPG, PNG, or WebP picture.");
+  }
   let source;
   try {
     source = await decode(file);
@@ -57,7 +63,9 @@ export async function prepareImage(file, { maxBytes = 1_000_000, maxSide = 1600 
     ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
     for (const quality of QUALITIES) {
       let blob = await toBlob(canvas, "image/webp", quality);
-      if (!blob || blob.type !== "image/webp") blob = await toBlob(canvas, "image/jpeg", quality); // browsers without WebP encoding
+      if (!blob || blob.type !== "image/webp") {
+        blob = await toBlob(canvas, "image/jpeg", quality); // browsers without WebP encoding
+      }
       if (blob && blob.size <= maxBytes) {
         if (source.close) source.close();
         const ext = blob.type === "image/webp" ? "webp" : "jpg";
@@ -67,5 +75,7 @@ export async function prepareImage(file, { maxBytes = 1_000_000, maxSide = 1600 
     scale *= 0.75;
   }
   if (source.close) source.close();
-  throw new Error("This picture is too detailed to shrink to about 1 MB. Try a simpler picture.");
+  throw new Error(
+    "This picture is too detailed to shrink to about 1 MB. Try a simpler picture.",
+  );
 }

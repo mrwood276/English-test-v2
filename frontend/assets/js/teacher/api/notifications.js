@@ -1,7 +1,8 @@
 import { callStaffFunction } from "../../core/api.js";
 
 /** Notification-bell calls (TASK-015, DEC-017). Every call is one POST { action, ... }. */
-const call = (body) => callStaffFunction("notifications", { method: "POST", body });
+const call = (body) =>
+  callStaffFunction("notifications", { method: "POST", body });
 
 export const notifications = {
   /** What needs attention right now: { kinds, essays, suspicious, account, backup, total, unread, read_at }. */

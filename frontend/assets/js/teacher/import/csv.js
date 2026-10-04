@@ -11,7 +11,9 @@ function detectDelimiter(text) {
     else if (!inQuotes && (c === "\n" || c === "\r")) break;
     else if (!inQuotes && c in counts) counts[c]++;
   }
-  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][1] > 0 ? Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0] : ",";
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][1] > 0
+    ? Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
+    : ",";
 }
 
 export function parseCsv(input) {
@@ -28,7 +30,10 @@ export function parseCsv(input) {
   const endRow = () => {
     row.push(field);
     field = "";
-    if (row.some((cell) => cell.trim() !== "")) { rows.push(row); numbers.push(rowStart); }
+    if (row.some((cell) => cell.trim() !== "")) {
+      rows.push(row);
+      numbers.push(rowStart);
+    }
     row = [];
   };
 
@@ -36,7 +41,10 @@ export function parseCsv(input) {
     const c = text[i];
     if (inQuotes) {
       if (c === '"') {
-        if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false;
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else inQuotes = false;
       } else {
         if (c === "\n") line++;
         field += c;

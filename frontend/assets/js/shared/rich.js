@@ -5,7 +5,17 @@
  * nothing loads), then only allowed tags are copied, without any attributes.
  */
 const ALLOWED = new Set(["B", "STRONG", "I", "EM", "U", "BR", "SUB", "SUP"]);
-const DROP_WITH_CONTENT = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "TEMPLATE", "NOSCRIPT", "SVG", "MATH"]);
+const DROP_WITH_CONTENT = new Set([
+  "SCRIPT",
+  "STYLE",
+  "IFRAME",
+  "OBJECT",
+  "EMBED",
+  "TEMPLATE",
+  "NOSCRIPT",
+  "SVG",
+  "MATH",
+]);
 
 function copyInto(from, to) {
   for (const node of from.childNodes) {
@@ -26,7 +36,10 @@ function copyInto(from, to) {
 }
 
 export function richFragment(html) {
-  const doc = new DOMParser().parseFromString(`<body>${String(html ?? "")}</body>`, "text/html");
+  const doc = new DOMParser().parseFromString(
+    `<body>${String(html ?? "")}</body>`,
+    "text/html",
+  );
   const out = document.createDocumentFragment();
   copyInto(doc.body, out);
   return out;

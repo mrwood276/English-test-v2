@@ -1,4 +1,4 @@
-import { sessionApi, isExpiredSession, NetworkError } from "./api.js";
+import { isExpiredSession, NetworkError, sessionApi } from "./api.js";
 import * as store from "./store.js";
 import { renderJoin } from "./screens/join.js";
 import { renderExam } from "./screens/exam.js";
@@ -35,7 +35,9 @@ function showJoin(notice) {
     notice,
     onJoined: async (data) => {
       store.hydrate(data);
-      if (data.session && data.session.server_time) store.setServerTime(data.session.server_time);
+      if (data.session && data.session.server_time) {
+        store.setServerTime(data.session.server_time);
+      }
       await loadMedia();
       showExam();
     },
@@ -74,17 +76,28 @@ async function boot() {
   try {
     const data = await sessionApi.get(store.state.token);
     store.hydrate(data);
-    if (data.session && data.session.server_time) store.setServerTime(data.session.server_time);
-    if (data.session.status === "in_progress" || data.session.status === "reopened") {
+    if (data.session && data.session.server_time) {
+      store.setServerTime(data.session.server_time);
+    }
+    if (
+      data.session.status === "in_progress" ||
+      data.session.status === "reopened"
+    ) {
       await loadMedia();
       return showExam();
     }
     const result = await sessionApi.result(store.state.token);
     showResult(result);
   } catch (err) {
-    if (isExpiredSession(err)) return showJoin("That test session has ended. Please join again with the code on the board.");
+    if (isExpiredSession(err)) {
+      return showJoin(
+        "That test session has ended. Please join again with the code on the board.",
+      );
+    }
     // No connection but the questions are still on this phone: the student can keep working.
-    if (err instanceof NetworkError && store.state.questions.length > 0) return showExam();
+    if (err instanceof NetworkError && store.state.questions.length > 0) {
+      return showExam();
+    }
     showJoin(err.message || "Could not reach the server. Please try again.");
   }
 }

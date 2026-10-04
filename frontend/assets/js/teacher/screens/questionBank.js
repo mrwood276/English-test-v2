@@ -1,25 +1,43 @@
 import { h, mount } from "../../shared/dom.js";
 import { plainText } from "../../shared/rich.js";
 import { icon } from "../../shared/icons.js";
-import { debounce, toast, confirmDialog } from "../../shared/ui.js";
+import { confirmDialog, debounce, toast } from "../../shared/ui.js";
 import { questionBank } from "../api/questionBank.js";
 import { exams } from "../api/exams.js";
 import { attachMediaUrls } from "../api/media.js";
-import { questionView, TYPE_LABEL, DIFFICULTY_LABEL, usedText } from "../components/questionView.js";
+import {
+  DIFFICULTY_LABEL,
+  questionView,
+  TYPE_LABEL,
+  usedText,
+} from "../components/questionView.js";
 import { duplicateGroupsDialog } from "../components/duplicateGroupsDialog.js";
 import { bulkEditDialog } from "../components/bulkEditDialog.js";
-import { examQuestionsDialog, examQuestionsResult } from "../components/examQuestionsDialog.js";
+import {
+  examQuestionsDialog,
+  examQuestionsResult,
+} from "../components/examQuestionsDialog.js";
 import { SessionExpiredError } from "../../core/auth.js";
 
 const PAGE_SIZE = 25;
-const errorText = (err) => err.message || "Something went wrong. Please try again.";
+const errorText = (err) =>
+  err.message || "Something went wrong. Please try again.";
 // When the session ended, core/api.js already sent the person back to sign in; nothing more to show here.
 const ignorable = (err) => err instanceof SessionExpiredError;
 
 /** Question bank: list with filters, and a preview of the selected question as students will see it. */
 export function renderQuestionBank(container) {
   const state = {
-    filters: { q: "", topic: "", difficulty: "", type: "", class_label: "", used: "", sort: "newest", archived: false },
+    filters: {
+      q: "",
+      topic: "",
+      difficulty: "",
+      type: "",
+      class_label: "",
+      used: "",
+      sort: "newest",
+      archived: false,
+    },
     page: 1,
     total: 0,
     items: [],
@@ -33,15 +51,42 @@ export function renderQuestionBank(container) {
   let topicNames = [];
 
   // ---------- filter controls ----------
-  const search = h("input", { class: "input", type: "search", id: "qb-search", placeholder: "Search questions", autocomplete: "off", "aria-label": "Search questions" });
+  const search = h("input", {
+    class: "input",
+    type: "search",
+    id: "qb-search",
+    placeholder: "Search questions",
+    autocomplete: "off",
+    "aria-label": "Search questions",
+  });
   const select = (id, label, options) =>
-    h("select", { class: "chip-select", id, "aria-label": label }, options.map(([value, text]) => h("option", { value }, text)));
+    h(
+      "select",
+      { class: "chip-select", id, "aria-label": label },
+      options.map(([value, text]) => h("option", { value }, text)),
+    );
   const classSelect = select("qb-class", "Class label", [["", "All classes"]]);
   const topicSelect = select("qb-topic", "Topic", [["", "All topics"]]);
-  const difficultySelect = select("qb-difficulty", "Difficulty", [["", "Any difficulty"], ["easy", "Easy"], ["medium", "Medium"], ["hots", "HOTS"]]);
-  const typeSelect = select("qb-type", "Question type", [["", "All types"], ...Object.entries(TYPE_LABEL)]);
-  const usedSelect = select("qb-used", "Use in exams", [["", "Used or not"], ["used", "Used in exams"], ["unused", "Not used yet"]]);
-  const sortSelect = select("qb-sort", "Sort", [["newest", "Newest first"], ["oldest", "Oldest first"], ["difficulty", "Easy to HOTS"], ["body", "A to Z"]]);
+  const difficultySelect = select("qb-difficulty", "Difficulty", [
+    ["", "Any difficulty"],
+    ["easy", "Easy"],
+    ["medium", "Medium"],
+    ["hots", "HOTS"],
+  ]);
+  const typeSelect = select("qb-type", "Question type", [
+    ["", "All types"],
+    ...Object.entries(TYPE_LABEL),
+  ]);
+  const usedSelect = select("qb-used", "Use in exams", [["", "Used or not"], [
+    "used",
+    "Used in exams",
+  ], ["unused", "Not used yet"]]);
+  const sortSelect = select("qb-sort", "Sort", [
+    ["newest", "Newest first"],
+    ["oldest", "Oldest first"],
+    ["difficulty", "Easy to HOTS"],
+    ["body", "A to Z"],
+  ]);
   const archivedBox = h("input", { type: "checkbox", id: "qb-archived" });
 
   // ---------- list ----------
@@ -49,7 +94,12 @@ export function renderQuestionBank(container) {
   const tbody = h("tbody");
 
   // ---------- selection and the bulk action bar ----------
-  const headPick = h("input", { type: "checkbox", class: "pick", id: "qb-pick-all", "aria-label": "Select every question on this page" });
+  const headPick = h("input", {
+    type: "checkbox",
+    class: "pick",
+    id: "qb-pick-all",
+    "aria-label": "Select every question on this page",
+  });
   const bulkCount = h("span", { class: "bulk-count", role: "status" });
   const bulkOff = h("span", { class: "hint" });
   const bulkNote = h("span", { class: "hint bulk-note", role: "status" });
@@ -57,37 +107,92 @@ export function renderQuestionBank(container) {
   const bulkAll = h("div", { class: "bulk-all" });
   const bulkbar = h(
     "div",
-    { class: "bulkbar", role: "region", "aria-label": "Bulk actions", hidden: true },
+    {
+      class: "bulkbar",
+      role: "region",
+      "aria-label": "Bulk actions",
+      hidden: true,
+    },
     h("div", { class: "bulk-summary" }, bulkCount, bulkOff, bulkNote),
     bulkActions,
     bulkAll,
   );
   headPick.addEventListener("change", () => setPageSelected(headPick.checked));
 
-  const table = h("table", { class: "qtable" }, h("thead", {}, h("tr", {}, h("th", { class: "col-pick" }, headPick), h("th", {}, "Question"), h("th", { class: "col-class" }, "Class"), h("th", { class: "col-diff" }, "Difficulty"), h("th", { class: "col-media" }, "Media"), h("th", { class: "col-used" }, "Used"))), tbody);
+  const table = h(
+    "table",
+    { class: "qtable" },
+    h(
+      "thead",
+      {},
+      h(
+        "tr",
+        {},
+        h("th", { class: "col-pick" }, headPick),
+        h("th", {}, "Question"),
+        h("th", { class: "col-class" }, "Class"),
+        h("th", { class: "col-diff" }, "Difficulty"),
+        h("th", { class: "col-media" }, "Media"),
+        h("th", { class: "col-used" }, "Used"),
+      ),
+    ),
+    tbody,
+  );
   const status = h("div", { class: "list-status", role: "status" });
   const pager = h("div", { class: "pager" });
-  const preview = h("aside", { class: "card preview", "aria-label": "Question preview", hidden: true });
+  const preview = h("aside", {
+    class: "card preview",
+    "aria-label": "Question preview",
+    hidden: true,
+  });
 
   // ---------- the duplicate notice (mockup 6) ----------
   const banner = h("div", { class: "banner", role: "status", hidden: true });
 
-  const addButton = h("a", { class: "btn", href: "#/questions/new" }, icon("plus"), "Add question");
-  const importButton = h("a", { class: "btn ghost", href: "#/questions/import" }, "Import");
+  const addButton = h(
+    "a",
+    { class: "btn", href: "#/questions/new" },
+    icon("plus"),
+    "Add question",
+  );
+  const importButton = h("a", {
+    class: "btn ghost",
+    href: "#/questions/import",
+  }, "Import");
 
   mount(
     container,
-    h("div", { class: "head" }, h("div", {}, h("h1", {}, "Question bank"), countText), h("div", { class: "head-actions" }, importButton, addButton)),
+    h(
+      "div",
+      { class: "head" },
+      h("div", {}, h("h1", {}, "Question bank"), countText),
+      h("div", { class: "head-actions" }, importButton, addButton),
+    ),
     h(
       "div",
       { class: "toolbar" },
       h("label", { class: "search", for: "qb-search" }, icon("search"), search),
-      classSelect, topicSelect, difficultySelect, typeSelect, usedSelect, sortSelect,
-      h("label", { class: "check", for: "qb-archived" }, archivedBox, "Show archived"),
+      classSelect,
+      topicSelect,
+      difficultySelect,
+      typeSelect,
+      usedSelect,
+      sortSelect,
+      h(
+        "label",
+        { class: "check", for: "qb-archived" },
+        archivedBox,
+        "Show archived",
+      ),
     ),
     banner,
     bulkbar,
-    h("div", { class: "qb-layout" }, h("div", { class: "card list-card" }, table, status, pager), preview),
+    h(
+      "div",
+      { class: "qb-layout" },
+      h("div", { class: "card list-card" }, table, status, pager),
+      preview,
+    ),
   );
 
   // ---------- loading the list ----------
@@ -97,16 +202,21 @@ export function renderQuestionBank(container) {
    * state) the moment the answer arrives. Later pages keep the old rows.
    */
   function paintSkeleton() {
-    const bar = (width) => h("span", { class: "skel", style: `width:${width}` });
-    tbody.replaceChildren(...Array.from({ length: 6 }, () =>
-      h("tr", { class: "skel-row", "aria-hidden": "true" },
-        h("td", { class: "col-pick" }, bar("16px")),
-        h("td", {}, bar("72%"), bar("42%")),
-        h("td", { class: "col-class" }, bar("55%")),
-        h("td", { class: "col-diff" }, bar("45%")),
-        h("td", { class: "col-media" }),
-        h("td", { class: "col-used" }, bar("55%")),
-      )));
+    const bar = (width) =>
+      h("span", { class: "skel", style: `width:${width}` });
+    tbody.replaceChildren(
+      ...Array.from({ length: 6 }, () =>
+        h(
+          "tr",
+          { class: "skel-row", "aria-hidden": "true" },
+          h("td", { class: "col-pick" }, bar("16px")),
+          h("td", {}, bar("72%"), bar("42%")),
+          h("td", { class: "col-class" }, bar("55%")),
+          h("td", { class: "col-diff" }, bar("45%")),
+          h("td", { class: "col-media" }),
+          h("td", { class: "col-used" }, bar("55%")),
+        )),
+    );
   }
 
   async function load() {
@@ -134,24 +244,56 @@ export function renderQuestionBank(container) {
   function renderLoadError(err) {
     tbody.replaceChildren();
     pager.replaceChildren();
-    const retry = h("button", { class: "btn small", type: "button" }, "Try again");
+    const retry = h(
+      "button",
+      { class: "btn small", type: "button" },
+      "Try again",
+    );
     retry.addEventListener("click", load);
     status.className = "list-status error";
-    status.replaceChildren(h("span", {}, `Could not load questions. ${errorText(err)}`), retry);
+    status.replaceChildren(
+      h("span", {}, `Could not load questions. ${errorText(err)}`),
+      retry,
+    );
   }
 
   function renderList() {
-    const filtered = Object.entries(state.filters).some(([k, v]) => k !== "sort" && v !== "" && v !== false);
+    const filtered = Object.entries(state.filters).some(([k, v]) =>
+      k !== "sort" && v !== "" && v !== false
+    );
     const n = state.total;
-    const noun = filtered ? (n === 1 ? "question matches" : "questions match") : n === 1 ? "question" : "questions";
-    countText.textContent = `${n} ${noun}${state.filters.archived ? " (archived)" : ""}`;
+    const noun = filtered
+      ? (n === 1 ? "question matches" : "questions match")
+      : n === 1
+      ? "question"
+      : "questions";
+    countText.textContent = `${n} ${noun}${
+      state.filters.archived ? " (archived)" : ""
+    }`;
 
     tbody.replaceChildren(...state.items.map(row));
     status.className = "list-status";
     if (state.items.length === 0) {
-      const clear = filtered ? h("button", { class: "btn small ghost", type: "button" }, "Clear filters") : null;
+      const clear = filtered
+        ? h(
+          "button",
+          { class: "btn small ghost", type: "button" },
+          "Clear filters",
+        )
+        : null;
       if (clear) clear.addEventListener("click", clearFilters);
-      status.replaceChildren(h("span", {}, filtered ? "No questions match these filters." : state.filters.archived ? "No archived questions." : "No questions yet."), clear);
+      status.replaceChildren(
+        h(
+          "span",
+          {},
+          filtered
+            ? "No questions match these filters."
+            : state.filters.archived
+            ? "No archived questions."
+            : "No questions yet.",
+        ),
+        clear,
+      );
     } else {
       status.replaceChildren();
     }
@@ -160,23 +302,64 @@ export function renderQuestionBank(container) {
   }
 
   function row(q) {
-    const link = h("button", { class: "qlink", type: "button", "aria-pressed": String(q.id === state.selectedId) }, plainText(q.body, 150));
+    const link = h("button", {
+      class: "qlink",
+      type: "button",
+      "aria-pressed": String(q.id === state.selectedId),
+    }, plainText(q.body, 150));
     link.addEventListener("click", () => select_(q.id));
-    const pick = h("input", { type: "checkbox", class: "pick", checked: state.selected.has(q.id), "aria-label": `Select: ${plainText(q.body, 60)}` });
+    const pick = h("input", {
+      type: "checkbox",
+      class: "pick",
+      checked: state.selected.has(q.id),
+      "aria-label": `Select: ${plainText(q.body, 60)}`,
+    });
     pick.addEventListener("change", () => {
       if (pick.checked) state.selected.add(q.id);
       else state.selected.delete(q.id);
       pick.closest("tr").classList.toggle("picked", pick.checked);
       updateSelection();
     });
-    const media = h("td", { class: "col-media" }, q.has_audio ? icon("audio", "Has audio") : null, q.has_image ? icon("image", "Has image") : null);
+    const media = h(
+      "td",
+      { class: "col-media" },
+      q.has_audio ? icon("audio", "Has audio") : null,
+      q.has_image ? icon("image", "Has image") : null,
+    );
     return h(
       "tr",
-      { class: [q.id === state.selectedId ? "sel" : "", state.selected.has(q.id) ? "picked" : ""].filter(Boolean).join(" "), "data-id": q.id },
+      {
+        class: [
+          q.id === state.selectedId ? "sel" : "",
+          state.selected.has(q.id) ? "picked" : "",
+        ].filter(Boolean).join(" "),
+        "data-id": q.id,
+      },
       h("td", { class: "col-pick" }, pick),
-      h("td", { class: "qcell" }, link, h("small", {}, [TYPE_LABEL[q.type] || q.type, q.topic, q.has_passage ? "reading text" : null].filter(Boolean).join(", "))),
-      h("td", { class: "col-class" }, q.class_labels.map((l) => h("span", { class: "tag" }, l))),
-      h("td", { class: "col-diff" }, DIFFICULTY_LABEL[q.difficulty] || q.difficulty),
+      h(
+        "td",
+        { class: "qcell" },
+        link,
+        h(
+          "small",
+          {},
+          [
+            TYPE_LABEL[q.type] || q.type,
+            q.topic,
+            q.has_passage ? "reading text" : null,
+          ].filter(Boolean).join(", "),
+        ),
+      ),
+      h(
+        "td",
+        { class: "col-class" },
+        q.class_labels.map((l) => h("span", { class: "tag" }, l)),
+      ),
+      h(
+        "td",
+        { class: "col-diff" },
+        DIFFICULTY_LABEL[q.difficulty] || q.difficulty,
+      ),
       media,
       h("td", { class: "col-used" }, usedText(q.used_in_exams)),
     );
@@ -187,11 +370,44 @@ export function renderQuestionBank(container) {
     if (state.total === 0) return pager.replaceChildren();
     const from = (state.page - 1) * PAGE_SIZE + 1;
     const to = Math.min(state.page * PAGE_SIZE, state.total);
-    const prev = h("button", { class: "btn small ghost", type: "button", disabled: state.page <= 1, "aria-label": "Previous page" }, icon("left"), "Previous");
-    const next = h("button", { class: "btn small ghost", type: "button", disabled: state.page >= pages, "aria-label": "Next page" }, "Next", icon("right"));
-    prev.addEventListener("click", () => { state.page--; load(); });
-    next.addEventListener("click", () => { state.page++; load(); });
-    pager.replaceChildren(h("span", { class: "hint" }, `Showing ${from} to ${to} of ${state.total}`), h("span", { class: "pager-buttons" }, prev, next));
+    const prev = h(
+      "button",
+      {
+        class: "btn small ghost",
+        type: "button",
+        disabled: state.page <= 1,
+        "aria-label": "Previous page",
+      },
+      icon("left"),
+      "Previous",
+    );
+    const next = h(
+      "button",
+      {
+        class: "btn small ghost",
+        type: "button",
+        disabled: state.page >= pages,
+        "aria-label": "Next page",
+      },
+      "Next",
+      icon("right"),
+    );
+    prev.addEventListener("click", () => {
+      state.page--;
+      load();
+    });
+    next.addEventListener("click", () => {
+      state.page++;
+      load();
+    });
+    pager.replaceChildren(
+      h(
+        "span",
+        { class: "hint" },
+        `Showing ${from} to ${to} of ${state.total}`,
+      ),
+      h("span", { class: "pager-buttons" }, prev, next),
+    );
   }
 
   // ---------- the duplicate scan (one whole-bank lookup, not one per filter change) ----------
@@ -200,14 +416,20 @@ export function renderQuestionBank(container) {
       const groups = await questionBank.duplicateGroups();
       const count = groups.question_count || 0;
       if (count === 0) return hideBanner();
-      const review = h("button", { class: "banner-action", type: "button" }, "Review");
+      const review = h(
+        "button",
+        { class: "banner-action", type: "button" },
+        "Review",
+      );
       review.addEventListener("click", () => duplicateGroupsDialog(groups));
       banner.replaceChildren(
         h(
           "span",
           { class: "row" },
           icon("alert"),
-          count === 1 ? "1 question looks like a duplicate of another." : `${count} questions look like duplicates of each other.`,
+          count === 1
+            ? "1 question looks like a duplicate of another."
+            : `${count} questions look like duplicates of each other.`,
         ),
         review,
       );
@@ -232,19 +454,53 @@ export function renderQuestionBank(container) {
   }
   const searchLater = debounce(() => setFilter("q", search.value.trim()), 300);
   search.addEventListener("input", searchLater);
-  classSelect.addEventListener("change", () => setFilter("class_label", classSelect.value));
-  topicSelect.addEventListener("change", () => setFilter("topic", topicSelect.value));
-  difficultySelect.addEventListener("change", () => setFilter("difficulty", difficultySelect.value));
-  typeSelect.addEventListener("change", () => setFilter("type", typeSelect.value));
-  usedSelect.addEventListener("change", () => setFilter("used", usedSelect.value));
-  sortSelect.addEventListener("change", () => setFilter("sort", sortSelect.value));
+  classSelect.addEventListener(
+    "change",
+    () => setFilter("class_label", classSelect.value),
+  );
+  topicSelect.addEventListener(
+    "change",
+    () => setFilter("topic", topicSelect.value),
+  );
+  difficultySelect.addEventListener(
+    "change",
+    () => setFilter("difficulty", difficultySelect.value),
+  );
+  typeSelect.addEventListener(
+    "change",
+    () => setFilter("type", typeSelect.value),
+  );
+  usedSelect.addEventListener(
+    "change",
+    () => setFilter("used", usedSelect.value),
+  );
+  sortSelect.addEventListener(
+    "change",
+    () => setFilter("sort", sortSelect.value),
+  );
   // The archived switch is the one filter that changes what the bar's Archive/Restore button would do, so
   // it clears the selection instead of leaving a tick that could mean the opposite action a moment later.
-  archivedBox.addEventListener("change", () => { closePreview(); clearSelection(); setFilter("archived", archivedBox.checked); });
+  archivedBox.addEventListener("change", () => {
+    closePreview();
+    clearSelection();
+    setFilter("archived", archivedBox.checked);
+  });
 
   function clearFilters() {
-    Object.assign(state.filters, { q: "", topic: "", difficulty: "", type: "", class_label: "", used: "" });
-    search.value = ""; classSelect.value = ""; topicSelect.value = ""; difficultySelect.value = ""; typeSelect.value = ""; usedSelect.value = "";
+    Object.assign(state.filters, {
+      q: "",
+      topic: "",
+      difficulty: "",
+      type: "",
+      class_label: "",
+      used: "",
+    });
+    search.value = "";
+    classSelect.value = "";
+    topicSelect.value = "";
+    difficultySelect.value = "";
+    typeSelect.value = "";
+    usedSelect.value = "";
     state.page = 1;
     load();
   }
@@ -269,43 +525,85 @@ export function renderQuestionBank(container) {
   async function loadPreview(id) {
     preview.hidden = false;
     preview.replaceChildren(h("p", { class: "hint" }, "Loading…"));
-    if (matchMedia("(max-width: 900px)").matches) preview.scrollIntoView({ block: "nearest" });
+    if (matchMedia("(max-width: 900px)").matches) {
+      preview.scrollIntoView({ block: "nearest" });
+    }
     try {
       const q = await questionBank.get(id).then(attachMediaUrls);
       if (state.selectedId !== id) return;
       renderPreview(q);
     } catch (err) {
       if (state.selectedId !== id || ignorable(err)) return;
-      const retry = h("button", { class: "btn small", type: "button" }, "Try again");
+      const retry = h(
+        "button",
+        { class: "btn small", type: "button" },
+        "Try again",
+      );
       retry.addEventListener("click", () => loadPreview(id));
-      preview.replaceChildren(h("div", { class: "notice error", role: "alert" }, errorText(err)), retry);
+      preview.replaceChildren(
+        h("div", { class: "notice error", role: "alert" }, errorText(err)),
+        retry,
+      );
     }
   }
 
   function renderPreview(q) {
-    const edit = h("a", { class: "btn small", href: `#/questions/edit/${q.id}` }, "Edit");
-    const toggle = h("button", { class: "btn small ghost", type: "button" }, q.is_archived ? "Restore" : "Archive");
-    const del = h("button", { class: "btn small danger", type: "button" }, "Delete");
-    toggle.addEventListener("click", () => (q.is_archived ? restoreQuestion(q) : archiveQuestion(q)));
+    const edit = h("a", {
+      class: "btn small",
+      href: `#/questions/edit/${q.id}`,
+    }, "Edit");
+    const toggle = h(
+      "button",
+      { class: "btn small ghost", type: "button" },
+      q.is_archived ? "Restore" : "Archive",
+    );
+    const del = h(
+      "button",
+      { class: "btn small danger", type: "button" },
+      "Delete",
+    );
+    toggle.addEventListener(
+      "click",
+      () => (q.is_archived ? restoreQuestion(q) : archiveQuestion(q)),
+    );
     del.addEventListener("click", () => deleteQuestion(q));
-    preview.replaceChildren(...questionView(q), h("div", { class: "preview-actions" }, edit, toggle, del));
+    preview.replaceChildren(
+      ...questionView(q),
+      h("div", { class: "preview-actions" }, edit, toggle, del),
+    );
   }
 
   // ---------- actions ----------
   async function archiveQuestion(q) {
-    try { await questionBank.archive(q.id); toast("Question archived. Show archived questions to restore it."); closePreview(); load(); loadDuplicates(); }
-    catch (err) { if (!ignorable(err)) toast(errorText(err), "error"); }
+    try {
+      await questionBank.archive(q.id);
+      toast("Question archived. Show archived questions to restore it.");
+      closePreview();
+      load();
+      loadDuplicates();
+    } catch (err) {
+      if (!ignorable(err)) toast(errorText(err), "error");
+    }
   }
   async function restoreQuestion(q) {
-    try { await questionBank.restore(q.id); toast("Question restored."); closePreview(); load(); loadDuplicates(); }
-    catch (err) { if (!ignorable(err)) toast(errorText(err), "error"); }
+    try {
+      await questionBank.restore(q.id);
+      toast("Question restored.");
+      closePreview();
+      load();
+      loadDuplicates();
+    } catch (err) {
+      if (!ignorable(err)) toast(errorText(err), "error");
+    }
   }
   async function deleteQuestion(q) {
     const used = q.used_in_exams > 0;
     const ok = await confirmDialog({
       title: used ? "Archive this question?" : "Delete this question?",
       message: used
-        ? `This question is used in ${usedText(q.used_in_exams)}, so it will be archived instead of deleted. Old results stay correct, and you can restore it later.`
+        ? `This question is used in ${
+          usedText(q.used_in_exams)
+        }, so it will be archived instead of deleted. Old results stay correct, and you can restore it later.`
         : "This permanently deletes the question. This cannot be undone.",
       confirmLabel: used ? "Archive" : "Delete",
       danger: !used,
@@ -313,11 +611,17 @@ export function renderQuestionBank(container) {
     if (!ok) return;
     try {
       const result = await questionBank.remove(q.id);
-      toast(result === "deleted" ? "Question deleted." : "Question archived because exams use it.");
+      toast(
+        result === "deleted"
+          ? "Question deleted."
+          : "Question archived because exams use it.",
+      );
       closePreview();
       load();
       loadDuplicates();
-    } catch (err) { if (!ignorable(err)) toast(errorText(err), "error"); }
+    } catch (err) {
+      if (!ignorable(err)) toast(errorText(err), "error");
+    }
   }
 
   // ---------- bulk actions ----------
@@ -327,7 +631,9 @@ export function renderQuestionBank(container) {
   /** The filters exactly as the list API wants them, so the list, the pager and "select all" cannot drift. */
   function filtersFor(page, pageSize) {
     const out = { page, page_size: pageSize };
-    for (const [key, value] of Object.entries(state.filters)) if (value !== "" && value !== false) out[key] = value;
+    for (const [key, value] of Object.entries(state.filters)) {
+      if (value !== "" && value !== false) out[key] = value;
+    }
     return out;
   }
 
@@ -383,20 +689,52 @@ export function renderQuestionBank(container) {
 
     const edit = h("button", { class: "btn small", type: "button" }, "Edit…");
     edit.addEventListener("click", openBulkEdit);
-    const toggle = h("button", { class: "btn small ghost", type: "button" }, state.filters.archived ? "Restore" : "Archive");
-    toggle.addEventListener("click", () => bulkSetArchived(!state.filters.archived));
-    const toExam = h("button", { class: "btn small ghost", type: "button" }, "Add to exam…");
+    const toggle = h(
+      "button",
+      { class: "btn small ghost", type: "button" },
+      state.filters.archived ? "Restore" : "Archive",
+    );
+    toggle.addEventListener(
+      "click",
+      () => bulkSetArchived(!state.filters.archived),
+    );
+    const toExam = h(
+      "button",
+      { class: "btn small ghost", type: "button" },
+      "Add to exam…",
+    );
     toExam.addEventListener("click", () => openExamQuestions("add"));
-    const offExam = h("button", { class: "btn small ghost", type: "button" }, "Remove from exam…");
+    const offExam = h(
+      "button",
+      { class: "btn small ghost", type: "button" },
+      "Remove from exam…",
+    );
     offExam.addEventListener("click", () => openExamQuestions("remove"));
-    const clear = h("button", { class: "btn small ghost", type: "button" }, "Clear");
+    const clear = h(
+      "button",
+      { class: "btn small ghost", type: "button" },
+      "Clear",
+    );
     clear.addEventListener("click", clearSelection);
     bulkActions.append(edit, toExam, offExam, toggle, clear);
 
     if (pageIds.length > 0 && onPage === pageIds.length && n < state.total) {
-      const all = h("button", { class: "link-btn", type: "button" }, `Select all ${state.total} matching questions`);
+      const all = h(
+        "button",
+        { class: "link-btn", type: "button" },
+        `Select all ${state.total} matching questions`,
+      );
       all.addEventListener("click", selectAllMatching);
-      bulkAll.append(h("span", {}, `All ${pageIds.length} question${pageIds.length === 1 ? "" : "s"} on this page are selected. `), all);
+      bulkAll.append(
+        h(
+          "span",
+          {},
+          `All ${pageIds.length} question${
+            pageIds.length === 1 ? "" : "s"
+          } on this page are selected. `,
+        ),
+        all,
+      );
       bulkAll.hidden = false;
     }
   }
@@ -410,7 +748,8 @@ export function renderQuestionBank(container) {
   async function selectAllMatching() {
     const total = state.total;
     if (total > BULK_MAX) {
-      bulkNote.textContent = `These filters match ${total} questions; a bulk change works on up to ${BULK_MAX} at a time. Narrow the filters, or tick the ones you want.`;
+      bulkNote.textContent =
+        `These filters match ${total} questions; a bulk change works on up to ${BULK_MAX} at a time. Narrow the filters, or tick the ones you want.`;
       return;
     }
     bulkNote.textContent = "Selecting…";
@@ -435,10 +774,14 @@ export function renderQuestionBank(container) {
     const updated = res.updated || 0;
     const unchanged = res.unchanged || 0;
     const missing = res.missing || 0;
-    if (updated === 0 && missing === 0) return "Nothing changed — those questions already looked like that.";
+    if (updated === 0 && missing === 0) {
+      return "Nothing changed — those questions already looked like that.";
+    }
     const parts = [`${updated} question${updated === 1 ? "" : "s"} updated`];
     if (unchanged > 0) parts.push(`${unchanged} already looked like that`);
-    if (missing > 0) parts.push(`${missing} ${missing === 1 ? "is" : "are"} no longer there`);
+    if (missing > 0) {
+      parts.push(`${missing} ${missing === 1 ? "is" : "are"} no longer there`);
+    }
     return `${parts.join(" · ")}.`;
   }
 
@@ -454,7 +797,9 @@ export function renderQuestionBank(container) {
     if (ids.length === 0) return;
     const noun = ids.length === 1 ? "question" : "questions";
     const ok = await confirmDialog({
-      title: archived ? `Archive ${ids.length} ${noun}?` : `Restore ${ids.length} ${noun}?`,
+      title: archived
+        ? `Archive ${ids.length} ${noun}?`
+        : `Restore ${ids.length} ${noun}?`,
       message: archived
         ? "They stay in the question bank and old results keep working, but they are hidden from the list and cannot be used in a new exam. You can restore them later."
         : "They come back into the question bank and can be used in exams again.",
@@ -500,7 +845,14 @@ export function renderQuestionBank(container) {
       exams: examList,
       // A failure travels on, so the dialog shows it where the choice is instead of the toast
       // disappearing before it can be read.
-      onApply: async (examId) => { toast(examQuestionsResult(mode, await exams.bulkQuestions(examId, mode, ids))); },
+      onApply: async (examId) => {
+        toast(
+          examQuestionsResult(
+            mode,
+            await exams.bulkQuestions(examId, mode, ids),
+          ),
+        );
+      },
     });
     if (!applied) return; // closed without applying: the ticks are still there
     clearSelection();
@@ -528,9 +880,15 @@ export function renderQuestionBank(container) {
   loadDuplicates();
   questionBank.topics().then((topics) => {
     topicNames = topics.map((t) => t.name);
-    for (const t of topics) topicSelect.append(h("option", { value: t.name }, `${t.name} (${t.question_count})`));
-  }).catch(() => { /* the filters still work without the suggestions */ });
+    for (const t of topics) {
+      topicSelect.append(
+        h("option", { value: t.name }, `${t.name} (${t.question_count})`),
+      );
+    }
+  }).catch(() => {/* the filters still work without the suggestions */});
   questionBank.classLabels().then((labels) => {
-    for (const l of labels) classSelect.append(h("option", { value: l.label }, l.label));
+    for (const l of labels) {
+      classSelect.append(h("option", { value: l.label }, l.label));
+    }
   }).catch(() => {});
 }

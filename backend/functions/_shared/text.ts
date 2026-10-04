@@ -17,15 +17,52 @@ function compareBytes(a: string, b: string): number {
 }
 
 /** Same result as public.question_content_hash: ignores case, extra spaces, and the order of options. */
-export async function contentHash(body: string, options: string[]): Promise<string> {
-  const text = normalizeText(body) + "\n" + options.map(normalizeText).sort(compareBytes).join("\n");
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+export async function contentHash(
+  body: string,
+  options: string[],
+): Promise<string> {
+  const text = normalizeText(body) + "\n" +
+    options.map(normalizeText).sort(compareBytes).join("\n");
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(text),
+  );
+  return Array.from(new Uint8Array(digest)).map((b) =>
+    b.toString(16).padStart(2, "0")
+  ).join("");
 }
 
-const ALLOWED_TAGS = new Set(["b", "strong", "i", "em", "u", "br", "sub", "sup"]);
-const DROP_WITH_CONTENT = new Set(["script", "style", "iframe", "object", "embed", "template", "noscript", "svg", "math"]);
-const VOID_TAGS = new Set(["br", "img", "input", "hr", "meta", "link", "source", "embed"]);
+const ALLOWED_TAGS = new Set([
+  "b",
+  "strong",
+  "i",
+  "em",
+  "u",
+  "br",
+  "sub",
+  "sup",
+]);
+const DROP_WITH_CONTENT = new Set([
+  "script",
+  "style",
+  "iframe",
+  "object",
+  "embed",
+  "template",
+  "noscript",
+  "svg",
+  "math",
+]);
+const VOID_TAGS = new Set([
+  "br",
+  "img",
+  "input",
+  "hr",
+  "meta",
+  "link",
+  "source",
+  "embed",
+]);
 
 /**
  * Keeps only simple formatting (bold, italic, underline, line break, sub/superscript) from teacher-written text.
@@ -69,7 +106,9 @@ export function sanitizeInlineHtml(input: string): string {
       continue;
     }
     if (DROP_WITH_CONTENT.has(name)) {
-      if (!closing && !VOID_TAGS.has(name) && !m[0].endsWith("/>")) skipUntil = name;
+      if (!closing && !VOID_TAGS.has(name) && !m[0].endsWith("/>")) {
+        skipUntil = name;
+      }
       continue;
     }
     if (ALLOWED_TAGS.has(name)) {
