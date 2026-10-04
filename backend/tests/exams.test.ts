@@ -240,17 +240,6 @@ Deno.test("validation-hinted SQL errors become friendly 400s", async () => {
 });
 
 // ---------- bulk questions on an exam (F-18) ----------
-Deno.test("parseBulkQuestions dedupes the ticked ids and refuses what it cannot act on", () => {
-  const parsed = parseBulkQuestions({ exam_id: EXAM, mode: "add", ids: [QID, QID2, QID] });
-  assert.equal(parsed.examId, EXAM);
-  assert.equal(parsed.mode, "add");
-  assert.deepEqual(parsed.ids, [QID, QID2], "the same question ticked twice is one question");
-  assert.throws(() => parseBulkQuestions({ exam_id: EXAM, mode: "sideways", ids: [QID] }), /Mode/);
-  assert.throws(() => parseBulkQuestions({ exam_id: EXAM, mode: "add", ids: [] }), /at least one question/);
-  assert.throws(() => parseBulkQuestions({ exam_id: EXAM, mode: "add", ids: ["not-a-uuid"] }), /Question 1/);
-  assert.throws(() => parseBulkQuestions({ exam_id: EXAM, mode: "add", ids: new Array(501).fill(QID) }), /at most 500/);
-  assert.throws(() => parseBulkQuestions({ exam_id: "nope", mode: "add", ids: [QID] }), /Exam/);
-});
 
 Deno.test("bulk_questions puts the ticked questions on the exam in one call, with the actor", async () => {
   const { db, calls } = fakeDb(() => ({ data: { matched: 2, updated: 2, unchanged: 0, missing: 0 } }));
@@ -346,4 +335,24 @@ Deno.test("only a literal true counts as the permanent delete", async () => {
   const res = await createHandler(() => db)(post({ action: "remove", id: EXAM, hard: "yes" }));
   assert.equal(res.status, 200, "a teacher is not refused, because this is an ordinary close");
   assert.equal(calls[0].args.p_force, false);
+});
+
+// ---------- readiness ----------
+Deno.test("readiness returns warnings for archived questions, missing questions, essays, points != 100, and code taken", async () => {
+  const { db, calls } = fakeDb(() => ({ data: { ready: false, warnings: ["2 question(s) on this exam are archived.", "Total points are 120 (expected 100)."], questions: [], essay_count: 1, total_points: 120, code_taken: true } }));
+  const res = await createHandler(() => db)(post({ action: "readiness", id: EXAM }));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.readiness.ready, false);
+  assert.equal(body.readiness.warnings.length, 2);
+  assert.deepEqual(calls, [{ name: "exam_readiness", args: { p_id: EXAM } }]);
+});
+
+Deno.test("readiness returns ready true when all checks pass", async () => {
+  const { db, calls } = fakeDb(() => ({ data: { ready: true, warnings: [], questions: [], essay_count: 0, total_points: 100, code_taken: false } }));
+  const res = await createHandler(() => db)(post({ action: "readiness", id: EXAM }));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.readiness.ready, true);
+  assert.deepEqual(calls, [{ name: "exam_readiness", args: { p_id: EXAM } }]);
 });

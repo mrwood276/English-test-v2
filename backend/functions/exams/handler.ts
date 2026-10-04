@@ -16,6 +16,7 @@ const ACTIONS = [
   "check_code",            // is this code free among open exams?
   "duplicate",             // copy an exam (or template) as a new draft
   "bulk_questions",        // put many bank questions on an exam, or take many off it (F-18)
+  "readiness",             // pre-flight check before Open (TASK-041)
 ] as const;
 
 /** Codes are typed by students on shared keyboards; a stray space must not fail the check. */
@@ -109,6 +110,12 @@ export function createHandler(getDb: () => Db) {
           p_actor: me.userId,
         });
         return { result };
+      }
+
+      case "readiness": {
+        const examId = asUuid(b.id, "id");
+        const readiness = await callRpc(db, "exam_readiness", { p_id: examId });
+        return { readiness };
       }
     }
   });
