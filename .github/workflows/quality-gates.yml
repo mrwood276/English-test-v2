@@ -1,0 +1,47 @@
+name: Quality gates
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    name: deno lint + fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: deno fmt --check (frontend JS)
+        run: deno fmt --check frontend/assets/js/
+      - name: deno fmt --check (backend TS)
+        run: deno fmt --check backend/functions/
+      - name: deno lint (frontend JS)
+        run: deno lint frontend/assets/js/
+      - name: deno lint (backend TS)
+        run: deno lint backend/functions/
+
+  a11y:
+    name: axe-core accessibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Install test dependencies
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+      - name: Create the media sample files
+        run: python frontend/tests/make_fixtures.py
+      - name: Start the local server
+        run: |
+          python frontend/dev-server.py 8123 &
+          sleep 2
+      - name: Run axe-core on key pages (join, exam, result, dashboard)
+        run: python frontend/tests/a11y_check.py
