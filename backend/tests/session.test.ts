@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import { createHandler, type Db } from "../functions/session/handler.ts";
 import { parseAnswers, parseEventMeta, parseEventType, parseJoin, parseReason } from "../functions/session/parse.ts";
-import { signSessionToken, verifySessionToken } from "../functions/session/token.ts";
+import { signSessionToken, verifySessionToken, computeTokenExpiry } from "../functions/session/token.ts";
 import { ApiError } from "../functions/_shared/errors.ts";
 
 const SESSION = "44444444-4444-4444-8444-444444444444";
 const OTHER = "55555555-5555-4555-8555-555555555555";
 const QUESTION = "33333333-3333-4333-8333-333333333331";
 const SECRET = "test-secret";
-const TOKEN = await signSessionToken(SESSION, SECRET);
+const EXPIRES_AT = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+const TOKEN = await signSessionToken(SESSION, SECRET, EXPIRES_AT);
 
 interface Call { name: string; args: Record<string, unknown> }
 type Result = { data?: unknown; error?: { message: string; hint?: string; code?: string } };
@@ -118,7 +119,7 @@ Deno.test("event types and submit reasons are closed lists", () => {
 // ---------- the session token ----------
 Deno.test("a session token round-trips and is tied to its session", async () => {
   assert.equal(await verifySessionToken(TOKEN, SECRET), SESSION);
-  const other = await signSessionToken(OTHER, SECRET);
+  const other = await signSessionToken(OTHER, SECRET, EXPIRES_AT);
   assert.equal(await verifySessionToken(other, SECRET), OTHER);
   assert.notEqual(TOKEN, other);
 });
@@ -133,7 +134,7 @@ Deno.test("a forged or foreign token is refused", async () => {
 
 // ---------- handler ----------
 Deno.test("join rate limits the address, then calls exam_join and hands out a token", async () => {
-  const { db, calls } = fakeDb((name) => name === "exam_join" ? { data: { session: { id: SESSION, status: "in_progress" }, questions: [{ position: 1 }], answers: [] } } : { data: null });
+  const { db, calls } = fakeDb((name) => name === "exam_join" ? { data: { session: { id: SESSION, status: "in_progress", ends_at: new Date(Date.now() + 3600000).toISOString() }, questions: [{ position: 1 }], answers: [] } } : { data: null });
   const res = await handler(db)(post({ action: "join", code: "k7m2qx", name: "Aisyah Putri", class: "XII TKJ A" }));
   assert.equal(res.status, 200);
   const body = await res.json();
@@ -166,7 +167,7 @@ Deno.test("every other action needs a real session token", async () => {
     assert.equal((await h(post({ action }))).status, 400, `${action} without a token is refused`);
   }
   assert.equal((await h(post({ action: "get", token: `${SESSION}.AAAA` }))).status, 401, "a forged token is refused");
-  assert.equal((await h(post({ action: "get", token: await signSessionToken(SESSION, "other-key") }))).status, 401, "a token signed elsewhere is refused");
+  assert.equal((await h(post({ action: "get", token: await signSessionToken(SESSION, "other-key", EXPIRES_AT) }))).status, 401, "a token signed elsewhere is refused");
   assert.deepEqual(rpcNames(calls), [], "no database work happened for a refused caller");
 });
 

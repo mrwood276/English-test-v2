@@ -12,7 +12,7 @@ import {
   parseReason,
   SESSION_ACTIONS,
 } from "./parse.ts";
-import { sessionTokenSecret, signSessionToken, verifySessionToken } from "./token.ts";
+import { sessionTokenSecret, signSessionToken, verifySessionToken, computeTokenExpiry } from "./token.ts";
 
 /**
  * The student exam engine. This is the only endpoint a student (no account) can call.
@@ -56,9 +56,10 @@ export function createHandler(getDb: () => Db, opts: { secret?: string } = {}) {
       const data = asObject(await callRpc(db, "exam_join", { p: input }), "session");
       const session = asObject(data.session, "session");
       const sessionId = asUuid(session.id, "session id");
+      const expiresAt = computeTokenExpiry(session.ends_at);
       // The browser keeps this token; it is the only way back into this session.
       return {
-        token: await signSessionToken(sessionId, secret()),
+        token: await signSessionToken(sessionId, secret(), expiresAt),
         session: data.session,
         questions: data.questions,
         answers: data.answers,
