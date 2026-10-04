@@ -42,10 +42,10 @@ export function createHandler(getDb: () => Db) {
 
     switch (action) {
       case "list":
-        return { exams: await callRpc(db, "list_exams", { p: parseListFilters(b) }) };
+        return { exams: await callRpc(db, "list_exams", { p: parseListFilters(b), p_actor: me.userId }) };
 
       case "get": {
-        const exam = await callRpc(db, "get_exam", { p_id: asUuid(b.id, "id") });
+        const exam = await callRpc(db, "get_exam", { p_id: asUuid(b.id, "id"), p_actor: me.userId });
         if (!exam) throw notFound("That exam no longer exists.");
         return { exam };
       }
