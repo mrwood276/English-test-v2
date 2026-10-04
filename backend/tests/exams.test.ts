@@ -146,6 +146,7 @@ Deno.test("list returns the exams list with cleaned filters", async () => {
   assert.deepEqual(await res.json(), { exams: [] });
   assert.equal(calls[0].name, "list_exams");
   assert.deepEqual(calls[0].args.p, { status: "open" });
+  assert.equal(calls[0].args.p_actor, TEACHER);
 });
 
 Deno.test("get 404s a missing exam and rejects a bad id", async () => {
@@ -153,6 +154,14 @@ Deno.test("get 404s a missing exam and rejects a bad id", async () => {
   const h = createHandler(() => db);
   assert.equal((await h(post({ action: "get", id: EXAM }))).status, 404);
   assert.equal((await h(post({ action: "get", id: "nope" }))).status, 400);
+});
+
+Deno.test("get passes the actor to the scoped function", async () => {
+  const { db, calls } = fakeDb(() => ({ data: EXAM }));
+  const res = await createHandler(() => db)(post({ action: "get", id: EXAM }));
+  assert.equal(res.status, 200);
+  assert.equal(calls[0].name, "get_exam");
+  assert.equal(calls[0].args.p_actor, TEACHER);
 });
 
 Deno.test("set_status validates the status value and passes the actor", async () => {
