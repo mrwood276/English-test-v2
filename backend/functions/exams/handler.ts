@@ -5,7 +5,7 @@ import { callRpc, type RpcDb } from "../_shared/rpc.ts";
 import { asEnum, asObject, asUuid, optional } from "../_shared/validate.ts";
 import { ACCESS_CODE_PATTERN, generateAccessCode, normalizeAccessCode } from "../_shared/codes.ts";
 import { badRequest } from "../_shared/errors.ts";
-import { asAccessCode, parseBulkQuestions, parseExamInput, parseListFilters, EXAM_STATUSES } from "./parse.ts";
+import { parseBulkQuestions, parseExamInput, parseListFilters, EXAM_STATUSES } from "./parse.ts";
 
 export type Db = StaffDb & RpcDb;
 
