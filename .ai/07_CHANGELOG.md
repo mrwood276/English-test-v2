@@ -1,4 +1,12 @@
 # 07 CHANGELOG
+## 2026-10-04 — TASK-040/041/043/046 batch: token expiry, exam_readiness, quality gates, small cleanups
+- Agent: Buffy (OpenCode). Four tasks in one session.
+- **TASK-040** student token expiry: token format changed to `<session>.<exp>.<sig>` with `ends_at+2min`; refreshed on every accepted call; `signSessionToken`/`verifySessionToken`/`computeTokenExpiry` updated; session handler passes expiry from `exam_join`; all backend 176 tests + `student_e2e.py` 91 green.
+- **TASK-041** exam_readiness pre-flight check: new `exam_readiness(p_id)` SQL function returns warnings for archived/missing questions, essays, points≠100, code taken; handler exposes `readiness` action; exams handler + tests updated; migration `20261004000002_exam_readiness.sql`.
+- **TASK-043** quality gates CI: new `.github/workflows/quality-gates.yml` with `deno fmt --check` + `deno lint` (frontend/backend) + axe-core a11y run on join/exam/result/dashboard pages; `frontend/tests/a11y_check.py` added.
+- **TASK-046** small cleanups: created `frontend/assets/js/shared/error.js` (`errorText`/`ignorable`); moved `dialog` to `shared/ui.js` (generic + accounts-specific kept); removed dead `suggestCode` export from exams handler; teacher screens now import `errorText`/`ignorable` from shared; accounts.js kept its custom dialog with keydown/Enter + body.values() but uses shared error helpers. Deno fmt applied to 103 files.
+- Commits: `c845356` (TASK-040), `12f9c58` (TASK-041), `facfe8b` (TASK-043), `5695967` (TASK-046). All 176 backend + 44 unit + 14 browser suites (846 checks) green.
+
 ## 2026-10-04 — media isolation slice: SQL + handler (DEC-041)
 - Agent: Buffy (OpenCode). Task: media isolation slice (last DEC-041 domain). Frontend untouched; SQL + media Edge Function.
 - Added `supabase/migrations/20261004000001_media_isolation.sql`: `link_media(text, uuid, jsonb, uuid)` and `get_media_paths(uuid[], uuid)` now scope by `uploaded_by = p_actor` with admin bypass; `save_question`/`save_passage` re-declared to forward `p_actor` to `link_media`; old two-argument signatures dropped; revoke/grant service_role.
