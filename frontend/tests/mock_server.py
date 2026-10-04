@@ -1130,12 +1130,15 @@ class Server:
                     q = known[i]
                     e["questions"].append({"question_id": i, "position": len(e["questions"]) + 1, "weight": q["weight"],
                                            "body": q["body"], "type": q["type"]})
+                    q["used_in_exams"] = q.get("used_in_exams", 0) + 1
                 return ok({"result": {"matched": len(found), "updated": len(to_add),
                                       "unchanged": len(found) - len(to_add), "missing": missing}})
             on = [i for i in found if i in have]
             gone = set(on)
             e["questions"] = [q for q in e["questions"] if q["question_id"] not in gone]
             for n, q in enumerate(e["questions"]): q["position"] = n + 1
+            for i in gone:
+                known[i]["used_in_exams"] = max(0, known[i].get("used_in_exams", 0) - 1)
             return ok({"result": {"matched": len(on), "updated": len(on),
                                   "unchanged": len(found) - len(on), "missing": missing}})
         if a == "duplicate":
