@@ -64,7 +64,8 @@ export function renderQuestionBank(container) {
   );
   headPick.addEventListener("change", () => setPageSelected(headPick.checked));
 
-  const table = h("table", { class: "qtable" }, h("thead", {}, h("tr", {}, h("th", { class: "col-pick" }, headPick), h("th", {}, "Question"), h("th", { class: "col-class" }, "Class"), h("th", { class: "col-diff" }, "Difficulty"), h("th", { class: "col-media" }, "Media"), h("th", { class: "col-used" }, "Used"))), tbody);
+  const table = h("table", { class: "qtable" }, h("thead", {}, h("tr", {}, h("th", { class: "col-pick" }, headPick), h("th", {}, "Question"), h("th", { class: "col-class" }, "Class"), h("th", { class: "col-diff" }, "Diff"), h("th", { class: "col-media" }, "Media"), h("th", { class: "col-used" }, "Used"))));
+  table.append(tbody);
   const status = h("div", { class: "list-status", role: "status" });
   const pager = h("div", { class: "pager" });
   const preview = h("aside", { class: "card preview", "aria-label": "Question preview", hidden: true });
@@ -481,11 +482,14 @@ export function renderQuestionBank(container) {
       exams: examList,
       // A failure travels on, so the dialog shows it where the choice is instead of the toast
       // disappearing before it can be read.
-      onApply: async (examId) => { toast(examQuestionsResult(mode, await exams.bulkQuestions(examId, mode, ids))); },
+      onApply: async (examId) => {
+        const result = await exams.bulkQuestions(examId, mode, ids);
+        toast(examQuestionsResult(mode, result));
+        clearSelection();
+        await load();
+      },
     });
     if (!applied) return; // closed without applying: the ticks are still there
-    clearSelection();
-    load(); // the Used column changes either way
   }
 
   function openBulkEdit() {
