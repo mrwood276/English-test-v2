@@ -11,6 +11,7 @@
 export const PAGE_WIDTH = 595.28; // A4, points
 export const PAGE_HEIGHT = 841.89;
 
+// deno-lint-ignore no-control-regex
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g;
 
 /** Every character the file's own bytes can hold; anything wider than one byte becomes "?". */

@@ -26,11 +26,13 @@ export async function callStaffFunction(name, { method = "GET", body } = {}) {
     // (a debounced check, a slow upload) would otherwise fire again and replace the first notice.
     if (final instanceof SessionExpiredError && !sessionExpiredAnnounced) {
       sessionExpiredAnnounced = true;
+      // deno-lint-ignore no-window no-window-prefix
       window.addEventListener(
         "staff:signed-in",
         () => (sessionExpiredAnnounced = false),
         { once: true },
       );
+      // deno-lint-ignore no-window no-window-prefix
       window.dispatchEvent(
         new CustomEvent("staff:session-expired", { detail: final.message }),
       );

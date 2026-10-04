@@ -200,7 +200,11 @@ export function startRouter(container, nav, ctx) {
     show();
   };
 
+  // deno-lint-ignore no-window no-window-prefix
   window.addEventListener("hashchange", onChange);
-  stop = () => window.removeEventListener("hashchange", onChange);
+  stop = () => {
+    // deno-lint-ignore no-window no-window-prefix
+    window.removeEventListener("hashchange", onChange);
+  };
   show();
 }

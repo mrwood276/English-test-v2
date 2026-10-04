@@ -48,6 +48,7 @@ function downloadXlsx(exam, rows) {
 function schoolNameForExport() {
   const stored = getSchoolName();
   if (stored !== null) return stored;
+  // deno-lint-ignore no-window
   const typed = window.prompt(
     "School name for the PDF header (leave blank to skip):",
     "",
@@ -142,7 +143,7 @@ function mostChosen(group) {
 }
 
 /** The results of one exam (mockup 14): summary line, then one row per student who joined. */
-export function renderExamResults(container, ctx, { examId }) {
+export function renderExamResults(container, _ctx, { examId }) {
   const state = { overview: null, requestId: 0 };
 
   const title = h("h1", {}, "Results");
@@ -495,6 +496,7 @@ export function renderExamResults(container, ctx, { examId }) {
         "School name",
       );
       editSchool.addEventListener("click", () => {
+        // deno-lint-ignore no-window
         const typed = window.prompt(
           "School name for the PDF header (leave blank to skip):",
           getSchoolName() || "",

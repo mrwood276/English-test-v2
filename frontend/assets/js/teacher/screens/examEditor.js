@@ -38,7 +38,7 @@ const localStamp = (iso) => {
  * the rules panel, and a ready-to-open summary. Saving keeps the exam a draft; opening
  * happens from the list or the summary once the database confirms the rules hold.
  */
-export function renderExamEditor(container, ctx, match) {
+export function renderExamEditor(container, _ctx, match) {
   const examId = match && match[1] ? match[1].toLowerCase() : null;
   const state = {
     id: examId,
@@ -75,8 +75,9 @@ export function renderExamEditor(container, ctx, match) {
   const markDirty = () => {
     state.dirty = true;
   };
-  setLeaveGuard(async () => {
+  setLeaveGuard(() => {
     if (!state.dirty) return true;
+    // deno-lint-ignore no-window
     return window.confirm("Leave without saving this exam?");
   }, () => state.dirty);
 
@@ -696,7 +697,7 @@ export function renderExamEditor(container, ctx, match) {
       count: ids.length,
       exam: { id: null, title: examTitle() },
       notes,
-      onApply: async () => {
+      onApply: () => {
         if (ids.length - duplicate > room) {
           throw new Error(
             `An exam can hold at most ${EXAM_MAX} questions. It has room for ${room} more.`,
@@ -735,7 +736,7 @@ export function renderExamEditor(container, ctx, match) {
       mode: "remove",
       count: ids.length,
       exam: { id: null, title: examTitle() },
-      onApply: async () => {
+      onApply: () => {
         state.questions = state.questions.filter((q) => !removeTicks.has(q.id));
         removeTicks.clear();
         markDirty();

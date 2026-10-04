@@ -612,7 +612,7 @@ export function renderQuestionImport(container) {
   });
 
   // Ask before leaving with an unsaved review.
-  setLeaveGuard(async () => {
+  setLeaveGuard(() => {
     if (!isDirty()) return true;
     return confirmDialog({
       title: "Leave without importing?",

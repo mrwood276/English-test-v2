@@ -18,7 +18,7 @@ const ignorable = (err) => err instanceof SessionExpiredError;
  * `#/monitor` — exams that currently have students working.
  * `#/monitor/:examId` — every student in that exam (progress, time left, page leaves).
  */
-export function renderExamMonitor(container, ctx, { examId } = {}) {
+export function renderExamMonitor(container, _ctx, { examId } = {}) {
   if (examId) return renderExamSessions(container, examId);
   return renderActiveExams(container);
 }

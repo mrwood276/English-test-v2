@@ -273,7 +273,7 @@ export async function renderQuestionEditor(
     );
     passageSelect.value = state.passage ? state.passage.id : "";
   };
-  async function showPassage() {
+  function showPassage() {
     passageShown.replaceChildren();
     if (!state.passage) return;
     const edit = h(
@@ -1035,7 +1035,7 @@ export async function renderQuestionEditor(
   baseline = snapshot();
 
   // Ask before leaving with unsaved changes.
-  setLeaveGuard(async () => {
+  setLeaveGuard(() => {
     if (!isDirty()) return true;
     return confirmDialog({
       title: "Leave without saving?",

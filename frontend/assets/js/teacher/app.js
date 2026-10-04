@@ -13,6 +13,7 @@ import { renderShell } from "./screens/shell.js";
 const root = document.getElementById("app");
 
 async function showApp() {
+  // deno-lint-ignore no-window no-window-prefix
   window.dispatchEvent(new Event("staff:signed-in")); // re-allow session-expired announcements (see core/api.js)
   const { user } = await whoAmI();
   renderShell(root, {
@@ -59,6 +60,7 @@ function showRetry(message) {
 }
 
 // Any screen can end up with an expired session (see core/api.js); go back to sign in with an explanation.
+// deno-lint-ignore no-window no-window-prefix
 window.addEventListener(
   "staff:session-expired",
   (event) => showLogin(event.detail),

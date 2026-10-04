@@ -39,7 +39,7 @@ function numberText(v) {
 export async function readXlsxRows(buffer) {
   const entries = listZip(buffer);
   const find = (name) => entries.find((e) => e.name.toLowerCase() === name);
-  const read = async (name) => {
+  const read = (name) => {
     const entry = find(name);
     return entry ? readZipEntry(buffer, entry) : null;
   };

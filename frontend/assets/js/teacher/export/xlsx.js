@@ -15,6 +15,7 @@ const PKG_NS = "http://schemas.openxmlformats.org/package/2006/relationships";
 
 // Characters XML 1.0 forbids, plus the five that must be escaped. A student's name or a question body
 // may contain anything, so every text cell goes through this.
+// deno-lint-ignore no-control-regex
 const ILLEGAL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g;
 const escapeXml = (value) =>
   String(value)

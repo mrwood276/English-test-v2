@@ -27,6 +27,7 @@ export const getLeaveGuard = () => guard;
 /** True only while a screen is guarding a change that is not saved. */
 export const hasUnsavedChanges = () => (guard ? unsaved() : false);
 
+// deno-lint-ignore no-window no-window-prefix
 window.addEventListener("beforeunload", (event) => {
   if (hasUnsavedChanges()) {
     event.preventDefault();

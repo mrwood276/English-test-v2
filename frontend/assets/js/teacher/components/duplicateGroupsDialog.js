@@ -71,8 +71,10 @@ export function duplicateGroupsDialog(groups) {
 
     const onHashChange = () => dialog.close();
     close.addEventListener("click", () => dialog.close());
+    // deno-lint-ignore no-window no-window-prefix
     window.addEventListener("hashchange", onHashChange);
     dialog.addEventListener("close", () => {
+      // deno-lint-ignore no-window no-window-prefix
       window.removeEventListener("hashchange", onHashChange);
       dialog.remove();
       resolve();

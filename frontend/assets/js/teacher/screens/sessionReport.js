@@ -24,7 +24,7 @@ const ignorable = (err) => err instanceof SessionExpiredError;
  * One finished attempt: the result, every answer with its grade (essays and corrections can be changed
  * here), the event history, and the actions a teacher may take — more time, reopen, allow a retake (BR-11, BR-02).
  */
-export function renderSessionReport(container, ctx, { examId, sessionId }) {
+export function renderSessionReport(container, _ctx, { examId, sessionId }) {
   const state = { report: null, requestId: 0 };
 
   const title = h("h1", {}, "Attempt");
@@ -323,6 +323,7 @@ export function renderSessionReport(container, ctx, { examId, sessionId }) {
               feedback,
             });
             toast(res.final ? "Saved. The result is final now." : "Saved.");
+            // deno-lint-ignore no-window no-window-prefix
             window.dispatchEvent(new CustomEvent("staff:results-changed"));
             await load();
           },

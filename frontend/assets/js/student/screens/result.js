@@ -99,9 +99,9 @@ function reviewItem(item) {
  *
  * @param ctx { onDone() }
  */
-export function renderResult(root, result, ctx, { reason } = {}) {
+export function renderResult(root, result, _ctx, { reason } = {}) {
   const session = store.state.session || {};
-  const exam = session.exam || {};
+  const _exam = session.exam || {};
   const parts = [];
 
   parts.push(
@@ -268,7 +268,7 @@ export function renderResult(root, result, ctx, { reason } = {}) {
   }, "Done");
   done.addEventListener("click", () => {
     store.reset();
-    ctx.onDone();
+    _ctx.onDone();
   });
   parts.push(
     done,

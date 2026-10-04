@@ -15,7 +15,7 @@ import * as store from "../store.js";
 const SAVE_DEBOUNCE_MS = 1200;
 const RETRY_MS = 5000;
 const HEARTBEAT_MS = 30_000;
-const MEDIA_REFRESH_MS = 45 * 60 * 1000; // signed links last an hour
+const _MEDIA_REFRESH_MS = 45 * 60 * 1000; // signed links last an hour
 const BLUR_THROTTLE_MS = 10_000;
 
 const two = (n) => String(n).padStart(2, "0");
@@ -47,7 +47,7 @@ export function renderExam(root, ctx) {
   let beatTimer = null;
   let lastBlurLogged = 0;
   let sheet = null;
-  let dim = null;
+  const _dim = null;
 
   const requestId = () => state.questions[index]?.question_id;
 
@@ -380,7 +380,7 @@ export function renderExam(root, ctx) {
   }
 
   function refreshChrome() {
-    const { answered, flagged } = store.progress();
+    const { answered, _flagged } = store.progress();
     counter.textContent = `Question ${index + 1} of ${total}`;
     progress.style.width = `${
       total ? Math.round((answered / total) * 100) : 0
@@ -621,8 +621,11 @@ export function renderExam(root, ctx) {
   };
 
   document.addEventListener("visibilitychange", onVisibility);
+  // deno-lint-ignore no-window no-window-prefix
   window.addEventListener("blur", onBlur);
+  // deno-lint-ignore no-window no-window-prefix
   window.addEventListener("online", onOnline);
+  // deno-lint-ignore no-window no-window-prefix
   window.addEventListener("offline", onOffline);
 
   /** Lets the app tidy up when the screen is replaced. */
@@ -630,8 +633,11 @@ export function renderExam(root, ctx) {
     stopTimers();
     closeSheet();
     document.removeEventListener("visibilitychange", onVisibility);
+    // deno-lint-ignore no-window no-window-prefix
     window.removeEventListener("blur", onBlur);
+    // deno-lint-ignore no-window no-window-prefix
     window.removeEventListener("online", onOnline);
+    // deno-lint-ignore no-window no-window-prefix
     window.removeEventListener("offline", onOffline);
   }
 

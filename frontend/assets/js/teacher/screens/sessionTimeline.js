@@ -20,7 +20,7 @@ const ignorable = (err) => err instanceof SessionExpiredError;
  * One student while an exam runs (mockup 12 side panel, full-page).
  * `#/monitor/:examId/session/:sessionId` — events, time left, add time.
  */
-export function renderSessionTimeline(container, ctx, { examId, sessionId }) {
+export function renderSessionTimeline(container, _ctx, { examId, sessionId }) {
   const state = { requestId: 0, timer: null };
   const title = h("h1", {}, "Session");
   const subtitle = h("p", { class: "sub" }, "Loading…");

@@ -14,7 +14,7 @@ const ignorable = (err) => err instanceof SessionExpiredError;
  * Grade essays (mockup 13): one question for every student, in order, with the guide above the answer
  * and the points as answer-sheet bubbles. "Save and next student" moves to the next ungraded answer.
  */
-export function renderGradingQuestion(container, ctx, { examId }) {
+export function renderGradingQuestion(container, _ctx, { examId }) {
   const state = {
     questions: [],
     questionId: null,
@@ -103,7 +103,7 @@ export function renderGradingQuestion(container, ctx, { examId }) {
   }
 
   function studentRow(student) {
-    const waiting = !student.graded;
+    const _waiting = !student.graded;
     const row = h(
       "button",
       {
@@ -268,6 +268,7 @@ export function renderGradingQuestion(container, ctx, { examId }) {
             ? "Saved. That was the last essay waiting — the result is final now."
             : "Saved.",
         );
+        // deno-lint-ignore no-window no-window-prefix
         window.dispatchEvent(new CustomEvent("staff:results-changed"));
         await refreshQueue({ after: student.session_id });
       } catch (err) {

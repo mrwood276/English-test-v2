@@ -9,6 +9,7 @@ const KEY = "ENGLISH_TEST_V2_TEACHER_SCHOOL_NAME";
 /** null means "never set" (so the export can ask once); "" means "asked, and left blank on purpose". */
 export function getSchoolName() {
   try {
+    // deno-lint-ignore no-window
     return window.localStorage.getItem(KEY);
   } catch {
     return null;
@@ -17,6 +18,7 @@ export function getSchoolName() {
 
 export function setSchoolName(name) {
   try {
+    // deno-lint-ignore no-window
     window.localStorage.setItem(KEY, String(name || ""));
   } catch {
     // A private/blocked storage jar just means the prompt reappears next time; not worth failing the export over.

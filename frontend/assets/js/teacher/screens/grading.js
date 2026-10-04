@@ -16,7 +16,7 @@ const gradeLink = (id) => `#/grading/${id}`;
  * `mode = "grading"` shows what still needs a teacher; `mode = "results"` shows every exam that has
  * been taken, with its numbers. Both come from one call (list_exam_activity).
  */
-export function renderGradingHub(container, ctx, mode = "grading") {
+export function renderGradingHub(container, _ctx, mode = "grading") {
   const wantsGrading = mode === "grading";
   const state = { items: [], requestId: 0 };
 

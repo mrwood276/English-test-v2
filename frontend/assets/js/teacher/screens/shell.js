@@ -225,11 +225,13 @@ function buildBell() {
     if (open && !wrap.contains(e.target)) setOpen(false);
   });
   // Navigating closes the bell and re-counts (grading an essay, taking a backup…).
+  // deno-lint-ignore no-window no-window-prefix
   window.addEventListener("hashchange", () => {
     if (open) setOpen(false);
     load();
   });
   // A screen that grades something tells the bell too, so essays cannot go stale on screen.
+  // deno-lint-ignore no-window no-window-prefix
   window.addEventListener("staff:results-changed", load);
 
   load();
@@ -324,7 +326,9 @@ export function renderShell(root, ctx) {
 
   startRouter(content, nav, ctx);
   refreshBadge();
+  // deno-lint-ignore no-window no-window-prefix
   window.addEventListener("hashchange", refreshBadge);
   // A screen that grades something tells the menu, so the badge cannot go stale.
+  // deno-lint-ignore no-window no-window-prefix
   window.addEventListener("staff:results-changed", refreshBadge);
 }

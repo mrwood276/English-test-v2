@@ -3,7 +3,7 @@ import { icon } from "../../shared/icons.js";
 import { confirmDialog, toast } from "../../shared/ui.js";
 import { errorText, ignorable } from "../../shared/error.js";
 import { accounts } from "../api/accounts.js";
-import { SessionExpiredError } from "../../core/auth.js";
+import { SessionExpiredError as _SessionExpiredError } from "../../core/auth.js";
 
 const fmtWhen = (
   iso,
@@ -377,7 +377,7 @@ export function renderAccounts(container, ctx = {}) {
           await accounts.setPassword(a.id, v.password);
           return true;
         },
-        afterSave: async (v) =>
+        afterSave: (v) =>
           handOverDialog({
             name: a.full_name,
             email: a.email,
