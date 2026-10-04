@@ -82,7 +82,11 @@ export function createHandler(getDb: () => Db, opts: { secret?: string } = {}) {
       );
       const session = asObject(data.session, "session");
       const sessionId = asUuid(session.id, "session id");
-      const expiresAt = computeTokenExpiry(session.ends_at);
+      const endsAt = asString(session.ends_at, "session ends_at", {
+        max: 64,
+        trim: false,
+      });
+      const expiresAt = computeTokenExpiry(endsAt);
       // The browser keeps this token; it is the only way back into this session.
       return {
         token: await signSessionToken(sessionId, secret(), expiresAt),
