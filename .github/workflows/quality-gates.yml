@@ -35,7 +35,7 @@ jobs:
           deno-version: v2.x
       - name: Install test dependencies
         run: |
-          pip install playwright
+          pip install playwright pillow
           playwright install --with-deps chromium
       - name: Create the media sample files
         run: python frontend/tests/make_fixtures.py
