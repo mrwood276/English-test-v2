@@ -1,17 +1,17 @@
 # 08 HANDOFF
 
-**Short header (2026-10-03, TASK-034 — keep this short; the full narrative is in `07_CHANGELOG.md`)**
+**Short header (2026-10-04, exam isolation slice — keep this short; the full narrative is in `07_CHANGELOG.md`)**
 
 | | |
 |---|---|
-| AI / date / branch | Buffy (OpenCode), 2026-10-03, `ai-development` @ **`a348919`** (TASK-034) on top of `2af5702` (live apply) — pushed with this record commit. |
-| Task | **TASK-034 — accessibility pass** (INS-07/08/09 / ISSUE-051/052/053). Frontend only. |
-| Status | **Complete.** (1) Contrast: `--red` #b3202f / `--green` #146b45 (AA on tints). (2) Live regions: `aria-live` removed from `#app`; `.saved` gains `role="status"`. (3) Answer sheet: native `<dialog>` with `showModal()`/`close()`; keyboard trap + Escape work. |
-| Open tasks | **TASK-033 (D-2), TASK-039 (D-4 half), TASK-040 .. TASK-047** (`05_TASK_QUEUE.md`); exams/results/monitor isolation slices wait on D-7. |
-| Tests | All 14 browser suites 846 checks green; backend 173; unit 44. `student_e2e.py` 91 (includes sheet keyboard). |
-| Deliberately not verified | Whole live board (`run_live_checks.py`) not re-run since the 2026-10-03 apply session. |
-| Important notes | No visual design changes; contrast verified via comment table in tokens.css; screen-reader pass = VISUAL-VERIFICATION-REQUIRED. |
-| Do not | Do not re-add `aria-live` to `#app`; do not revert the dialog to a fake div; do not touch `main`. |
+| AI / date / branch | Buffy (OpenCode), 2026-10-04, `ai-development` @ **`ec06231`** (exam isolation handler) on top of `a4cc94e` (migration + tests) — pushed with this record commit. |
+| Task | **Exams isolation slice (DEC-041)** — ownership on `list_exams`/`get_exam` and write functions; Edge Function passes `p_actor`. |
+| Status | **Code complete; live apply pending.** Migration `20261004000000_exam_isolation.sql` + `supabase/tests/exam_isolation_test.sql` landed in `a4cc94e`; handler p_actor in `ec06231`; needs live apply + `exams` redeploy. |
+| Open tasks | **TASK-033 (D-2), TASK-039 (D-4 half), TASK-040 .. TASK-047** (`05_TASK_QUEUE.md`); exams isolation awaiting live apply; results/monitor slices wait on D-7. |
+| Tests | Exam isolation SQL test ready but not run live; handler unit test updated (locally asserted to pass). All 14 browser suites unchanged. |
+| Deliberately not verified | Whole live board (`run_live_checks.py`) not re-run since the 2026-10-03 apply session; exam isolation SQL not run live. |
+| Important notes | Old `list_exams(jsonb)` / `get_exam(uuid)` signatures dropped, so any out-of-repo caller must adopt the two-argument form before the next live apply. |
+| Do not | Do not deploy the new exams handler before the migration is applied; do not touch `main`. |
 | History | **`07_CHANGELOG.md`** — every session narrative, commit hash and test number. The record below is kept as reference; the header above wins. |
 
 Keep this file current after every meaningful change; the header above is the current state, everything below is the record.

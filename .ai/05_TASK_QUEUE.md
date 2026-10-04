@@ -5,15 +5,15 @@ Order follows dependencies. Completed tasks are listed at the end for history (a
 
 ## NEXT RECOMMENDED TASK
 
-**2026-10-03 — TASK-034 COMPLETE (`a348919`, accessibility pass). THE PENDING MIGRATIONS ARE LIVE: TASK-031/032/048 APPLIED (`70b3ce2`); TASK-036 COMPLETE (`26ad3b7`); EMAIL DEFERRED (DEC-042). NEXT READY: TASK-039 (half waits on D-4) OR THE EXAMS ISOLATION SLICE (roadmap, D-7).**
+**2026-10-04 — EXAM ISOLATION SLICE STARTED: migration + test shipped in `a4cc94e`, handler p_actor follow-up `ec06231` (pushed); live apply pending Management API credential. TASK-034 COMPLETE (`a348919`); TASK-031/032/048 APPLIED (`70b3ce2`); TASK-036 COMPLETE (`26ad3b7`); EMAIL DEFERRED (DEC-042). NEXT READY: TASK-039 (half waits on D-4) OR LIVE-APPLY THE EXAM ISOLATION SLICE.**
 
 | | |
 |---|---|
 | Status | **Owner roadmap adopted 2026-10-03.** Multi-teacher accounts exist (DEC-031); **isolation slice 1 (question bank) DONE AND LIVE — TASK-048**; **email deferred — DEC-042**. **TASK-034 (accessibility) DONE.** Next slices: exams, then results/monitor (D-7 timing). PHASE A/B/C complete — TASK-031/032/048 applied live. |
-| Open tasks | **TASK-033 (D-2), TASK-039 (D-4 half), TASK-040 .. TASK-047** — definitions below; TASK-034 done (`a348919`). Live halves of TASK-031/032/048 done (`70b3ce2`). TASK-036 done (`26ad3b7`). |
-| Next recommended task | **TASK-039** (secret half waits on D-4) or **the exams isolation slice** (roadmap follow-on, same test matrix as TASK-048). The shared live apply for TASK-031/032/048 is done (`70b3ce2`). |
-| Branch + commit | `ai-development` @ `a348919` (TASK-034, 2026-10-03) — on top of `2af5702` (live-apply record), `450e757`/`26ad3b7` (TASK-036), `ea48ec4`/`307abf8` (TASK-048), `8f5c089`/`8435b14` (TASK-032), `b7ed106` (TASK-031), owner `d85734e`/`5989f08`; pushed with this record commit. `main` untouched at `8b7aeba`. |
-| Deliberately not verified | Whole live board (`run_live_checks.py`) not re-run since the 2026-10-03 apply session — the apply session only replaced function bodies (tests ran rolled back). Local: backend 173, unit 44, all 14 browser suites 846 checks green. Last full live picture: 2026-10-01 (12 PASSED / 1 HELD, 415 checks). |
+| Open tasks | **TASK-033 (D-2), TASK-039 (D-4 half), TASK-040 .. TASK-047 + live-apply of exam isolation** — definitions below; TASK-034 done (`a348919`). Live halves of TASK-031/032/048 done (`70b3ce2`). TASK-036 done (`26ad3b7`). |
+| Next recommended task | **Live-apply the exam isolation slice** (Management API credential required) or **TASK-039** (secret half waits on D-4). The shared live apply for TASK-031/032/048 is done (`70b3ce2`). |
+| Branch + commit | `ai-development` @ `ec06231` (exams isolation handler p_actor, 2026-10-04) on top of `a4cc94e` (migration + tests), `60db13a`/`a348919` (TASK-034); pushed with this record commit. `main` untouched at `8b7aeba`. |
+| Deliberately not verified | Whole live board (`run_live_checks.py`) not re-run since the 2026-10-03 apply session; exam isolation not yet applied live — the apply session only replaced function bodies (tests ran rolled back). Local: backend 173, unit 44, all 14 browser suites 846 checks green. Last full live picture: 2026-10-01 (12 PASSED / 1 HELD, 415 checks). |
 | History | The session narratives that used to be stacked here (2026-09-21 .. 2026-10-03) are in **`07_CHANGELOG.md`** with their commit hashes; the task list below is current, and the completed-task records are under `## HISTORY`. |
 
 ## OPEN TASKS (created by the 2026-10-01 inspection; detail and evidence in `10_ROADMAP.md`)

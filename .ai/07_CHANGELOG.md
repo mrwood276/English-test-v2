@@ -1,4 +1,10 @@
 # 07 CHANGELOG
+## 2026-10-04 — exam isolation slice: SQL + handler ownership (DEC-041)
+- Agent: Buffy (OpenCode). Task: exams isolation slice (next after TASK-048 question bank). Frontend untouched; SQL + Edge Function.
+- Added `supabase/migrations/20261004000000_exam_isolation.sql`: new `list_exams(p, p_actor)` / `get_exam(id, p_actor)`, ownership checks in `save_exam`/`set_exam_status`/`remove_exam`/`regenerate_exam_code`/`duplicate_exam`/`bulk_exam_questions` (friendly “no longer exists” for foreign ids, admin sees all). Old unscoped signatures dropped.
+- Added `supabase/tests/exam_isolation_test.sql` (rolled-back SQL matrix mirroring question bank). Updated `backend/functions/exams/handler.ts` to pass `p_actor` to list/get and `backend/tests/exams.test.ts` assertions.
+- Commits: `a4cc94e` (migration + tests), `ec06231` (handler p_actor, pushed). Live apply still pending: Management API credential required; after apply, the `exams` Edge Function must be redeployed.
+
 ## 2026-10-03 — accessibility pass: contrast, live regions, a real dialog (TASK-034, ISSUE-051/052/053 closed)
 - Agent: Buffy (OpenCode). Task: **TASK-034 — accessibility pass** (INS-07/08/09, ISSUE-051/052/053, F-11/F-15). Frontend only.
 - **Three fixes:** (1) Contrast: updated `--red` to #b3202f and `--green` to #146b45 in tokens.css so both meet AA (5.65:1 / 5.70:1) on their tints; added a contrast verification comment table. (2) Live regions: removed `aria-live="polite"` from `#app` in both index.html files; the student `.saved` line already has `role="status"` (added in this change) so it acts as a proper small live region. (3) Answer sheet: rebuilt the fake `div[role=dialog]` as a native `<dialog>` element in exam.js, shown with `showModal()` and closed with `close()` + `remove()`; CSS updated to use `::backdrop` and browser centering; keyboard trapping and Escape-to-close now come for free. No change to the visual design.
