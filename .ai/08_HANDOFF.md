@@ -1,17 +1,20 @@
 # 08 HANDOFF
 
-**Short header (2026-10-04, exam isolation slice — keep this short; the full narrative is in `07_CHANGELOG.md`)**
+**Short header (2026-10-04, exam isolation slice APPLIED LIVE — keep this short; the full narrative is in `07_CHANGELOG.md`)**
 
 | | |
 |---|---|
-| AI / date / branch | Buffy (OpenCode), 2026-10-04, `ai-development` @ **`ec06231`** (exam isolation handler) on top of `a4cc94e` (migration + tests) — pushed with this record commit. |
-| Task | **Exams isolation slice (DEC-041)** — ownership on `list_exams`/`get_exam` and write functions; Edge Function passes `p_actor`. |
-| Status | **Code complete; live apply pending.** Migration `20261004000000_exam_isolation.sql` + `supabase/tests/exam_isolation_test.sql` landed in `a4cc94e`; handler p_actor in `ec06231`; needs live apply + `exams` redeploy. |
-| Open tasks | **TASK-033 (D-2), TASK-039 (D-4 half), TASK-040 .. TASK-047** (`05_TASK_QUEUE.md`); exams isolation awaiting live apply; results/monitor slices wait on D-7. |
-| Tests | Exam isolation SQL test ready but not run live; handler unit test updated (locally asserted to pass). All 14 browser suites unchanged. |
-| Deliberately not verified | Whole live board (`run_live_checks.py`) not re-run since the 2026-10-03 apply session; exam isolation SQL not run live. |
-| Important notes | Old `list_exams(jsonb)` / `get_exam(uuid)` signatures dropped, so any out-of-repo caller must adopt the two-argument form before the next live apply. |
-| Do not | Do not deploy the new exams handler before the migration is applied; do not touch `main`. |
+| AI / date / branch | Buffy (OpenCode), 2026-10-04, `ai-development` @ this record commit on top of `ec06231` (handler p_actor) + `a4cc94e` (migration + tests) — pushed to `origin/ai-development`; `main` untouched. |
+| Task | **Exams isolation slice (DEC-041), including its live apply** — ownership on `list_exams`/`get_exam` and every write function; `p_actor` forwarded; the live SQL test caught a null-actor fail-open hole, fixed and re-applied the same day. |
+| Completed | Migration `20261004000000_exam_isolation` **applied live with its ledger row**; `exams` Edge Function **redeployed** (v8, ACTIVE — SQL first, redeploy second); `supabase/tests/exam_isolation_test.sql` **PASSED live** on the second run (`EXAM ISOLATION TESTS PASSED (…)`); `live_ledger_check.py` **green**; fingerprint intact (0 exams, 40 questions / 0 archived, 0 TASK-EXI leftovers). |
+| Files changed (this session) | `supabase/migrations/20261004000000_exam_isolation.sql` (null-actor guards + header), `supabase/tests/exam_isolation_test.sql` (4 new null-actor write cases), `docs/sql-exams.md` (live-status section), `.ai/{03,04,05,07,08}.md`. |
+| Database/config changes | One migration live (`20261004000000` / `exam_isolation`, applied twice — the second apply IS the null-actor fix, statements updated in the ledger row per the ISSUE-034 precedent); `exams` function redeployed. `question-bank` and all other functions untouched. |
+| Tests | Backend **174**, unit **44** (green). SQL test live **PASSED**. All 14 browser suites unchanged since `a348919` (846 checks; nothing they exercise changed — the mock already mirrored the handler). |
+| Deliberately not verified | Whole live board (`run_live_checks.py`) not re-run — the apply replaced function bodies only; the board remains the next live run's job. Results/monitor isolation not started. |
+| Open tasks | **TASK-033 (D-2), TASK-039 (CSP half needs hosting; secret half waits on D-4), TASK-040 .. TASK-047** (`05_TASK_QUEUE.md`). Isolation roadmap: question bank ✓, **exams ✓ (this session)**; results/monitor wait on **D-7**. |
+| Next recommended task | Ask the owner **D-7** (start the results/monitor isolation slice — same test-matrix pattern as TASK-048/exams) or take a READY queue task (e.g. TASK-043 quality gates, TASK-041 exam readiness) while waiting. |
+| Important notes | Old `list_exams(jsonb)` / `get_exam(uuid)` signatures are now **dropped live** — any out-of-repo caller must adopt the two-argument form. Every SQL ownership guard must keep the `p_actor is null or not (…)` discipline (or the `not exists` idiom): a bare `IF NOT (admin OR owned)` is NULL for a null actor and fails open — the bug class this session fixed. |
+| Do not | Do not touch `main`; do not re-add an unscoped signature; do not weaken the null-actor refusals to make anything pass; the owner's Management token was used for the apply/test/ledger only and never stored in the repo. |
 | History | **`07_CHANGELOG.md`** — every session narrative, commit hash and test number. The record below is kept as reference; the header above wins. |
 
 Keep this file current after every meaningful change; the header above is the current state, everything below is the record.

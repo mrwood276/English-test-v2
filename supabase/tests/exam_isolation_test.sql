@@ -116,6 +116,19 @@ begin
   perform pg_temp.assert_true(public.get_exam(v_et, v_admin) is not null, 'the admin reads their own exam');
   perform pg_temp.assert_true(public.get_exam(v_et, null) is null, 'a null actor fails closed');
 
+  -- ---------- a null actor fails closed on writes too (the 2026-10-04 fix) ----------
+  perform pg_temp.expect_error(format(
+    'select public.save_exam(%L::uuid, ''{"title":"ghost","duration_minutes":30,"access_code":"TASKEXI4","availability_mode":"manual","selection_mode":"manual","questions":[]}''::jsonb, null::uuid)',
+    v_ea),
+    'That exam no longer exists.', 'a null actor cannot edit an exam');
+  perform pg_temp.expect_error(
+    'select public.save_exam(null::uuid, ''{"title":"ghost","duration_minutes":30,"access_code":"TASKEXI5","availability_mode":"manual","selection_mode":"manual","questions":[]}''::jsonb, null::uuid)',
+    'That exam no longer exists.', 'a null actor cannot create an exam');
+  perform pg_temp.expect_error(format('select public.set_exam_status(%L::uuid, ''open'', null::uuid)', v_et),
+    'That exam no longer exists.', 'a null actor cannot open an exam');
+  perform pg_temp.expect_error(format('select public.remove_exam(%L::uuid, null::uuid, false)', v_et),
+    'That exam no longer exists.', 'a null actor cannot delete an exam');
+
   -- ---------- writing a foreign id is the missing-row sentence ----------
   perform pg_temp.expect_error(format(
     'select public.save_exam(%L::uuid, ''{"title":"hijack","duration_minutes":30,"access_code":"TASKEXI3","availability_mode":"manual","selection_mode":"manual","questions":[]}''::jsonb, %L::uuid)',

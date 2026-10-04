@@ -152,3 +152,41 @@ client+mock first; 94 checks after the fix, was 87).
 `supabase/tests/exam_template_test.sql` passed live against it. No Edge Function redeploy belonged to this
 apply (`get_exam`'s payload simply gains a field); the `exams` redeploy for TASK-031 already happened after
 `20261002000002`.
+
+## Teacher data isolation in exams (2026-10-04, DEC-041 — the exams slice) — migration `20261004000000_exam_isolation.sql`
+
+The exams half of the rule the question bank has had since TASK-048: a teacher sees and changes only
+their own exams; an active admin (`public._is_staff_admin`) sees the whole school; students are
+untouched (they join by access code and never touch the exams domain).
+
+- `list_exams(p jsonb, p_actor uuid)` filters rows to `_is_staff_admin(p_actor) or created_by = p_actor`;
+  `get_exam(p_id uuid, p_actor uuid)` answers null for a foreign id — exactly what a missing id answers,
+  so nothing leaks existence.
+- Every write function carries the same ownership condition: `save_exam` (update), `set_exam_status`,
+  `remove_exam`, `regenerate_exam_code`, `duplicate_exam`, and `bulk_exam_questions` (which also counts
+  only questions the actor owns, so a foreign question id is "missing"). Each refusal is the friendly
+  `That exam no longer exists.` sentence with `hint = 'validation'` — a 400, never a 500.
+- **A null actor fails closed on every path.** The ownership guards refuse a null actor outright
+  (`p_actor is null or not (…)`), and `save_exam` refuses a null actor up front, so no exam can be born
+  with a null `created_by`. The first applied version used a bare `IF NOT (admin OR owned)` guard, which
+  is **NULL** for a null actor under three-valued logic and therefore failed open — the live SQL test
+  caught it (`ASSERT FAILED: a null actor fails closed`) and the migration was fixed and re-applied the
+  same day. Keep this discipline in every future guard: `p_actor is null or …`, or the question bank's
+  `not exists (select … where … and (admin or owned))` idiom.
+- The old unscoped signatures `list_exams(jsonb)` and `get_exam(uuid)` are **dropped**, live and in git —
+  any caller must adopt the two-argument form. The `exams` Edge Function forwards `p_actor: me.userId` on
+  every action (the handler was redeployed immediately after the apply; `verify_jwt` stays `false` — the
+  function verifies the caller itself).
+- Execute stays revoked from `public`, `anon` and `authenticated` and granted to `service_role` on every
+  signature (the boundary assertion is in the test).
+
+**Live status (2026-10-04, applied):** applied as ONE Management API `database/query` request with its
+ledger row (`20261004000000` / `exam_isolation`), `exams` redeployed immediately after (v8, ACTIVE —
+the deployed handler had still been calling the dropped single-arg signatures). The first live run of
+`supabase/tests/exam_isolation_test.sql` failed at the null-actor case above; the fixed migration was
+re-applied (the ledger row's `statements` updated to the fixed text, the F-18/ISSUE-034 precedent) and
+the second run ended `EXAM ISOLATION TESTS PASSED (…)` — the full matrix (A→own allowed, A→B denied with
+the missing-row sentence, admin sees all, boundary privileges, null actor closed, bulk counting only the
+actor's questions, all rolled back). `live_ledger_check.py` green after the apply; the project
+fingerprint was untouched (0 exams, 40 questions / 0 archived, 0 TASK-EXI leftovers). Results and
+monitor remain role-checked only — the next isolation slice (D-7).

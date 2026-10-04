@@ -14,9 +14,14 @@
 --     does not own, which the question-bank slice already scopes).
 --   * The old read signatures are dropped: leaving them would leave unscoped functions behind.
 --
--- APPLIED LIVE: <date> after TASK-048 (`20261003000000`), as ONE Management API request
--- with its ledger row, and `supabase/tests/exam_isolation_test.sql` passed live against it;
--- the `exams` Edge Function was redeployed immediately after (p_actor now flows to list/get).
+-- APPLIED LIVE: 2026-10-04 after TASK-048 (`20261003000000`), as ONE Management API request
+-- with its ledger row; the `exams` Edge Function was redeployed immediately after (p_actor now
+-- flows to list/get). The first live run's SQL test caught a real hole — `IF NOT (admin OR
+-- created_by = p_actor)` is NULL for a null actor (three-valued logic), so every guard here
+-- failed OPEN for a null actor — and the migration was fixed and re-applied the same day:
+-- each ownership guard now refuses a null actor outright (the discipline the question-bank
+-- slice gets for free from its `not exists (...)` guards), and `save_exam` refuses a null
+-- actor on the create path too, so no exam can be born with a null `created_by`.
 
 -- ============ list exams, scoped to the caller ============
 drop function if exists public.list_exams(jsonb);
@@ -67,7 +72,7 @@ declare v exam_questions%rowtype; e public.exams%rowtype; v_qs jsonb := '[]'::js
 begin
   select * into e from public.exams where id = p_id;
   if not found then return null; end if;
-  if not (public._is_staff_admin(p_actor) or e.created_by = p_actor) then
+  if p_actor is null or not (public._is_staff_admin(p_actor) or e.created_by = p_actor) then
     return null; -- a foreign id answers exactly what a missing one answers
   end if;
   for v in select * from public.exam_questions where exam_id = p_id order by position loop
@@ -95,6 +100,9 @@ declare
   v_qs int := coalesce(jsonb_array_length(coalesce(p->'questions','[]'::jsonb)), 0);
 begin
   -- a new exam is always created by the caller; editing one requires ownership
+  if p_actor is null then
+    raise exception 'That exam no longer exists.' using hint = 'validation';
+  end if;
   select status into v_existing_status from public.exams where id = v_id;
   if found and not (public._is_staff_admin(p_actor) or (select created_by from public.exams where id = v_id) = p_actor) then
     raise exception 'That exam no longer exists.' using hint = 'validation';
@@ -199,7 +207,7 @@ begin
   select status, availability_mode, ends_at, access_code, is_template into v_status, v_mode, v_ends, v_code, v_template
     from public.exams where id = p_id;
   if not found then raise exception 'That exam no longer exists.' using hint = 'validation'; end if;
-  if not (public._is_staff_admin(p_actor) or (select created_by from public.exams where id = p_id) = p_actor) then
+  if p_actor is null or not (public._is_staff_admin(p_actor) or (select created_by from public.exams where id = p_id) = p_actor) then
     raise exception 'That exam no longer exists.' using hint = 'validation';
   end if;
   if p_status = 'open' then
@@ -233,7 +241,7 @@ begin
   if not exists (select 1 from public.exams where id = p_id) then
     raise exception 'That exam no longer exists.' using hint = 'validation';
   end if;
-  if not (public._is_staff_admin(p_actor) or (select created_by from public.exams where id = p_id) = p_actor) then
+  if p_actor is null or not (public._is_staff_admin(p_actor) or (select created_by from public.exams where id = p_id) = p_actor) then
     raise exception 'That exam no longer exists.' using hint = 'validation';
   end if;
   select count(*) into v_sessions from public.exam_sessions where exam_id = p_id;
@@ -261,7 +269,7 @@ create or replace function public.regenerate_exam_code(p_id uuid, p_actor uuid)
 returns text language plpgsql security definer set search_path = public as $$
 declare v_new text; v_tries int := 0;
 begin
-  if not (public._is_staff_admin(p_actor) or (select created_by from public.exams where id = p_id) = p_actor) then
+  if p_actor is null or not (public._is_staff_admin(p_actor) or (select created_by from public.exams where id = p_id) = p_actor) then
     raise exception 'That exam no longer exists.' using hint = 'validation';
   end if;
   loop
@@ -282,7 +290,7 @@ declare v public.exams%rowtype; v_id uuid;
 begin
   select * into v from public.exams where id = p_id;
   if not found then raise exception 'That exam no longer exists.' using hint = 'validation'; end if;
-  if not (public._is_staff_admin(p_actor) or v.created_by = p_actor) then
+  if p_actor is null or not (public._is_staff_admin(p_actor) or v.created_by = p_actor) then
     raise exception 'That exam no longer exists.' using hint = 'validation';
   end if;
   insert into public.exams (title, description, status, duration_minutes, passing_grade, availability_mode,
@@ -341,7 +349,7 @@ begin
   if not found then
     raise exception 'That exam no longer exists.' using hint = 'validation';
   end if;
-  if not (public._is_staff_admin(p_actor) or (select created_by from public.exams where id = p_exam_id) = p_actor) then
+  if p_actor is null or not (public._is_staff_admin(p_actor) or (select created_by from public.exams where id = p_exam_id) = p_actor) then
     raise exception 'That exam no longer exists.' using hint = 'validation';
   end if;
   if v_selection <> 'manual' then
