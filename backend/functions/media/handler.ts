@@ -108,7 +108,7 @@ export function createHandler(getDb: () => Db) {
       case "signed_urls": {
         const ids = asArray(b.ids, "ids", { max: 20 }).map((v) => asUuid(v, "id"));
         if (ids.length === 0) return { urls: {} };
-        const rows = await callRpc<{ id: string; path: string }[]>(db, "get_media_paths", { p_ids: ids });
+        const rows = await callRpc<{ id: string; path: string }[]>(db, "get_media_paths", { p_ids: ids, p_actor: me.userId });
         // Every id unknown (a file the nightly purge has already removed, say) means there is nothing to
         // sign; Storage refuses an empty list, and "no links" is the honest answer here anyway.
         if (rows.length === 0) return { urls: {} };
