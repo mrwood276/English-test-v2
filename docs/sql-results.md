@@ -80,3 +80,43 @@ rows, 40 questions. **Since 2026-09-30 the check does that itself** when `SUPABA
 `frontend/tests/live_cleanup.py` removes its exam and the two questions it created and then asserts every
 counter is back to zero (ISSUE-041) — and the same file remains the recovery path for a run that died
 before that step; without the token the check prints the ids and says plainly what stays.
+
+## Teacher data isolation in results and the monitor (2026-10-05, DEC-041 — the results slice) — migration `20261005000000_results_isolation.sql`
+
+The results half of the rule the question bank has had since TASK-048 and the exams since
+`20261004000000`: a teacher sees and changes only the results, reports, monitor data and bell cards
+of their own exams; an active admin (`public._is_staff_admin`) sees the whole school; students are
+untouched (they never call the `results` function — their own session functions and the internal
+writers `_session_result_write` / `_session_grade` stay unscoped by design).
+
+- Every **read** gained a `p_actor` and is scoped to the exam's `created_by` unless the actor is an
+  active admin: `list_exam_activity(boolean, uuid)` (the Grading/Results hubs and the dashboard's
+  recent-exams card), `count_pending_grading(uuid)` (the menu badge), `list_exam_results(uuid, uuid)`
+  (the results table and the live monitor board), `get_session_report(uuid, uuid)` (the Details
+  screen), `list_grading_questions(uuid, uuid)` and `get_grading_queue(uuid, uuid, uuid)` (essay
+  grading). A foreign exam answers exactly what a missing one answers — the same sentence and
+  `hint = 'validation'`, so nothing leaks existence. The old unscoped signatures are **dropped, live
+  and in git**.
+- Every **write** (`save_answer_grade`, `add_session_time`, `reopen_session`, `grant_retake`,
+  `revoke_retake`, `add_exam_time`) already carried `p_actor`; each now refuses a foreign
+  exam/session with the missing-row sentence. A **null actor fails closed on every path** — every
+  ownership check uses the `not exists (select … where … and (admin or owned))` idiom or a WHERE
+  filter, where a NULL condition matches no row. (The exams slice's live test had caught the
+  fail-open `IF NOT (admin OR owned)` trap; this migration was written with the safe idiom from the
+  start — and still caught its own bug live: the guard in `list_exam_results` originally aliased the
+  exam table `e`, which is ambiguous next to the function's `e` row variable; the alias is `e0`.)
+- The **bell is scoped too**: `_essay_notifications(uuid)` and `_suspicious_notifications(integer,
+  uuid)` only count cards on the actor's own exams, and `list_notifications` passes its actor
+  through — a teacher's bell no longer announces another teacher's essays or suspicious exams.
+
+**Live status (2026-10-05, applied):** applied as ONE Management API `database/query` request with
+its ledger row (`20261005000000` / `results_isolation`), `results` redeployed immediately after (the
+deployed handler had still been calling the dropped single-arg signatures). The first live run of
+`supabase/tests/results_isolation_test.sql` caught the `e`-alias ambiguity above; the fixed
+migration was re-applied (the ledger row's `statements` updated to the fixed text) and the second
+run ended `RESULTS ISOLATION TESTS PASSED (…)` — the full matrix (A→own allowed, A→B denied with the
+missing-row sentence, admin appropriate, boundary privileges, null actor closed, badge/hub/bell
+scoping, all rolled back). `live_ledger_check.py` green after the apply; the project fingerprint was
+untouched (0 exams, 0 sessions, 40 questions / 0 archived, 0 TASK-RSI leftovers). Red-proofed at the
+handler layer first: the backend tests demanding `p_actor` on the six read RPCs failed on the
+pre-fix handler (backend 174 → 175 with the scoping test).

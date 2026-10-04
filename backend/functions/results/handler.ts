@@ -39,31 +39,33 @@ export function createHandler(getDb: () => Db) {
     switch (action) {
       case "activity": {
         const includeTemplates = b.include_templates === undefined ? false : asBool(b.include_templates, "Templates");
-        return { exams: await callRpc(db, "list_exam_activity", { p_include_templates: includeTemplates }) };
+        return { exams: await callRpc(db, "list_exam_activity", { p_include_templates: includeTemplates, p_actor: me.userId }) };
       }
 
       case "pending":
-        return { pending: await callRpc<number>(db, "count_pending_grading") };
+        return { pending: await callRpc<number>(db, "count_pending_grading", { p_actor: me.userId }) };
 
       case "overview": {
         const overview = await callRpc<Record<string, unknown> | null>(db, "list_exam_results", {
           p_exam_id: asUuid(b.exam_id, "Exam"),
+          p_actor: me.userId,
         });
         if (!overview) throw notFound("That exam no longer exists.");
         return { overview };
       }
 
       case "report":
-        return { report: await callRpc(db, "get_session_report", { p_session_id: asUuid(b.session_id, "Session") }) };
+        return { report: await callRpc(db, "get_session_report", { p_session_id: asUuid(b.session_id, "Session"), p_actor: me.userId }) };
 
       case "grading_questions":
-        return { questions: await callRpc(db, "list_grading_questions", { p_exam_id: asUuid(b.exam_id, "Exam") }) };
+        return { questions: await callRpc(db, "list_grading_questions", { p_exam_id: asUuid(b.exam_id, "Exam"), p_actor: me.userId }) };
 
       case "queue":
         return {
           queue: await callRpc(db, "get_grading_queue", {
             p_exam_id: asUuid(b.exam_id, "Exam"),
             p_question_id: asUuid(b.question_id, "Question"),
+            p_actor: me.userId,
           }),
         };
 

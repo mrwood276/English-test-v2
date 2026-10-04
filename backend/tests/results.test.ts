@@ -59,6 +59,7 @@ Deno.test("activity defaults to real exams and can include templates", async () 
   assert.deepEqual(await (await h(post({ action: "activity" }))).json(), { exams: [{ exam_id: EXAM }] });
   assert.equal(calls[0].name, "list_exam_activity");
   assert.equal(calls[0].args.p_include_templates, false, "templates stay out unless asked for");
+  assert.equal(calls[0].args.p_actor, TEACHER, "the hub is scoped to the signed-in teacher (DEC-041)");
   await h(post({ action: "activity", include_templates: true }));
   assert.equal(calls[1].args.p_include_templates, true);
 });
@@ -68,6 +69,7 @@ Deno.test("pending returns the badge number", async () => {
   const res = await createHandler(() => db)(post({ action: "pending" }));
   assert.deepEqual(await res.json(), { pending: 9 });
   assert.equal(calls[0].name, "count_pending_grading");
+  assert.equal(calls[0].args.p_actor, TEACHER, "the badge counts only the signed-in teacher's essays (DEC-041)");
 });
 
 Deno.test("overview returns the exam results and 404s a missing exam", async () => {
@@ -76,6 +78,7 @@ Deno.test("overview returns the exam results and 404s a missing exam", async () 
   assert.deepEqual(await res.json(), { overview: { summary: { passed: 3 }, rows: [] } });
   assert.equal(calls[0].name, "list_exam_results");
   assert.equal(calls[0].args.p_exam_id, EXAM);
+  assert.equal(calls[0].args.p_actor, TEACHER, "a foreign exam must reach the handler as the missing-row answer (DEC-041)");
 
   const empty = fakeDb(() => ({ data: null }));
   assert.equal((await createHandler(() => empty.db)(post({ action: "overview", exam_id: EXAM }))).status, 404);
@@ -92,6 +95,20 @@ Deno.test("report, grading_questions and queue pass their ids", async () => {
   assert.equal(calls[1].args.p_exam_id, EXAM);
   assert.equal(calls[2].args.p_exam_id, EXAM);
   assert.equal(calls[2].args.p_question_id, QUESTION);
+});
+
+Deno.test("every read RPC is scoped to the signed-in teacher (DEC-041, the results slice)", async () => {
+  const { db, calls } = fakeDb(() => ({ data: { ok: true } }));
+  const h = createHandler(() => db);
+  await h(post({ action: "report", session_id: SESSION }));
+  await h(post({ action: "grading_questions", exam_id: EXAM }));
+  await h(post({ action: "queue", exam_id: EXAM, question_id: QUESTION }));
+  await h(post({ action: "overview", exam_id: EXAM }));
+  await h(post({ action: "activity" }));
+  await h(post({ action: "pending" }));
+  for (const c of calls) {
+    assert.equal(c.args.p_actor, TEACHER, `${c.name} must carry p_actor so SQL can scope it`);
+  }
 });
 
 Deno.test("grade sends points, rounded, with the teacher as the actor", async () => {
