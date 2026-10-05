@@ -28,11 +28,10 @@ function base64url(bytes: Uint8Array): string {
 }
 
 function base64urlDecode(str: string): Uint8Array {
-  const padded = str +
-    "=".repeat((4 - (str.length % 4)) % 4).replace(/-/g, "+").replace(
-      /_/g,
-      "/",
-    );
+  // url-safe alphabet back to the standard one FIRST, then pad. (The first version applied the
+  // replacements to the padding instead of the text, so any expiry containing "-" or "_" failed.)
+  const standard = str.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = standard + "=".repeat((4 - (standard.length % 4)) % 4);
   const binary = atob(padded);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -48,7 +47,12 @@ function encodeExp(exp: number): string {
 }
 
 function decodeExp(expB64: string): number {
-  const bytes = base64urlDecode(expB64);
+  let bytes: Uint8Array;
+  try {
+    bytes = base64urlDecode(expB64);
+  } catch {
+    return 0; // a garbled expiry is an invalid token, not a server error
+  }
   if (bytes.length !== 8) return 0;
   const view = new DataView(bytes.buffer, bytes.byteOffset, 8);
   return Number(view.getBigUint64(0, false));

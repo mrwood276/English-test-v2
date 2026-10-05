@@ -148,18 +148,17 @@ export function createHandler(getDb: () => Db, opts: { secret?: string } = {}) {
         return await callRpc(db, "get_session_result", { p_id: sessionId });
 
       case "media": {
-        // Only files that are part of this session's own snapshot can be signed.
-        const ids = await callRpc<string[]>(db, "get_session_media_ids", {
-          p_id: sessionId,
-        });
-        if (!ids || ids.length === 0) {
-          return { urls: {}, expires_in: SESSION_SIGNED_URL_SECONDS };
-        }
+        // Only files that are part of this session's own snapshot can be signed. This goes through
+        // the session-scoped function, never `get_media_paths`: that one is scoped to a staff actor
+        // (DEC-041) and returns nothing for a student.
         const rows = await callRpc<{ id: string; path: string }[]>(
           db,
-          "get_media_paths",
-          { p_ids: ids },
+          "get_session_media_paths",
+          { p_id: sessionId },
         );
+        if (!rows || rows.length === 0) {
+          return { urls: {}, expires_in: SESSION_SIGNED_URL_SECONDS };
+        }
         const { data, error } = await db.storage.from(SESSION_BUCKET)
           .createSignedUrls(
             rows.map((r) => r.path),
