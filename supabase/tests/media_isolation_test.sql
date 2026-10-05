@@ -137,13 +137,13 @@ begin
       jsonb_build_object('body', 'Yes', 'is_correct', true),
       jsonb_build_object('body', 'No', 'is_correct', false))), v_teacher);
   perform pg_temp.expect_error(format(
-    'select public.link_media(''question'', %L::uuid, ''[{"id":%L}]''::jsonb, %L::uuid)',
+    'select public.link_media(''question'', %L::uuid, ''[{"id":"%s"}]''::jsonb, %L::uuid)',
     v_q, v_ma, v_teacher),
     'A file no longer exists.', 'a teacher cannot link the admin media to their question');
   perform pg_temp.expect_error(format(
-    'select public.link_media(''question'', %L::uuid, ''[{"id":%L}]''::jsonb, %L::uuid)',
+    'select public.link_media(''question'', %L::uuid, ''[{"id":"%s"}]''::jsonb, %L::uuid)',
     v_q, v_ma, null),
-    'A file no longer exists.', 'a null actor cannot link media');
+    'That question no longer exists.', 'a null actor cannot link media (the question ownership check refuses it first)');
 
   -- ---------- link_media attaches own files fine ----------
   perform public.link_media('question', v_q, jsonb_build_array(jsonb_build_object('id', v_mt)), v_teacher);

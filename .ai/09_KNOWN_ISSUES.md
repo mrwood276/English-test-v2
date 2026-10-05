@@ -398,17 +398,17 @@ Summarized from `docs/audit-v1.md`: server does not enforce exam time (H-1); no 
 - **Earlier intermediate approach crashed `exams_e2e.py`** — normalizing toast class "bad"→"error" in JS broke the test contract (e2e selectors use `.toast.bad`). Fixed by keeping class names and styling `.toast.bad`/`.toast.warn` in CSS instead. Crash log preserved at `frontend/tests/.last-crash/exams_e2e-20261004-153228.log` (gitignored).
 
 ## ISSUE-071 — the media isolation slice would have blanked every student's exam audio and images
-- Severity: HIGH. Status: **FIXED in the repository (2026-10-05), live apply pending and UNVERIFIED.** Related: DEC-041, `b808ce4`.
+- Severity: HIGH. Status: **CLOSED 2026-10-05 — applied live.** The migration went live with its ledger row, `media` v5 + `session` v3 were deployed in the same sitting, and the rolled-back `media_isolation_test.sql` **PASSED live** (its student-door assertions included). Related: DEC-041, `b808ce4`.
 - Description: `get_media_paths(uuid[], uuid)` returns only the actor's files (admin: all). The student `media` action in `session/handler.ts` called it with no actor, so after the migration is applied a student gets `{}` and the exam shows no media, with no error.
 - Resolution: `get_session_media_paths(p_session_id)` in `20261004000001_media_isolation.sql` (scoped by the session's own snapshot) and the handler uses it; `session.test.ts` asserts the student path never calls `get_media_paths`. **Apply order:** migration, redeploy `media`, redeploy `session`.
 
 ## ISSUE-072 — a session token whose expiry contains `-` or `_` could not be verified
-- Severity: HIGH (not yet live). Status: **FIXED in the repository (2026-10-05).** Related: TASK-040.
+- Severity: HIGH (not yet live). Status: **CLOSED 2026-10-05 — deployed live** (`session` v3). The fix is proven by its Deno tests; a real student join has not been exercised against the live project since the deploy — the next live run should include the browser/monitor checks. Related: TASK-040.
 - Description: `base64urlDecode` mapped the url-safe characters on the padding instead of the text, so the exam would reject every student's token on the days whose timestamp encodes a `-` or `_` ("This test session is no longer valid"). The deployed `session` function is still v2 from 2026-09-23, before TASK-040, so no student was hit. A garbled expiry also threw (a 500) instead of being refused.
 - Resolution: decode fixed, garbled expiry refused; a test walks 600 consecutive timestamps and requires both characters to appear. **Do not deploy `session` without this fix.**
 
 ## ISSUE-073 — `exam_readiness` was a cross-teacher read and crashed on a taken code
-- Severity: HIGH (never applied live). Status: **FIXED in the migration file (2026-10-05), UNVERIFIED against the database.** Related: TASK-041, DEC-041.
+- Severity: HIGH (never applied live). Status: **CLOSED 2026-10-05 — applied live and verified.** The dry-run pattern (migration + test in one rolled-back request) caught two more bugs before the apply: a `%L`-inside-JSON quoting bug in the test fixture, `trim_scale` for the numeric(6,2) total, and a NULL `code_taken` poisoning `ready`; the real apply then passed `EXAM READINESS TESTS PASSED` live. Related: TASK-041, DEC-041.
 - Description: see the 2026-10-05 changelog entry (no actor, `security definer`, invalid `format` specifier, null counters).
 - Resolution: rewritten as `exam_readiness(uuid, uuid)`; `supabase/tests/exam_readiness_test.sql` must be run rolled back (with the migration in the same request) before the real apply.
 

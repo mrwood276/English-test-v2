@@ -1,6 +1,21 @@
 # 08 HANDOFF
 
-**Short header (2026-10-05, repair pass over the 2026-10-04 batch — keep this short; the full narrative is in `07_CHANGELOG.md`)**
+**Short header (2026-10-05, live apply session — keep this short; the full narrative is in `07_CHANGELOG.md`)**
+
+| | |
+|---|---|
+| AI / date / branch | Buffy (Freebuff session), 2026-10-05, `ai-development` @ this record commit — pushed to `origin/ai-development`; `main` untouched. |
+| Task | **Live-apply the two migrations the repair pass left unapplied** — `20261004000001_media_isolation` + `20261004000002_exam_readiness` — each dry-run first (migration + rolled-back SQL test in one request, so the final RAISE proves the SQL and persists nothing), then the real apply with its ledger row, then the Edge redeploys. |
+| Completed | Both migrations **applied live** with ledger rows; the dry runs caught a test-fixture quoting bug and two real SQL bugs (a NULL `code_taken` poisoning `ready`, and the numeric(6,2) `60.00` total — both fixed in the migration before it was applied); **`media` v5, `session` v3, `exams` v9 deployed** (ISSUE-072's token decoder fix is now live); `live_ledger_check.py` **ALL PASSED**; **14 browser suites green — 850 checks** (the first run since `553645d` touched 21 frontend files). |
+| Files changed (this session) | `supabase/migrations/20261004000002_exam_readiness.sql` (`trim_scale` + the NULL `code_taken` fix), `supabase/tests/media_isolation_test.sql` (JSON quoting + the null-actor message pinned), `.ai/{02,03,04,05,07,08,09}.md`. |
+| Database/config changes | Two migrations live, each with its `schema_migrations` row; the old unscoped `get_media_paths(uuid[])` / `link_media(text,uuid,jsonb)` **dropped live**; `exam_readiness(uuid,uuid)` live; `get_session_media_paths(uuid)` live; the live `save_question`/`save_passage` carry the owner-checked `link_media` call again (the question-bank isolation slice had silently dropped it since 2026-10-03). |
+| Tests | Backend **180**, unit **44**, 14 suites **850 checks** PASS; both SQL tests **PASSED live** (rolled back, HTTP 400 by design); `deno lint` clean; fmt clean on frontend — on `backend/functions/` three files are flagged locally only by the `core.autocrlf=true` checkout (blobs are LF, `git status` clean, CI unaffected). |
+| Open tasks | **TASK-041's frontend half** (readiness pill — the SQL is live, no UI caller yet), TASK-033 (D-2), TASK-039, TASK-042 (D-5), TASK-044, TASK-045 (D-3), TASK-047 (D-6). TASK-040/043/046 were marked COMPLETED in the queue this session (implemented 2026-10-04, now deployed/recorded). |
+| Next recommended task | **TASK-041's frontend half**: show `exam_readiness` in the exam editor before Open (and optionally a small pill in the exams list); mirror it in `mock_server.py`; `exams_e2e.py` checks. Or the whole live board `run_live_checks.py` — the full board has not run since 2026-10-03. |
+| Important notes | The deployed `session` v3 now expires student tokens (`exp`, refreshed on accepted calls) and serves student media through `get_session_media_paths` — but a real student join/save/submit has NOT been exercised against the live project since the deploy; make the next live run include the monitor/browser checks. `exam_readiness` answers `ready:false` (not an error) for an unready exam — the UI half decides how to show it. |
+| Do not | Do not touch `main`; do not re-add an unscoped signature; do not deploy `session` from a tree without the ISSUE-072 fix. The Management token used this session is stored nowhere in the repo — the owner should rotate it again since it travelled through chat. |
+
+**Previous short header (2026-10-05, repair pass over the 2026-10-04 batch) — superseded by the header above, kept as reference**
 
 | | |
 |---|---|

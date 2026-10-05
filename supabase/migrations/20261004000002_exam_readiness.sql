@@ -19,6 +19,9 @@
 --     its questions at join time, so there is nothing to count before then).
 --   * The code-conflict question is asked of `exam_code_used_by` (TASK-031), not re-implemented.
 --   * security invoker with `set search_path = ''`, like the rest of the exam functions.
+--   * `trim_scale` on the points sum: `exam_questions.weight` is numeric(6,2), so an all-integer
+--     exam summed to `60.00` and read as "Total points are 60.00" — trimmed, it reads `60`.
+--     (Found by the rolled-back dry run of this migration + its SQL test, 2026-10-05.)
 --
 -- APPLY ORDER: this migration, then redeploy `exams` (its `readiness` action now sends p_actor).
 -- STATUS: see `.ai/04_CURRENT_STATE.md` — the live ledger is the authority on whether it is applied.
@@ -53,7 +56,7 @@ begin
     select count(*) filter (where q.is_archived),
            count(*) filter (where q.id is null),
            count(*) filter (where q.type = 'essay'),
-           coalesce(sum(eq.weight), 0)
+           coalesce(trim_scale(sum(eq.weight)), 0)
       into v_archived, v_missing, v_essays, v_total_points
       from public.exam_questions eq
       left join public.questions q on q.id = eq.question_id
@@ -75,7 +78,10 @@ begin
 
   -- the test code: refused at Open only when another OPEN exam holds it (TASK-031's rule)
   v_code_used_by := public.exam_code_used_by(v_exam.access_code, p_id);
-  v_code_taken := (v_code_used_by = 'open');
+  -- exam_code_used_by answers NULL when nothing holds the code; a bare `= 'open'` would set NULL
+  -- and poison the ready flag (found by the rolled-back dry run, 2026-10-05 — the probe showed
+  -- code_taken: null with a free code)
+  v_code_taken := coalesce(v_code_used_by = 'open', false);
   if v_code_taken then
     v_warnings := v_warnings || format('The test code %s is already used by an open exam. Close that exam or give this one a different code.', v_exam.access_code);
   elsif v_code_used_by = 'draft' then
