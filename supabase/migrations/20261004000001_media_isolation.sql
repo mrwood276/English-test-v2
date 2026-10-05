@@ -14,10 +14,18 @@
 --     p_actor, so they forward it — no signature change for them.
 --   * `get_session_media_ids` is session-scoped (students join by exam code) and stays
 --     unchanged; `purge_orphan_media` is a scheduled job and stays unchanged.
+--   * NEW `get_session_media_paths(p_session_id)`: the student's door. The `session` Edge Function
+--     used to chain `get_session_media_ids` into the unscoped `get_media_paths`; once that function
+--     is scoped to a staff actor it returns nothing for a student (who has no actor), so the
+--     exam's audio and images would silently vanish. This function returns the same
+--     {id, path, kind} rows, but only for files in that session's own snapshot.
 --
--- The old two-argument signatures are dropped: keeping them would leave unscoped functions
--- behind. APPLIED LIVE: 2026-10-04 as one Management API request with its ledger row;
--- `supabase/tests/media_isolation_test.sql` runs rolled back.
+-- The old unscoped signatures are dropped: keeping them would leave unscoped functions behind.
+--
+-- APPLY ORDER (the SQL changes signatures, so the two Edge Functions that call it must follow
+-- immediately): this migration → redeploy `media` (staff, passes p_actor) → redeploy `session`
+-- (student, calls get_session_media_paths). Run `supabase/tests/media_isolation_test.sql` after.
+-- STATUS: see `.ai/04_CURRENT_STATE.md` — the live ledger is the authority on whether it is applied.
 
 -- ============ link_media, now with an owner check ============
 drop function if exists public.link_media(text, uuid, jsonb);
@@ -79,6 +87,16 @@ language sql stable set search_path = '' as $$
   from public.media_files m
   where m.id = any (p_ids)
     and (public._is_staff_admin(p_actor) or m.uploaded_by = p_actor)
+$$;
+
+-- ============ get_session_media_paths: the student's door (no actor, scoped by the session) ============
+-- Built on get_session_media_ids (security definer, reads the session's own snapshot), so a
+-- student can only ever be handed the files their own attempt shows. A missing session gives [].
+create or replace function public.get_session_media_paths(p_session_id uuid) returns jsonb
+language sql stable set search_path = '' as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'path', m.storage_path, 'kind', m.kind)), '[]'::jsonb)
+  from public.media_files m
+  where m.id = any (public.get_session_media_ids(p_session_id))
 $$;
 
 -- ============ save_question / save_passage forward p_actor to link_media ============
@@ -271,9 +289,11 @@ end $$;
 -- ============ boundary: only the service role executes these ============
 revoke execute on function public.link_media(text, uuid, jsonb, uuid) from public, anon, authenticated;
 revoke execute on function public.get_media_paths(uuid[], uuid) from public, anon, authenticated;
+revoke execute on function public.get_session_media_paths(uuid) from public, anon, authenticated;
 revoke execute on function public.save_question(uuid, jsonb, uuid) from public, anon, authenticated;
 revoke execute on function public.save_passage(uuid, jsonb, uuid) from public, anon, authenticated;
 grant execute on function public.link_media(text, uuid, jsonb, uuid) to service_role;
 grant execute on function public.get_media_paths(uuid[], uuid) to service_role;
+grant execute on function public.get_session_media_paths(uuid) to service_role;
 grant execute on function public.save_question(uuid, jsonb, uuid) to service_role;
 grant execute on function public.save_passage(uuid, jsonb, uuid) to service_role;
