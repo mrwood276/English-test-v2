@@ -5,6 +5,10 @@ Order follows dependencies. Completed tasks are listed at the end for history (a
 
 ## NEXT RECOMMENDED TASK
 
+**2026-10-05 — REPAIR PASS: the 2026-10-04 batch had four real defects (token decoder, student media, `exam_readiness`, a type error); all four are fixed in the repository and NONE is applied live. NEXT: LIVE-APPLY media isolation + exam_readiness (rolled-back SQL test in the same request first, then redeploy `media`, `session`, `exams`), then ISSUE-074 (71 frontend lint findings keep the quality-gates job red). See `08_HANDOFF.md`.**
+
+*(The 2026-10-04 line below is kept for the record; where it says the media slice or TASK-040/041 are done, the 2026-10-05 line above wins.)*
+
 **2026-10-04 — UI/UX PASS COMPLETE: 13 frontend files changed (a11y focus/skip/progressbar, toast consistency, skeletons, retry buttons). All 14 e2e suites (849 checks) + 44 unit tests PASS. MEDIA ISOLATION SLICE CODE-COMPLETE: migration `20261004000001` + test shipped in `b808ce4`; media handler p_actor in same commit. ISOLATION ROADMAP: question bank ✓ TASK-048 · exams ✓ 2026-10-04 · results/monitor + bell ✓ 2026-10-05 · media code ✓ 2026-10-04 (live apply pending). TASK-034 COMPLETE (`a348919`); TASK-031/032/048 APPLIED (`70b3ce2`); TASK-036 COMPLETE (`26ad3b7`); EMAIL DEFERRED (DEC-042). NEXT: LIVE-APPLY THE MEDIA SLICE OR A READY QUEUE TASK.**
 
 | | |
