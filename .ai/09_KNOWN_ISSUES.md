@@ -413,7 +413,7 @@ Summarized from `docs/audit-v1.md`: server does not enforce exam time (H-1); no 
 - Resolution: rewritten as `exam_readiness(uuid, uuid)`; `supabase/tests/exam_readiness_test.sql` must be run rolled back (with the migration in the same request) before the real apply.
 
 ## ISSUE-074 — the quality-gates lint job is red: 71 findings in `frontend/assets/js`
-- Severity: MEDIUM. Status: **OPEN.** Related: TASK-043.
+- Severity: MEDIUM. Status: **FIXED (2026-10-05) by `553645d`** (another session, pushed while this record was being written; re-measured after the merge: `deno lint` and `deno fmt --check` clean on `backend/functions/` and `frontend/assets/js/`). Related: TASK-043. The browser suites were not re-run by this session after that change; run all 14 before relying on it.
 - Description: `deno lint frontend/assets/js/` reports 71 findings at HEAD (`no-window` 26, `no-window-prefix` 21, `no-unused-vars` 12, `require-await` 8, `no-control-regex` 2, `prefer-const` 1; 47 are auto-fixable). There is no `deno.json`, so the default rule set applies. `deno fmt --check` and backend lint are clean. The CI run was not observed (no GitHub credential), so this is measured locally.
-- Next step: decide per rule (fix `window.` uses and unused variables, or configure the rules in a `deno.json` with a reason in `06_DECISIONS.md`); do not mass-apply `--fix` without running all 14 browser suites.
+- Original finding kept above for the record; no next step remains except the browser-suite run noted in the status line.
 
