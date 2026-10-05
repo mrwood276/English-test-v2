@@ -345,7 +345,8 @@ Deno.test("readiness returns warnings for archived questions, missing questions,
   const body = await res.json();
   assert.equal(body.readiness.ready, false);
   assert.equal(body.readiness.warnings.length, 2);
-  assert.deepEqual(calls, [{ name: "exam_readiness", args: { p_id: EXAM } }]);
+  // DEC-041: the database decides ownership, so the signed-in teacher must travel with the call.
+  assert.deepEqual(calls, [{ name: "exam_readiness", args: { p_id: EXAM, p_actor: TEACHER } }]);
 });
 
 Deno.test("readiness returns ready true when all checks pass", async () => {
@@ -354,5 +355,20 @@ Deno.test("readiness returns ready true when all checks pass", async () => {
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.equal(body.readiness.ready, true);
-  assert.deepEqual(calls, [{ name: "exam_readiness", args: { p_id: EXAM } }]);
+  assert.deepEqual(calls, [{ name: "exam_readiness", args: { p_id: EXAM, p_actor: TEACHER } }]);
+});
+
+Deno.test("readiness for another teacher's exam is the same friendly refusal as a missing one", async () => {
+  const message = "That exam no longer exists.";
+  const { db } = fakeDb(() => ({ error: { message, hint: "validation" } }));
+  const res = await createHandler(() => db)(post({ action: "readiness", id: EXAM }));
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).error, message);
+});
+
+Deno.test("readiness needs a signed-in staff member before it asks the database anything", async () => {
+  const { db, calls } = fakeDb(() => ({ data: { ready: true } }));
+  const res = await createHandler(() => db)(post({ action: "readiness", id: EXAM }, null));
+  assert.equal(res.status, 401);
+  assert.deepEqual(calls, []);
 });

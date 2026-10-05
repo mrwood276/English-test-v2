@@ -10,7 +10,6 @@ import {
 } from "../_shared/codes.ts";
 import { badRequest } from "../_shared/errors.ts";
 import {
-  asAccessCode,
   EXAM_STATUSES,
   parseBulkQuestions,
   parseExamInput,
@@ -157,7 +156,10 @@ export function createHandler(getDb: () => Db) {
 
       case "readiness": {
         const examId = asUuid(b.id, "id");
-        const readiness = await callRpc(db, "exam_readiness", { p_id: examId });
+        const readiness = await callRpc(db, "exam_readiness", {
+          p_id: examId,
+          p_actor: me.userId,
+        });
         return { readiness };
       }
     }
