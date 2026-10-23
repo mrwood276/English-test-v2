@@ -63,7 +63,74 @@ export function renderExam(root, ctx) {
     "aria-valuemax": "0",
     "aria-valuenow": "0",
   });
-  const saveLine = h("div", { class: "saved", role: "status" });
+  const saveMsg = h("div", { class: "save-msg" });
+  let fontScale = 1;
+  try {
+    const savedScale = parseFloat(
+      localStorage.getItem("ENG_FONT_SCALE") || "1",
+    );
+    if (Number.isFinite(savedScale) && savedScale >= 0.8 && savedScale <= 1.5) {
+      fontScale = savedScale;
+      document.documentElement.style.setProperty(
+        "--text-scale",
+        String(fontScale),
+      );
+    }
+  } catch {
+    /* ignore storage errors */
+  }
+
+  const fontDecBtn = h(
+    "button",
+    {
+      class: "font-btn",
+      type: "button",
+      title: "Decrease text size",
+      "aria-label": "Decrease text size",
+    },
+    "A-",
+  );
+  const fontIncBtn = h(
+    "button",
+    {
+      class: "font-btn",
+      type: "button",
+      title: "Increase text size",
+      "aria-label": "Increase text size",
+    },
+    "A+",
+  );
+  fontDecBtn.addEventListener("click", () => {
+    fontScale = Math.max(0.85, Math.round((fontScale - 0.1) * 10) / 10);
+    document.documentElement.style.setProperty(
+      "--text-scale",
+      String(fontScale),
+    );
+    try {
+      localStorage.setItem("ENG_FONT_SCALE", String(fontScale));
+    } catch {
+      /* ignore storage errors */
+    }
+  });
+  fontIncBtn.addEventListener("click", () => {
+    fontScale = Math.min(1.35, Math.round((fontScale + 0.1) * 10) / 10);
+    document.documentElement.style.setProperty(
+      "--text-scale",
+      String(fontScale),
+    );
+    try {
+      localStorage.setItem("ENG_FONT_SCALE", String(fontScale));
+    } catch {
+      /* ignore storage errors */
+    }
+  });
+  const fontCtrls = h("div", { class: "font-ctrls" }, fontDecBtn, fontIncBtn);
+  const saveLine = h(
+    "div",
+    { class: "saved", role: "status" },
+    saveMsg,
+    fontCtrls,
+  );
   const offlineBar = h(
     "div",
     { class: "offbar", hidden: true },
@@ -101,7 +168,7 @@ export function renderExam(root, ctx) {
 
   const setSave = (kind, text) => {
     saveLine.classList.toggle("warn", kind === "warn");
-    saveLine.replaceChildren(
+    saveMsg.replaceChildren(
       icon(kind === "warn" ? "offline" : "cloud"),
       h("span", {}, text),
     );
