@@ -1149,4 +1149,50 @@ class Server:
             # A copy is a fresh draft: it has no attempts (`duplicate_exam` copies question rows only).
             dup = copy.deepcopy(src); dup.update(id=nid, status="draft", title=src["title"] + " (copy)", access_code=f"DUP{len(self.exams) % 100:02d}", session_count=0, created_at="2026-09-22T00:00:00Z")
             self.exams[nid] = dup; return ok({"id": nid})
+        if a == "readiness":
+            e = self.exams.get(body.get("id"))
+            if not e: return route.fulfill(status=404, content_type="application/json", body=json.dumps({"error": "That exam no longer exists.", "code": "not_found"}))
+            is_manual = (e.get("selection_mode") == "manual")
+            archived = 0
+            missing = 0
+            essays = 0
+            total_points = 0
+            known = {q["id"]: q for q in self.qs}
+            warnings = []
+            if is_manual:
+                for eq in e.get("questions", []):
+                    qid = eq.get("question_id")
+                    q = known.get(qid)
+                    if not q:
+                        missing += 1
+                    else:
+                        if q.get("is_archived"): archived += 1
+                        if q.get("type") == "essay": essays += 1
+                    total_points += eq.get("weight", 1)
+                if archived > 0:
+                    warnings.append(f"{archived} question(s) on this exam are archived.")
+                if missing > 0:
+                    warnings.append(f"{missing} question(s) no longer exist (deleted).")
+                if essays > 0:
+                    warnings.append(f"{essays} essay question(s) will need manual grading.")
+                if total_points != 100:
+                    warnings.append(f"Total points are {total_points} (expected 100).")
+            others = [x for x in self.exams.values() if x["id"] != e["id"]]
+            code = e.get("access_code", "")
+            code_taken = (code in self.exam_codes_used) or any(x.get("access_code") == code and x.get("status") == "open" for x in others)
+            if code_taken:
+                warnings.append(f"The test code {code} is already used by an open exam. Close that exam or give this one a different code.")
+            elif any(x.get("access_code") == code and x.get("status") == "draft" for x in others):
+                warnings.append(f"Another draft also uses the test code {code}; only one of them can be opened at a time.")
+            ready = (archived == 0 and missing == 0 and not code_taken and (not is_manual or total_points == 100))
+            return ok({
+                "readiness": {
+                    "ready": ready,
+                    "warnings": warnings,
+                    "questions": e.get("questions", []),
+                    "essay_count": essays,
+                    "total_points": total_points,
+                    "code_taken": code_taken,
+                }
+            })
         return err(400, "Unknown action")

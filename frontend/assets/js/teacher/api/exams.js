@@ -26,4 +26,9 @@ export const exams = {
     call({ action: "bulk_questions", exam_id: examId, mode, ids }).then((r) =>
       r.result
     ),
+  /**
+   * Pre-flight readiness check before Open (TASK-041).
+   * Returns `{ ready, warnings, questions, essay_count, total_points, code_taken }`.
+   */
+  readiness: (id) => call({ action: "readiness", id }).then((r) => r.readiness),
 };

@@ -928,8 +928,9 @@ export function renderExamEditor(container, _ctx, match) {
     renderSummary();
   });
 
-  // ---------- summary ----------
+  // ---------- summary & readiness (TASK-041) ----------
   const summaryItems = h("div", { class: "summary-list" });
+  const readinessBox = h("div", { class: "readiness-box", id: "ee-readiness" });
   const saveStatus = h("p", { class: "sub", role: "status" });
   const saveBtn = h(
     "button",
@@ -941,6 +942,31 @@ export function renderExamEditor(container, _ctx, match) {
     { class: "btn ghost", type: "button" },
     "Save and close",
   );
+  const openExamBtn = h(
+    "button",
+    { class: "btn ghost", type: "button", id: "ee-open-btn", hidden: true },
+    "Open exam",
+  );
+
+  openExamBtn.addEventListener("click", async () => {
+    if (!state.id) return;
+    try {
+      openExamBtn.disabled = true;
+      const r = await exams.readiness(state.id);
+      if (!r.ready) {
+        toast(r.warnings[0] || "Exam is not ready to open.", "bad");
+        return;
+      }
+      await exams.setStatus(state.id, "open");
+      state.status = "open";
+      toast("Exam is open. Students can join with the code.");
+      renderSummary();
+    } catch (err) {
+      if (!ignorable(err)) toast(errorText(err), "bad");
+    } finally {
+      openExamBtn.disabled = false;
+    }
+  });
 
   function renderSummary() {
     const items = [];
@@ -989,6 +1015,38 @@ export function renderExamEditor(container, _ctx, match) {
         )
       ),
     );
+
+    // Authoritative pre-flight check from database (TASK-041)
+    if (state.id && !state.dirty) {
+      const checkId = state.id;
+      exams.readiness(state.id).then((r) => {
+        if (state.id !== checkId || state.dirty) return;
+        const pillKind = r.ready ? "ok" : "warn";
+        const pillText = r.ready ? "Ready to open" : "Not ready to open";
+        readinessBox.replaceChildren(
+          h(
+            "div",
+            { class: "tgl" },
+            h(
+              "span",
+              { class: "row" },
+              h("span", { class: `pill ${pillKind}` }, r.ready ? "✓" : "!"),
+              pillText,
+            ),
+          ),
+          ...r.warnings.map((w) => h("p", { class: "hint warn" }, w)),
+        );
+        openExamBtn.hidden = (state.status !== "draft" || Boolean(state.is_template));
+      }).catch(() => {
+        readinessBox.replaceChildren();
+        openExamBtn.hidden = true;
+      });
+    } else {
+      readinessBox.replaceChildren(
+        h("p", { class: "hint" }, state.dirty ? "Save changes to verify readiness." : "Save as draft first."),
+      );
+      openExamBtn.hidden = true;
+    }
   }
 
   function collect() {
@@ -1267,8 +1325,9 @@ export function renderExamEditor(container, _ctx, match) {
             "div",
             { class: "stack" },
             summaryItems,
+            readinessBox,
             saveStatus,
-            h("div", { class: "stack" }, saveBtn, saveCloseBtn),
+            h("div", { class: "stack" }, saveBtn, saveCloseBtn, openExamBtn),
           ),
         ),
         card(

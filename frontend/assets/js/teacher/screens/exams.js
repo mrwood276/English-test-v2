@@ -128,6 +128,16 @@ export function renderExams(container, ctx) {
     const pill = h("span", {
       class: `pill ${STATUS_PILL[exam.status] ?? "plain"}`,
     }, STATUS_LABEL[exam.status] ?? exam.status);
+    let readinessPill = null;
+    if (exam.status === "draft" && !exam.is_template) {
+      const isManual = exam.selection_mode === "manual";
+      const ready = (!isManual || (Number(exam.question_count) > 0 && Number(exam.total_points) === 100));
+      readinessPill = h("span", {
+        class: `pill ${ready ? "ok" : "warn"}`,
+        style: "margin-left: 6px; font-size: 0.72rem; padding: 1px 5px;",
+        title: ready ? "Ready to open" : (isManual && Number(exam.total_points) !== 100 ? `Points: ${exam.total_points} (expected 100)` : "Needs questions"),
+      }, ready ? "ready" : "unready");
+    }
     const openClose = h(
       "button",
       { class: "btn small ghost", type: "button" },
@@ -247,7 +257,7 @@ export function renderExams(container, ctx) {
         { class: "col-code" },
         h("code", { class: "exam-code" }, exam.access_code),
       ),
-      h("td", { class: "col-status" }, pill),
+      h("td", { class: "col-status" }, pill, readinessPill),
       h(
         "td",
         { class: "col-count" },
