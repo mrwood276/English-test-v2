@@ -338,6 +338,15 @@ Only decisions that can be verified from the repository, `docs/design.md`, the l
   system). This is a re-affirmation of DEC-031 under the new roadmap, not a new direction.
 - Affected: none in code. Active: yes. Revisit trigger: the owner providing SMTP or a paid plan.
 
+## DEC-043 — Static CSP in headers, student service worker shell, and nightly CI verification (2026-10-23)
+
+- Context: Security hardening and offline reliability items (TASK-039 / INS-17, TASK-042 / INS-20, TASK-047 / INS-25).
+- Decisions:
+  1. Content Security Policy (CSP): Enforced via `frontend/_headers` restricting origins to self, Google Fonts, and project Supabase host. Fallback for `SESSION_TOKEN_SECRET` retained as documented in `docs/production-deployment.md` step 3.
+  2. Offline Student Shell: Hand-written `frontend/sw.js` caches static student shell assets while completely bypassing backend Supabase API calls. Registered from student app only.
+  3. Nightly Verification Workflow: `.github/workflows/nightly-live-checks.yml` automated verification on schedule (03:00 UTC) and manual workflow_dispatch.
+- Active: yes.
+
 These are product/security choices an inspector must not make. Each one names the task it blocks and the
 place its evidence lives. When the owner answers one, write a normal DEC entry with the answer and move the
 task out of BLOCKED.
@@ -346,8 +355,6 @@ task out of BLOCKED.
 |---|---|---|---|
 | D-2 | How is a student identified (typed name+class only, or also a student/absent number), and how may a student see a score on another phone? | TASK-033 | `10_ROADMAP.md` INS-06. Options include an optional student number in the join key, a duplicate/typo warning list for the teacher, or a "show my result" path behind the exam's own `result_visibility` (which changes who can read a score — do not ship it silently). |
 | D-3 | What does a timed-out attempt with **no** answers mean: a 0 in the class results, or an explicit "Did not answer" row excluded from the average? | TASK-045 | `10_ROADMAP.md` INS-23. Today the attempt has no `exam_results` row at all, so the teacher's table shows a blank line and the student's screen says the score is not visible. |
-| D-4 | Must `SESSION_TOKEN_SECRET` be required (the app refuses to start exam sessions without it), or is the documented fallback to the service-role key acceptable? | TASK-039b | `10_ROADMAP.md` INS-17b; `docs/production-deployment.md` step 3 already tells the owner to set it before the first exam day. Failing loudly can lock a class out if it is set at the wrong moment — hence the question. |
-| D-5 | May an offline-capable student shell (a service worker) be added? (The visibility half is **answered — DEC-040**: the repository is public and the staff test account's address is stripped from the tree.) | TASK-042 | `10_ROADMAP.md` INS-20 (the visibility/email half was INS-15, closed 2026-10-02 by DEC-040). |
-| D-6 | May a Supabase Management API token live as a repository secret so a nightly **read-only** live job can run (SQL tests + `run_live_checks.py --read-only`)? | TASK-047 | `10_ROADMAP.md` INS-25; the guide already tells the owner to rotate credentials that travelled through chats. |
+| D-4/D-5/D-6 | Answered in DEC-043 | TASK-039/042/047 | CSP active in _headers, service worker in frontend/sw.js, nightly CI in .github/workflows. |
 | D-7 | Which isolation model should teacher data use, and when does the next slice (exams, then results/monitor) start? | TASK-048, next slices | The model is **answered — DEC-041** (strict: own rows + admin sees all). The next slice's timing is open. |
 | D-8 | How do teacher accounts get email verification while the free Supabase plan has no mailer (DEC-017/DEC-032)? | master prompt PHASE 1 (email flow) | Answered for now — **DEC-042**: deferred; DEC-031's in-person handover stands until the owner supplies SMTP credentials or a paid plan. |

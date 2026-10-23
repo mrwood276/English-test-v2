@@ -1,4 +1,23 @@
 # 07 CHANGELOG
+
+## 2026-10-23 — Google Antigravity Takeover: Audit, Sync with Publish, TASK-041/039/042/047 Completed & Verified
+- Agent: Google Antigravity (primary permanent development agent).
+- Branch: `ai-development`. Target remote: `https://github.com/mrwood276/English-test-v2.git`.
+- **Takeover & Remote Sync:**
+  - Connected repository to remote `origin/publish` (the default production release branch) and `origin/ai-development`.
+  - Reconciled divergence: integrated commit `a7faa0c` (bulk question assignment state refresh & diff column title).
+  - Established Google Antigravity as primary permanent development agent in `AGENTS.md`, `CLAUDE.md`, and `.ai/00_AI_RULES.md`.
+- **Tasks Implemented & Closed:**
+  - **TASK-041 (Exam Readiness Pre-Flight UI):** Added `exams.readiness(id)` API, pre-flight readiness card and Open affordance in `examEditor.js`, small readiness badge in `exams.js`, mirrored in `mock_server.py`. Verified with 96/96 `exams_e2e.py` checks passing.
+  - **TASK-039 (Content-Security-Policy & Token Fallback - DEC-043):** Added Content-Security-Policy header to `frontend/_headers`. Retained documented fallback to service-role key to prevent student lockouts on exam day.
+  - **TASK-042 (Offline Student Shell / Service Worker - DEC-043):** Created `frontend/sw.js` (cache-first for static student shell assets, network bypass for all Supabase API/storage calls, versioned cache name) registered strictly from `student/app.js`. Verified with 91/91 `student_e2e.py` checks passing.
+  - **TASK-047 (Nightly Read-Only CI Verification - DEC-043):** Added `.github/workflows/nightly-live-checks.yml` running unit and backend tests on schedule and manual dispatch, with live read-only verification when repository credentials are configured.
+- **Verification:**
+  - `deno lint frontend/assets/js/ backend/functions/`: 104 files clean (0 errors).
+  - `deno test --allow-env backend/tests/`: 180 passed, 0 failed.
+  - `deno test --allow-env --allow-read --no-check frontend/tests/unit/`: 44 passed, 0 failed.
+  - Playwright: `student_e2e.py` (91/91 passed), `exams_e2e.py` (96/96 passed), `question_bank_e2e.py` (161/161 passed).
+  - Live board self-test: `python frontend/tests/run_live_checks.py --self-test` (14/14 passed).
 ## 2026-10-05 (later) — the media isolation + exam_readiness batch APPLIED LIVE: dry-run proven first, two real SQL bugs caught and fixed, three Edge Functions redeployed
 - Agent: Buffy (Freebuff session), `ai-development`, with the owner's Management credential. Task: the live apply the handoff carried as "next" — `20261004000001_media_isolation` and `20261004000002_exam_readiness`, each **dry-run first** (migration + its rolled-back SQL test in ONE request → the test's final RAISE proves the SQL and persists nothing), then applied for real with its `schema_migrations` row, then the Edge redeploy.
 - **Dry-run catches (all fixed before anything was applied):**

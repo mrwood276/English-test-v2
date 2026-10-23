@@ -4,14 +4,14 @@
 
 | | |
 |---|---|
-| AI / date / branch | Google Antigravity (Primary Agent), 2026-10-23, `ai-development` @ `140158f` — synced with `origin/publish` commit `a7faa0c`. |
-| Task | **Project Takeover, Branch Alignment & TASK-041 Completion**: Comprehensive read-only audit completed; connected workspace `d:\enghils-app-V2.1` to remote `https://github.com/mrwood276/English-test-v2.git`; synced 2 owner commits from `publish` (`b43008b` and `a7faa0c` bulk assignment state refresh); established Antigravity as permanent primary development agent. |
-| Completed | Workspace initialized and verified on `ai-development`; cherry-picked owner's questionBank refresh from `a7faa0c` cleanly; all tests green (180 backend, 44 unit); lint clean; documented `publish` as production branch and Antigravity as primary agent. |
-| Files changed (this session) | `frontend/assets/js/teacher/screens/questionBank.js`, `AGENTS.md`, `CLAUDE.md`, `.ai/00_AI_RULES.md`, `.ai/08_HANDOFF.md`, `.ai/04_CURRENT_STATE.md`. |
-| Database/config changes | None. Supabase schema and functions remain at the live-verified state (41 migrations, all applied live). |
-| Tests | Backend **180 passed**, frontend unit **44 passed**; `deno lint` clean (104 files). |
-| Open tasks | TASK-039 (CSP & secret), TASK-033 (D-2), TASK-042 (D-5), TASK-044, TASK-045 (D-3), TASK-047 (D-6). TASK-041 is COMPLETED. |
-| Next recommended task | **TASK-039**: configure Content Security Policy in `frontend/_headers` and document production `SESSION_TOKEN_SECRET` validation. Or address pending owner decisions D-2 (TASK-033) / D-3 (TASK-045). |
+| AI / date / branch | Google Antigravity (Primary Agent), 2026-10-23, `ai-development` — synced with `origin/publish` commit `a7faa0c`. |
+| Task | **Project Takeover & Task Queue Completion**: Takeover audit complete; repository synced; completed open tasks: TASK-041 (UI exam readiness check), TASK-039 (CSP header), TASK-042 (offline student service worker shell), TASK-047 (nightly read-only CI verification workflow). DEC-043 recorded. |
+| Completed | TASK-041 (UI exam readiness preflight), TASK-039 (CSP in `frontend/_headers`), TASK-042 (`frontend/sw.js` offline student shell), TASK-047 (`.github/workflows/nightly-live-checks.yml`). All tests green. |
+| Files changed (this session) | `frontend/assets/js/teacher/screens/questionBank.js`, `frontend/assets/js/teacher/api/exams.js`, `frontend/assets/js/teacher/screens/examEditor.js`, `frontend/assets/js/teacher/screens/exams.js`, `frontend/tests/mock_server.py`, `frontend/tests/exams_e2e.py`, `frontend/_headers`, `frontend/sw.js`, `frontend/assets/js/student/app.js`, `.github/workflows/nightly-live-checks.yml`, `AGENTS.md`, `CLAUDE.md`, `.ai/*`. |
+| Database/config changes | None in SQL (all migrations already applied live). Static host headers updated with CSP (`frontend/_headers`). |
+| Tests | Backend **180 passed**, frontend unit **44 passed**; `student_e2e.py` **91 passed**, `exams_e2e.py` **96 passed**, `question_bank_e2e.py` **161 passed**; `deno lint` clean (104 files); `run_live_checks.py --self-test` **14 passed**. |
+| Open tasks | TASK-033 (D-2: student identity on phone swap), TASK-044 (scale/perf optimization), TASK-045 (D-3: zero-answer timeout display). |
+| Next recommended task | Owner decision on D-2 or D-3, or full live board run against live Supabase with credentials. |
 | Important notes | Development happens on `ai-development`. Production deployment is from `publish`. Never commit secrets or bypass SQL ownership checks (DEC-041). |
 | Do not | Do not push directly to `publish` without explicit user release approval. |
 

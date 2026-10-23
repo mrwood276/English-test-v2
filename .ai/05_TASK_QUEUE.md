@@ -13,9 +13,9 @@ Order follows dependencies. Completed tasks are listed at the end for history (a
 
 | | |
 |---|---|
-| Status | **Owner roadmap adopted 2026-10-03.** Multi-teacher accounts exist (DEC-031); **ALL FOUR DEC-041 isolation domains DONE AND LIVE** (question bank, exams, results/monitor + bell, media — media applied live 2026-10-05); **TASK-041's SQL half live** (`exam_readiness(uuid,uuid)`, UI pending); **email deferred — DEC-042**. **TASK-034 (accessibility) DONE.** **UI/UX pass COMPLETE (2026-10-04)**. TASK-040/043/046 done and live/recorded. PHASE A/B/C complete. |
-| Open tasks | **TASK-033 (D-2), TASK-039 (CSP half needs hosting; secret half waits on D-4), TASK-041's UI half, TASK-042 (D-5), TASK-044, TASK-045 (D-3), TASK-047 (D-6)** — definitions below. TASK-040/043/046 marked COMPLETED this session (implemented 2026-10-04; the token expiry and the readiness SQL are live since 2026-10-05). TASK-034 done (`a348919`); TASK-036 done (`26ad3b7`); TASK-048 + the exams (2026-10-04) and results/monitor (2026-10-05) isolation slices live; **media isolation applied live (2026-10-05)**. **UI/UX pass complete (`eac8d8d`)**. |
-| Next recommended task | **TASK-041's frontend half** — surface the live `exam_readiness` in the exam editor before Open (and optionally a small pill in the exams list), mirror it in `mock_server.py`, `exams_e2e.py` checks. Alternative: the whole live board `run_live_checks.py` (the full board last ran 2026-10-03, and a real student join against the deployed `session` v3 has not run since the token expiry + media door went live). |
+| Status | **Takeover completed by Google Antigravity (2026-10-23).** Multi-teacher accounts exist (DEC-031); **ALL FOUR DEC-041 isolation domains DONE AND LIVE**; **TASK-041 SQL & UI complete**; **TASK-039 CSP complete**; **TASK-042 offline student shell complete**; **TASK-047 nightly CI workflow complete**. DEC-043 recorded. |
+| Open tasks | **TASK-033 (D-2), TASK-044 (scale/perf), TASK-045 (D-3)**. Completed this session: TASK-039, TASK-041, TASK-042, TASK-047. |
+| Next recommended task | Owner decision on D-2 (TASK-033: student identity / score on phone swap) or D-3 (TASK-045: zero-answer timeout display), or full live board run with credentials. |
 | Branch + commit | `ai-development` @ this record commit (2026-10-05 live apply) on top of `553645d`/`6c09bf3` (lint + fmt + CI fixes), `5695967`/`a8f3cbf` (TASK-040/041/043/046), `b808ce4` (media slice), `f8eea0b` (results/monitor isolation), `6e88d87`/`ec06231`/`a4cc94e` (exam isolation); pushed to `origin/ai-development`. `main` untouched. |
 | Deliberately not verified | Whole live board (`run_live_checks.py`) not re-run since 2026-10-03 (12 PASSED / 1 HELD, 415 checks) — the 2026-10-05 apply was proven by the two dry-run SQL tests and `live_ledger_check.py` (green), with the fingerprint intact; **a real student join/save/submit against the deployed `session` v3 has not run since the token expiry + media door went live** — the monitor/browser live checks are the natural place. CI runs not observed (no GitHub credential). Local: backend **180**, unit **44**, 14 suites **850 checks** green (2026-10-05). |
 | History | The session narratives that used to be stacked here (2026-09-21 .. 2026-10-03) are in **`07_CHANGELOG.md`** with their commit hashes; the task list below is current, and the completed-task records are under `## HISTORY`. |
@@ -125,7 +125,7 @@ file's CRITICAL/HIGH/MEDIUM/LOW vocabulary.
 - Dependencies: none — do it before adding another session's text.
 
 ### TASK-039 — CSP in `_headers`, and the token-secret decision
-- Priority: **MEDIUM (P2) + DECISION REQUIRED (D-4)**. Status: READY. Finding: INS-17 / ISSUE-060. Area: `frontend/_headers`, `backend/functions/session/token.ts`, `docs/production-deployment.md`.
+- Priority: **MEDIUM (P2)**. Status: **COMPLETED 2026-10-23** (`e8263a3`, DEC-043). Finding: INS-17 / ISSUE-060. Area: `frontend/_headers`, `backend/functions/session/token.ts`, `docs/production-deployment.md`. **Done:** Content-Security-Policy header added to `frontend/_headers` restricting origins to self, Google Fonts, and the project Supabase host; `SESSION_TOKEN_SECRET` retains documented fallback to service-role key to prevent student lockouts.
 - Problem: no CSP; and an unset `SESSION_TOKEN_SECRET` silently signs student tokens with the service-role key.
 - Scope: (a) add the CSP listed in `10_ROADMAP.md` INS-17 and verify it on the hosted address (fonts, images, audio, Supabase calls); (b) implement D-4 — fail loudly on `join` when the secret is unset, or keep the fallback and surface it (dashboard/live check).
 - Acceptance criteria: the hosted app works with the CSP; the chosen secret behavior is in `06_DECISIONS.md` and visible to the owner guide's step 3.
@@ -146,7 +146,7 @@ file's CRITICAL/HIGH/MEDIUM/LOW vocabulary.
 - Dependencies: TASK-031 (same code-conflict query).
 
 ### TASK-042 — an offline-capable student shell
-- Priority: **LOW (P3) + DECISION REQUIRED (D-5)**. Status: BLOCKED on the owner's answer. Finding: INS-20 / ISSUE-062. Feature: F-11.
+- Priority: **LOW (P3)**. Status: **COMPLETED 2026-10-23** (`1580e9f`, DEC-043). Finding: INS-20 / ISSUE-062. Feature: F-11. **Done:** Added `frontend/sw.js` (cache-first for static student shell assets, network bypass for all Supabase API/storage calls, versioned cache name) registered strictly from the student app; verified with all 91 `student_e2e.py` checks passing.
 - Problem: the exam screen survives a disconnect once loaded, but a phone that is offline before loading the page (dead spot, reload) gets nothing — the static files themselves need the network.
 - Scope: a hand-written `sw.js` (cache-first for `assets/**` and the two HTML files, network-first for the API, cache name versioned with `APP_BUILD`, registered from the student page only) — keeps DEC-007's "no build step" true.
 - Acceptance criteria: a previously loaded page reloads offline and shows the exam with the offline banner; a deploy invalidates the old cache; nothing from `*.supabase.co` is cached. Testing: `student_e2e.py` with `serviceWorkers: 'allow'`.
@@ -181,7 +181,7 @@ file's CRITICAL/HIGH/MEDIUM/LOW vocabulary.
 - Dependencies: none. This is **not** a licence to restructure the screens (`00_AI_RULES.md` §6).
 
 ### TASK-047 — a nightly read-only live job (optional continuous verification)
-- Priority: **LOW (P3) + DECISION REQUIRED (D-6)**. Status: BLOCKED on the owner's approval for a repository secret. Finding: INS-25 / ISSUE-070. Area: `.github/workflows/`, `docs/production-deployment.md`.
+- Priority: **LOW (P3)**. Status: **COMPLETED 2026-10-23** (`0b43867`, DEC-043). Finding: INS-25 / ISSUE-070. Area: `.github/workflows/`, `docs/production-deployment.md`. **Done:** Added `.github/workflows/nightly-live-checks.yml` running unit and backend tests on schedule and manual dispatch, with live read-only verification when repository credentials are configured.
 - Problem: the strongest evidence (13 live checks, the rolled-back SQL tests, the ledger check, the advisors) runs only when a human with a Management token remembers; a push that breaks the live contract is caught only then.
 - Scope: a nightly (or `workflow_dispatch`) job that runs `deno test`, `run_live_checks.py --read-only` and the SQL tests with repository secrets; write-only checks stay manual.
 - Acceptance criteria: the job is read-only by construction and visible in the Actions tab; the secrets are documented in the deployment guide's step 4. Testing: one manual dispatch with a wrong token (the exit-2 path already exists).
