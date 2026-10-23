@@ -1036,14 +1036,21 @@ export function renderExamEditor(container, _ctx, match) {
           ),
           ...r.warnings.map((w) => h("p", { class: "hint warn" }, w)),
         );
-        openExamBtn.hidden = (state.status !== "draft" || Boolean(state.is_template));
+        openExamBtn.hidden = state.status !== "draft" ||
+          Boolean(state.is_template);
       }).catch(() => {
         readinessBox.replaceChildren();
         openExamBtn.hidden = true;
       });
     } else {
       readinessBox.replaceChildren(
-        h("p", { class: "hint" }, state.dirty ? "Save changes to verify readiness." : "Save as draft first."),
+        h(
+          "p",
+          { class: "hint" },
+          state.dirty
+            ? "Save changes to verify readiness."
+            : "Save as draft first.",
+        ),
       );
       openExamBtn.hidden = true;
     }
