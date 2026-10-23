@@ -4,7 +4,17 @@
  * for grading stays blank instead of pretending to be a zero. Both exports (CSV and Excel) are built from
  * these rows, so the two files cannot drift apart.
  */
-export const COLUMNS = ["Name", "Class", "Attempt", "Score", "Right", "Wrong", "Time used (seconds)", "Page leaves", "Status"];
+export const COLUMNS = [
+  "Name",
+  "Class",
+  "Attempt",
+  "Score",
+  "Right",
+  "Wrong",
+  "Time used (seconds)",
+  "Page leaves",
+  "Status",
+];
 
 const asNumber = (value) => {
   const n = Number(value);
@@ -35,11 +45,16 @@ export function csvText(rows, columns = COLUMNS) {
     const text = value === null || value === undefined ? "" : String(value);
     return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
   };
-  return `\uFEFF${[columns, ...rows].map((line) => line.map(cell).join(",")).join("\r\n")}\r\n`;
+  return `\uFEFF${
+    [columns, ...rows].map((line) => line.map(cell).join(",")).join("\r\n")
+  }\r\n`;
 }
 
 /** A file name a teacher recognizes, without characters Windows refuses. */
 export function exportFileName(exam, extension) {
-  const base = String((exam && exam.title) || "results").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "");
+  const base = String((exam && exam.title) || "results").replace(
+    /[^a-z0-9]+/gi,
+    "-",
+  ).replace(/^-|-$/g, "");
   return `${base || "results"}.${extension}`;
 }

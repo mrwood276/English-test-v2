@@ -182,6 +182,7 @@ with sync_playwright() as pw:
     page.click(".qnav button:has-text('Finish')")
     page.wait_for_selector(".dialog")
     check("sending warns about the empty question", "1 question is still empty" in page.inner_text(".dialog"))
+    check("sending warns about the marked question", "1 question is marked for review" in page.inner_text(".dialog"))
     page.click(".dialog button:has-text('Keep working')")
     check("cancelling keeps the test open", page.query_selector(".qbody") is not None)
     page.click(".qnav button:has-text('Finish')")

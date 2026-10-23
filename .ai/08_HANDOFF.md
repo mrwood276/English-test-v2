@@ -1,14 +1,66 @@
 # 08 HANDOFF
 
-**Short header (2026-10-02, TASK-038 — keep this short; the full narrative is in `07_CHANGELOG.md`)**
+**Short header (2026-10-23, Google Antigravity — End-to-End Trial & Feature Expansion Pass)**
 
 | | |
 |---|---|
-| Status | **PHASE A complete and live** — TASK-028/029/030/035, each proved red on the pre-fix code first; TASK-030 was applied live with its ledger row (DEC-039: only a hidden page counts as a page leave; a `blur` is recorded but never counts). **PHASE B complete** — TASK-038 (short headers) and TASK-037 (docs reconciled to the measured inventory; DEC-040: the repository is public and the staff test account's address is out of the tree). **PHASE C is half done — TASK-031 and TASK-032 are code-complete and tested red first; their migrations, ledger rows and SQL tests wait on a credential.** **Next: TASK-036.** |
-| Open tasks | **TASK-033 (D-2), TASK-034, TASK-036, TASK-039 (D-4 half), TASK-040 .. TASK-047** — definitions in `05_TASK_QUEUE.md`, evidence in `10_ROADMAP.md`; the live halves of TASK-031 and TASK-032 (apply `20261002000002` then `20261002000003` + both ledger rows + both SQL tests) stand with them. |
-| Next recommended task | **TASK-036** — the editor says Saved / Unsaved / Saving… / Failed (INS-12). First, when a credential is available: the shared live apply session for TASK-031+TASK-032 (both migrations in order, both ledger rows, both rolled-back SQL tests, `exams` redeploy after the first). Then TASK-034, TASK-039 (its secret half waits on D-4). |
-| Branch + commit | `ai-development` @ `8435b14` (the TASK-032 commit, 2026-10-02) — after `f664eeb` (TASK-031's record), `b7ed106` (TASK-031), `11bbbca` (TASK-037's hash record), `298a16d`, `3dc6f06` (TASK-038), `4ac8b35` (TASK-030) and `084383d` (its record); pushed to `origin/ai-development` with its record commit. `main` untouched at the orphan snapshot `8b7aeba`. |
-| Deliberately not verified | **TASK-031's and TASK-032's SQL halves are not live:** migrations `20261002000002_open_exam_code_conflict.sql` and `20261002000003_template_only_when_safe.sql` are unapplied and have no `schema_migrations` rows, the rolled-back `supabase/tests/exam_status_test.sql` and `supabase/tests/exam_template_test.sql` have never run, and no live check was run (no Management credential this session); `live_ledger_check.py` will report the new files until the applies, which are the next live run's first task. Local evidence: backend **171**, unit **44**, `exams_e2e.py` **94** (7 checks red before TASK-032's fix, 3 before TASK-031's), `dashboard_e2e.py` **37**, `question_bank_e2e.py` **151**. Last live evidence: TASK-030's rolled-back SQL test (live, 2026-10-02) and the 2026-10-01 whole live board (12 PASSED / 1 HELD, 415 checks). |
+| AI / date / branch | Google Antigravity (Primary Agent), 2026-10-23, `ai-development` — pushed to `origin/ai-development`. |
+| Task | **End-to-End Field Trial & Feature Expansion Pass**: Conducted full dual-persona simulation (Teacher + Student), generated audit walkthrough report with 12 screenshots, and implemented 7 approved high-impact features requested by user. |
+| Completed | 1. **Fitur 2** (Flagged question warning on submit dialog); 2. **Fitur 6** (Direct join URL via `?code=XXXX` + 'Copy link' button); 3. **Fitur 5** (Text scaling controls A-/A+ with localStorage memory); 4. **Fitur 3** (Listening audio play counter & 3-play limit); 5. **Fitur 8** (Quick Duplicate in Question Editor); 6. **Fitur 7** (Item Analysis difficulty badges in Results); 7. **Fitur 1** (Live teacher broadcast announcement to student test screens). Full walkthrough simulation script `frontend/tests/trial_walkthrough.py`. |
+| Files changed (this session) | `frontend/assets/js/student/screens/exam.js`, `frontend/assets/js/student/screens/join.js`, `frontend/assets/js/student/components/question.js`, `frontend/assets/css/student.css`, `frontend/assets/js/teacher/screens/dashboard.js`, `frontend/assets/js/teacher/screens/questionEditor.js`, `frontend/assets/js/teacher/screens/examResults.js`, `frontend/assets/js/teacher/screens/examMonitor.js`, `frontend/assets/js/teacher/api/results.js`, `frontend/tests/mock_server.py`, `frontend/tests/trial_walkthrough.py`, test suites (`student_e2e.py`, `dashboard_e2e.py`, `question_editor_e2e.py`, `monitor_e2e.py`, `results_e2e.py`), `.ai/*`. |
+| Database/config changes | None in SQL. All features work within existing stateless RPC and local persistence boundaries. |
+| Tests | Backend **180 passed**, frontend unit **44 passed**, `trial_walkthrough.py` **14/14 observations passed**; all updated e2e suites green (`student_e2e.py` 92, `question_editor_e2e.py` 89, `monitor_e2e.py` 36, `dashboard_e2e.py` 37, `results_e2e.py` 87); `deno lint` clean (104 files). |
+| Open tasks | TASK-033 (D-2: student identity on phone swap), TASK-044 (scale/perf optimization), TASK-045 (D-3: zero-answer timeout display). |
+| Next recommended task | Owner review of new features and preparation for production release merge into `publish`. |
+| Important notes | Working branch is `ai-development`. Never push directly to `publish` without explicit authorization. |
+| Do not | Do not push unverified code; preserve single-line comment headers and Deno lint rules. |
+
+**Previous short header (2026-10-05, live apply session — superseded by the header above, kept as reference)**
+
+| | |
+|---|---|
+| AI / date / branch | Buffy (Freebuff session), 2026-10-05, `ai-development` @ this record commit — pushed to `origin/ai-development`; `main` untouched. |
+| Task | **Live-apply the two migrations the repair pass left unapplied** — `20261004000001_media_isolation` + `20261004000002_exam_readiness` — each dry-run first (migration + rolled-back SQL test in one request, so the final RAISE proves the SQL and persists nothing), then the real apply with its ledger row, then the Edge redeploys. |
+| Completed | Both migrations **applied live** with ledger rows; the dry runs caught a test-fixture quoting bug and two real SQL bugs (a NULL `code_taken` poisoning `ready`, and the numeric(6,2) `60.00` total — both fixed in the migration before it was applied); **`media` v5, `session` v3, `exams` v9 deployed** (ISSUE-072's token decoder fix is now live); `live_ledger_check.py` **ALL PASSED**; **14 browser suites green — 850 checks** (the first run since `553645d` touched 21 frontend files). |
+| Files changed (this session) | `supabase/migrations/20261004000002_exam_readiness.sql` (`trim_scale` + the NULL `code_taken` fix), `supabase/tests/media_isolation_test.sql` (JSON quoting + the null-actor message pinned), `.ai/{02,03,04,05,07,08,09}.md`. |
+| Database/config changes | Two migrations live, each with its `schema_migrations` row; the old unscoped `get_media_paths(uuid[])` / `link_media(text,uuid,jsonb)` **dropped live**; `exam_readiness(uuid,uuid)` live; `get_session_media_paths(uuid)` live; the live `save_question`/`save_passage` carry the owner-checked `link_media` call again (the question-bank isolation slice had silently dropped it since 2026-10-03). |
+| Tests | Backend **180**, unit **44**, 14 suites **850 checks** PASS; both SQL tests **PASSED live** (rolled back, HTTP 400 by design); `deno lint` clean; fmt clean on frontend — on `backend/functions/` three files are flagged locally only by the `core.autocrlf=true` checkout (blobs are LF, `git status` clean, CI unaffected). |
+| Open tasks | **TASK-041's frontend half** (readiness pill — the SQL is live, no UI caller yet), TASK-033 (D-2), TASK-039, TASK-042 (D-5), TASK-044, TASK-045 (D-3), TASK-047 (D-6). TASK-040/043/046 were marked COMPLETED in the queue this session (implemented 2026-10-04, now deployed/recorded). |
+| Next recommended task | **TASK-041's frontend half**: show `exam_readiness` in the exam editor before Open (and optionally a small pill in the exams list); mirror it in `mock_server.py`; `exams_e2e.py` checks. Or the whole live board `run_live_checks.py` — the full board has not run since 2026-10-03. |
+| Important notes | The deployed `session` v3 now expires student tokens (`exp`, refreshed on accepted calls) and serves student media through `get_session_media_paths` — but a real student join/save/submit has NOT been exercised against the live project since the deploy; make the next live run include the monitor/browser checks. `exam_readiness` answers `ready:false` (not an error) for an unready exam — the UI half decides how to show it. |
+| Do not | Do not touch `main`; do not re-add an unscoped signature; do not deploy `session` from a tree without the ISSUE-072 fix. The Management token used this session is stored nowhere in the repo — the owner should rotate it again since it travelled through chat. |
+
+**Previous short header (2026-10-05, repair pass over the 2026-10-04 batch) — superseded by the header above, kept as reference**
+
+| | |
+|---|---|
+| AI / date / branch | Claude (Claude Code), 2026-10-05, `ai-development`, rebased onto `45776a3` (another session's lint and `ends_at` fixes; its `ends_at` version was kept in the conflict, ours added the rest). |
+| Task | Inspect the 2026-10-04 batch (TASK-040/041/043/046 + media slice) against the code and the live ledger, and fix what was wrong. **No new feature.** |
+| Completed | **Token decoder bug fixed** (ISSUE-072: failed for some expiry values, i.e. some days, for every student) · **type error at HEAD fixed** (`deno test` did not compile) · **student media path** no longer goes through the staff-scoped `get_media_paths` (ISSUE-071, new `get_session_media_paths`) · **`exam_readiness` rewritten** with `p_actor`, null-safe ownership, no `format` crash, no null counters (ISSUE-073) · unused import removed · wrong "APPLIED LIVE" header on the media migration corrected. |
+| Files changed | `backend/functions/session/{token,handler}.ts`, `backend/functions/exams/handler.ts`, `backend/tests/{session,exams}.test.ts`, `supabase/migrations/20261004000001_media_isolation.sql`, `supabase/migrations/20261004000002_exam_readiness.sql`, `supabase/tests/media_isolation_test.sql` (extended), `supabase/tests/exam_readiness_test.sql` (new), `.ai/{04,05,07,08,09}.md`. |
+| Database/config changes | **None applied.** The live ledger still ends at `20261005000000`. Two live dry-run requests (migration + SQL test, rolled back by design) were cancelled before running, so nothing was executed and both SQL tests are UNVERIFIED. |
+| Tests | Backend **180** (type-checked), unit **44**, `deno fmt --check` and `deno lint` clean over backend and frontend (re-measured after rebasing onto `45776a3`). Red-proofed first: token tests, the two student-media tests, three readiness tests. **Not run:** the 14 browser suites (no Playwright here; no frontend file changed), CI, any live check. |
+| Open tasks | TASK-033 (D-2), TASK-039, TASK-042, TASK-044, TASK-045 (D-3), TASK-047, plus the **live apply** below. ISSUE-074 (71 frontend lint findings) was fixed by `553645d`; the 14 browser suites have not been re-run since. |
+| Next recommended task | **Live-apply the media isolation slice and exam_readiness**, in this order, each with its rolled-back SQL test in the same request first: (1) `20261004000001_media_isolation.sql` + `media_isolation_test.sql`; (2) redeploy `media`, then `session` (the new student door and the TASK-040 token); (3) `20261004000002_exam_readiness.sql` + `exam_readiness_test.sql`; (4) redeploy `exams`; (5) `live_ledger_check.py`. Also run the 14 browser suites once (`553645d` touched 21 frontend files). |
+| Important notes | `get_media_paths` / `link_media` / `exam_readiness` change signature: the deployed `media`, `session` and `exams` functions break until redeployed, so apply and redeploy in one sitting (the project has 0 exams / 0 sessions, so the window is harmless today). The `session` function must not be deployed without the ISSUE-072 fix. The old header's claim that these migrations were applied was wrong; the ledger is the authority. `exam_readiness` has no frontend caller yet (the editor pill is not built). |
+| Do not | Do not touch `main`; do not re-add an unscoped signature; do not run `--fix` over the frontend lint findings without all 14 browser suites. The Supabase access token pasted into the 2026-10-05 chat prompt was **not** stored anywhere in the repo and should be revoked and recreated. |
+
+**Previous short header (2026-10-04, UI/UX pass COMPLETE) — superseded by the header above, kept as reference**
+
+
+| | |
+|---|---|
+| AI / date / branch | Buffy (OpenCode), 2026-10-05, `ai-development` @ this record commit on top of `6e88d87` (exam isolation fix) — pushed to `origin/ai-development`; `main` untouched. |
+| Task | **Results/monitor isolation slice (DEC-041), including its live apply** — `p_actor` + ownership on the six results reads, the missing-row refusal on the six writes, the bell's essay/suspicious cards scoped; the live SQL test caught an `e`-alias ambiguity, fixed and re-applied the same day. |
+| Completed | Migration `20261005000000_results_isolation` **applied live with its ledger row** (twice — the second apply IS the alias fix, statements updated); `results` Edge Function **redeployed** (v6, ACTIVE); `supabase/tests/results_isolation_test.sql` **PASSED live** on the second run (full matrix, all rolled back); `live_ledger_check.py` **green**; fingerprint intact (0 exams, 0 sessions, 40 questions / 0 archived, 0 TASK-RSI leftovers). |
+| Files changed (this session) | `supabase/migrations/20261005000000_results_isolation.sql` (new), `supabase/tests/results_isolation_test.sql` (new), `backend/functions/results/handler.ts` (p_actor on six reads), `backend/tests/results.test.ts` (174 → 175), `docs/sql-results.md` + `docs/sql-monitor.md` (isolation sections), `.ai/{02,03,04,05,07,08}.md`. |
+| Database/config changes | One migration live (`20261005000000` / `results_isolation`); the eight unscoped read/bell signatures **dropped live**; `results` redeployed. `notifications` needed no redeploy (`list_notifications`' signature is unchanged). |
+| Tests | Backend **175**, unit **44** (red-proofed first: the p_actor-on-reads tests failed on the pre-fix handler). SQL test live **PASSED**. All 14 browser suites unchanged since `a348919` (846 checks — no mock/screen change in this slice, the exams-slice pattern). |
+| Deliberately not verified | Whole live board (`run_live_checks.py`) not re-run — the apply replaced function bodies only; the board remains the next live run's job. |
+| Open tasks | **TASK-033 (D-2), TASK-039 (CSP half needs hosting; secret half waits on D-4), TASK-040 .. TASK-047** (`05_TASK_QUEUE.md`). Isolation roadmap: question bank ✓ (TASK-048), exams ✓ (2026-10-04), **results/monitor + bell ✓ (this session)**; **media is the last isolation domain.** |
+| Next recommended task | **The media isolation slice** — inspect how the `media` function resolves a file to its question/passage and scope the staff paths the same way (DEC-041); or a READY queue task (TASK-043 quality gates, TASK-041 exam readiness) while planning it. |
+| Important notes | The dropped signatures are gone **live**: `list_exam_activity(boolean)`, `count_pending_grading()`, `list_exam_results(uuid)`, `get_session_report(uuid)`, `list_grading_questions(uuid)`, `get_grading_queue(uuid, uuid)`, `_essay_notifications()`, `_suspicious_notifications(integer)` — any out-of-repo caller must adopt the `p_actor` forms. Every SQL ownership guard must keep the null-safe `not exists` idiom (or an explicit `p_actor is null or …`): a bare `IF NOT (admin OR owned)` is NULL for a null actor and fails open — the bug class the exams slice fixed; and never alias a guard's table with a name the function already uses as a variable (this session's `e` vs `e0`). |
+| Do not | Do not touch `main`; do not re-add an unscoped signature; do not weaken the null-actor refusals to make anything pass; the owner's Management token was used for the apply/test/ledger only and never stored in the repo. |
 | History | **`07_CHANGELOG.md`** — every session narrative, commit hash and test number. The record below is kept as reference; the header above wins. |
 
 Keep this file current after every meaningful change; the header above is the current state, everything below is the record.
@@ -16,6 +68,24 @@ Keep this file current after every meaningful change; the header above is the cu
 ---
 
 ## REFERENCE — the record (newest first; state may be older than the header above)
+
+---
+
+**2026-10-04 — UI/UX PASS COMPLETE (OpenCode / Nemotron 3 Ultra, `ai-development` @ `eac8d8d`, on top of `b808ce4`, pushed to `origin/ai-development`; `main` untouched).**
+
+**What was completed:** **UI/UX implementation from the 2026-10-04 engineering audit** — accessibility (router focus management, skip link, exam progressbar role=progressbar, join aria-invalid, bell aria-controls, confirmDialog focus return + aria-describedby), feedback consistency (toast error kinds 9s, .toast.bad/.toast.warn finally styled), loading skeletons on first paint (question bank, exams, grading), error-state Try-again buttons (exams, grading, both monitor boards, results question statistics), polish (confirmDialog returns focus, removed leftover console.log). **No business logic, no backend, no migration, no architecture change.**
+
+**Files changed:** 13 under `frontend/assets/` (`router.js`, `shell.js`, `ui.js`, `exam.js`, `join.js`, `examMonitor.js`, `exams.js`, `grading.js`, `questionBank.js`, `examResults.js`, `questions.css`, `student.css`, `teacher.css`) + `.ai/` memory recreated (00, 04, 05, 08, 09 — the directory was missing from working tree, audit finding H-3). Commit `eac8d8d`.
+
+**Verified:** 14 Playwright e2e suites against static server + mock server: **849 checks PASS** (accounts 46, audit 26, backups 42, dashboard 37, exams 94, media 34, monitor 34, notifications 31, question_bank 161, question_editor 87, question_import 43, results 87, student 91, teacher 37). `deno test --allow-env --allow-read --no-check frontend/tests/unit/`: **44 passed, 0 failed**.
+
+**Not run:** Live suites (`live_*_check.py`). The session's `SUPABASE_ACCESS_TOKEN` is rejected by the Supabase Management API (HTTP 401 "JWT could not be decoded", verified against `GET https://api.supabase.com/v1/projects`). The full board also needs `SUPABASE_TEST_EMAIL`/`SUPABASE_TEST_PASSWORD`; only ledger/notifications/accounts need just the token.
+
+**Known issues from this session:** One flaky failure in `monitor_e2e` (check "empty hub explains itself" failed once, then passed 3× in a row — environmental, not a regression). `results_e2e` crashed once due to stopped static server (restarted, all green). Earlier attempt to normalize toast class "bad"→"error" in JS crashed `exams_e2e.py` (selector `.toast.bad` is a test contract); reverted to CSS-only fix.
+
+**Open tasks:** TASK-033 (D-2), TASK-039, TASK-040..047 (`05_TASK_QUEUE.md`). Media isolation slice is the last DEC-041 domain. P0 audit items (CI, live isolation tests, student identity model) untouched.
+
+
 
 **PHASE A IS COMPLETE AND LIVE: THE OWNER ANSWERED D-1, TASK-030 LANDED, AND THE NEXT READY WORK IS PHASE B — TASK-038, THEN TASK-037 (Buffy, 2026-10-02 — implementation session on `ai-development`, with the owner's Supabase credential, SQL applied live).**
 

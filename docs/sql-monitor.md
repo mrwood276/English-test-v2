@@ -103,3 +103,12 @@ reload and produced no console errors.
 
 Everything both live checks created was deleted afterwards (`frontend/tests/cleanup_live_monitor.sql`):
 live state 0 exams, 0 sessions, 0 answers, 0 results, 0 events, 0 rate-limit rows, 40 questions.
+
+## Teacher data isolation on the monitor (2026-10-05, DEC-041 — the results slice)
+
+The monitor has no SQL of its own — it reads the `results` function (`activity`, `overview`,
+`report`) and writes through `add_time` / `add_exam_time`. Since `20261005000000_results_isolation.sql`
+every one of those is scoped to the exam's `created_by` (active admins see the whole school), so a
+teacher's monitor hub, board and student timelines show only their own exams, and a foreign exam or
+session answers exactly what a missing one answers. Contract and live record:
+`docs/sql-results.md` ("Teacher data isolation in results and the monitor").

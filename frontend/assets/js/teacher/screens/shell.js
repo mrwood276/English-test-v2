@@ -1,4 +1,4 @@
-import { h, mount, initials } from "../../shared/dom.js";
+import { h, initials, mount } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
 import { startRouter } from "../router.js";
 import { APP_BUILD } from "../../core/config.js";
@@ -49,18 +49,34 @@ function buildBell() {
   const badge = h("span", { class: "notif-badge", hidden: true });
   const btn = h(
     "button",
-    { id: "notif-bell", class: "bell-btn", type: "button", "aria-label": "Notifications", "aria-expanded": "false", title: "Notifications" },
+    {
+      id: "notif-bell",
+      class: "bell-btn",
+      type: "button",
+      "aria-label": "Notifications",
+      "aria-expanded": "false",
+      "aria-controls": "notif-panel",
+      title: "Notifications",
+    },
     icon("bell"),
     badge,
   );
   const sub = h("span", { class: "hint" }, "");
-  const body = h("div", { class: "notif-body" }, h("div", { class: "notif-empty" }, "Loading…"));
+  const body = h(
+    "div",
+    { class: "notif-body" },
+    h("div", { class: "notif-empty" }, "Loading…"),
+  );
   const panel = h(
     "div",
-    { class: "notif-panel", hidden: true },
+    { class: "notif-panel", id: "notif-panel", hidden: true },
     h("div", { class: "notif-head" }, h("strong", {}, "Notifications"), sub),
     body,
-    h("div", { class: "hint notif-foot" }, "Email summaries are not switched on yet."),
+    h(
+      "div",
+      { class: "hint notif-foot" },
+      "Email summaries are not switched on yet.",
+    ),
   );
   const wrap = h("div", { class: "bell-wrap" }, btn, panel);
 
@@ -71,7 +87,12 @@ function buildBell() {
       "a",
       { class: "notif-row", href },
       h("span", { class: `notif-pill notif-pill-${tone}` }, pillText),
-      h("span", { class: "notif-main" }, h("strong", {}, title), h("span", { class: "notif-sub" }, detail)),
+      h(
+        "span",
+        { class: "notif-main" },
+        h("strong", {}, title),
+        h("span", { class: "notif-sub" }, detail),
+      ),
       h("span", { class: "hint notif-when" }, timeAgo(when)),
     );
 
@@ -93,42 +114,86 @@ function buildBell() {
     if (essays.length > 0) rows.push(kindHeading("Essays to grade"));
     for (const e of essays) {
       rows.push(row(
-        `#/grading/${e.exam_id}`, "warn", "Essay", e.title,
-        `${e.waiting} waiting · ${e.student_name} (${e.student_class})`, e.updated_at,
+        `#/grading/${e.exam_id}`,
+        "warn",
+        "Essay",
+        e.title,
+        `${e.waiting} waiting · ${e.student_name} (${e.student_class})`,
+        e.updated_at,
       ));
     }
 
     if (suspicious.length > 0) rows.push(kindHeading("Exams worth a look"));
     for (const s of suspicious) {
       rows.push(row(
-        `#/monitor/${s.exam_id}`, "bad", "Suspicious", s.title,
-        `${s.events} event${s.events === 1 ? "" : "s"} · ${s.sessions} attempt${s.sessions === 1 ? "" : "s"}`, s.last_at,
+        `#/monitor/${s.exam_id}`,
+        "bad",
+        "Suspicious",
+        s.title,
+        `${s.events} event${s.events === 1 ? "" : "s"} · ${s.sessions} attempt${
+          s.sessions === 1 ? "" : "s"
+        }`,
+        s.last_at,
       ));
     }
 
     if (backup || accounts.length > 0) rows.push(kindHeading("System"));
     if (backup) {
       rows.push(row(
-        "#/backups", "neutral", "Backup", backup.kind === "automatic" ? "Nightly backup finished" : "Manual backup taken",
-        backup.created_by_name ? `by ${backup.created_by_name}` : "by the nightly job", backup.created_at,
+        "#/backups",
+        "neutral",
+        "Backup",
+        backup.kind === "automatic"
+          ? "Nightly backup finished"
+          : "Manual backup taken",
+        backup.created_by_name
+          ? `by ${backup.created_by_name}`
+          : "by the nightly job",
+        backup.created_at,
       ));
     }
     for (const a of accounts) {
       rows.push(row(
-        "#/accounts", "ok", "New", a.full_name || a.email,
-        `${a.role === "admin" ? "Admin" : "Teacher"} account · hand over the password`, a.created_at,
+        "#/accounts",
+        "ok",
+        "New",
+        a.full_name || a.email,
+        `${
+          a.role === "admin" ? "Admin" : "Teacher"
+        } account · hand over the password`,
+        a.created_at,
       ));
     }
 
     body.replaceChildren(
-      ...(rows.length > 0
-        ? rows
-        : [h("div", { class: "notif-empty" }, "All quiet. Nothing needs your attention right now.")]),
+      ...(rows.length > 0 ? rows : [
+        h(
+          "div",
+          { class: "notif-empty" },
+          "All quiet. Nothing needs your attention right now.",
+        ),
+      ]),
     );
   };
 
   const paintProblem = () => {
-    body.replaceChildren(h("div", { class: "notif-empty" }, "The bell could not be read. Try again in a moment."));
+    const retry = h(
+      "button",
+      { class: "btn small ghost", type: "button" },
+      "Try again",
+    );
+    retry.addEventListener("click", (e) => {
+      e.stopPropagation(); // the document-level closer must not shut the panel on the same tap
+      load();
+    });
+    body.replaceChildren(
+      h(
+        "div",
+        { class: "notif-empty", role: "alert" },
+        "The bell could not be read.",
+      ),
+      h("div", { class: "notif-retry" }, retry),
+    );
   };
 
   const load = async () => {
@@ -160,11 +225,13 @@ function buildBell() {
     if (open && !wrap.contains(e.target)) setOpen(false);
   });
   // Navigating closes the bell and re-counts (grading an essay, taking a backup…).
+  // deno-lint-ignore no-window no-window-prefix
   window.addEventListener("hashchange", () => {
     if (open) setOpen(false);
     load();
   });
   // A screen that grades something tells the bell too, so essays cannot go stale on screen.
+  // deno-lint-ignore no-window no-window-prefix
   window.addEventListener("staff:results-changed", load);
 
   load();
@@ -174,6 +241,10 @@ function buildBell() {
 /** The signed-in shell. The menu matches the approved mockups. */
 export function renderShell(root, ctx) {
   const { user } = ctx;
+
+  // First focusable element: keyboard users never have to tab through the
+  // whole menu to reach the content (the router moves focus to <main> too).
+  const skip = h("a", { class: "skip", href: "#content" }, "Skip to content");
 
   /** How many essays still wait; the badge stays quiet until there is something to do. */
   const badge = h("span", { class: "pill warn nav-badge", hidden: true });
@@ -193,24 +264,61 @@ export function renderShell(root, ctx) {
     { class: "nav", "aria-label": "Main" },
     (user.role === "admin" ? ADMIN_NAV : NAV).map((item) =>
       item.route
-        ? h("a", { href: item.route, "data-route": item.route }, icon(item.icon), item.label, item.badge ? badge : null)
-        : h("span", { class: "item", "aria-disabled": "true", title: "Coming in a later phase" }, icon(item.icon), item.label, h("span", { class: "soon pill" }, "Soon")),
+        ? h(
+          "a",
+          { href: item.route, "data-route": item.route },
+          icon(item.icon),
+          item.label,
+          item.badge ? badge : null,
+        )
+        : h(
+          "span",
+          {
+            class: "item",
+            "aria-disabled": "true",
+            title: "Coming in a later phase",
+          },
+          icon(item.icon),
+          item.label,
+          h("span", { class: "soon pill" }, "Soon"),
+        )
     ),
   );
   const content = h("main", { class: "main", id: "content", tabindex: "-1" });
 
   mount(
     root,
+    skip,
     h(
       "div",
       { class: "shell" },
       h(
         "aside",
         { class: "side" },
-        h("div", { class: "brand" }, h("span", { class: "bubble" }, "E"), "English Daily Test", buildBell()),
+        h(
+          "div",
+          { class: "brand" },
+          h("span", { class: "bubble" }, "E"),
+          "English Daily Test",
+          buildBell(),
+        ),
         nav,
-        h("div", { class: "me" }, h("span", { class: "avatar" }, initials(user.fullName)), h("div", {}, h("strong", {}, user.fullName), h("div", { class: "hint" }, ROLE_LABEL[user.role] || user.role))),
-        h("div", { class: "build hint", "data-build": "" }, `Build: ${APP_BUILD}`),
+        h(
+          "div",
+          { class: "me" },
+          h("span", { class: "avatar" }, initials(user.fullName)),
+          h(
+            "div",
+            {},
+            h("strong", {}, user.fullName),
+            h("div", { class: "hint" }, ROLE_LABEL[user.role] || user.role),
+          ),
+        ),
+        h(
+          "div",
+          { class: "build hint", "data-build": "" },
+          `Build: ${APP_BUILD}`,
+        ),
       ),
       content,
     ),
@@ -218,7 +326,9 @@ export function renderShell(root, ctx) {
 
   startRouter(content, nav, ctx);
   refreshBadge();
+  // deno-lint-ignore no-window no-window-prefix
   window.addEventListener("hashchange", refreshBadge);
   // A screen that grades something tells the menu, so the badge cannot go stale.
+  // deno-lint-ignore no-window no-window-prefix
   window.addEventListener("staff:results-changed", refreshBadge);
 }

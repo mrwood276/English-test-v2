@@ -1,7 +1,8 @@
 # 00 AI RULES (read this first)
 
-Rules for every AI agent (Claude, Codex/GPT, or any other) working in this repository.
-Last verified against the repository: 2026-09-21 (commit `ad9b6d6` plus uncommitted-at-the-time import work; see `04_CURRENT_STATE.md`).
+Google Antigravity is the primary and permanent AI development agent for this repository.
+Rules for every AI agent working in this repository.
+Last verified against the repository: 2026-10-23 (takeover and branch alignment).
 
 ## 0. What `.ai/` is, and what it is not
 
@@ -39,7 +40,7 @@ Also read `docs/design.md` (product requirements, business rules BR-01..BR-22, d
 
 | Topic | Fact |
 |---|---|
-| Repository | GitHub `mrwood276/English-test-v2` (**public** — confirmed by the owner 2026-10-02, DEC-040; never commit secrets, credentials, the staff test account's address or students' data). Frontend and backend live together. Branches: `main` (stable) and `ai-development` (shared AI workspace) — see section 12. |
+| Repository | GitHub `mrwood276/English-test-v2` (**public** — confirmed by the owner 2026-10-02, DEC-040; never commit secrets, credentials, the staff test account's address or students' data). Frontend and backend live together. Branches: `publish` (production/stable, remote HEAD) and `ai-development` (shared AI workspace) — see section 12. |
 | Database and functions | Supabase project **English_Test_v2**, ref `lbhnadqmokloyfarrzfv`, region ap-southeast-1. Changes to the database and to deployed Edge Functions are made **in the live project**, not by `git push`. |
 | Migrations in git | **Present — 34 files** under `supabase/migrations/` (the 12 live-only ones were pulled verbatim on 2026-09-24; the live-vs-git ledger mapping is `docs/migration-ledger-reconciliation.md`; `09_KNOWN_ISSUES.md` ISSUE-001 keeps only its tracking-metadata nuance). |
 | Claude (claude.ai chat) | Has a sandbox (Deno 2.x, Python + Playwright, git) and the Supabase connector (apply_migration, execute_sql, deploy_edge_function). It has **no GitHub push/pull tool** in the chat used so far; it hands changes over as a repository zip which the owner pulls and pushes. |
@@ -142,35 +143,32 @@ They do not prove that the real Supabase behaves the same. SQL business rules we
 
 ## 12. Git branch workflow
 
-The repository uses two branches with a specific meaning. Do not blur this distinction.
+The repository uses two active branches with a specific meaning. Do not blur this distinction.
 
 | Branch | Meaning |
 |---|---|
-| `main` | **Stable branch.** Represents a project state that is considered solid. Not the normal AI workspace. |
-| `ai-development` | **Shared AI development branch.** This is where Claude and Codex/GPT do normal, everyday work. |
+| `publish` | **Production & release branch.** Remote HEAD. Deployed to production (Vercel/static host). Not for direct everyday AI development. |
+| `ai-development` | **Primary AI development branch.** This is where Google Antigravity and any contributing AI agents work. |
 
 ```
-main
-  │   (stable)
-  └── ai-development
-          ├── Claude
-          ├── Codex/GPT
-          ├── Claude
-          └── Codex/GPT   (sequential, one AI at a time)
+publish (production / remote HEAD)
+  │   (stable deployed releases)
+  └── ai-development (development branch)
+          └── Google Antigravity (primary development agent)
 ```
 
 Rules:
 
-1. **Normal development happens on `ai-development`**, never directly on `main`.
-2. **Only one AI actively modifies `ai-development` at a time.** Claude and Codex/GPT are not expected to work simultaneously on it; they take turns.
+1. **Normal development happens on `ai-development`**, never directly on `publish`.
+2. **Google Antigravity is the primary development agent.** When multiple agents interact, work sequentially and never run concurrent uncoordinated edits.
 3. **Before working**, `git checkout ai-development` (or verify you are on it) and `git pull` the latest remote state of that branch.
-4. **Before modifying any file**, run `git status` and `git log --oneline -5` to see what is already there. Never assume the branch is where you last left it — another agent may have pushed since.
-5. **Never discard another AI's work.** No `git reset --hard`, no `git clean -fd`, no force push, no deleting branches — unless the owner explicitly approves it in the conversation, and even then prefer the least destructive option (e.g. revert commit over reset).
+4. **Before modifying any file**, run `git status` and `git log --oneline -5` to see what is already there. Never assume the branch is where you last left it.
+5. **Never discard previous work.** No `git reset --hard`, no `git clean -fd`, no force push, no deleting branches — unless the owner explicitly approves it.
 6. After meaningful work on `ai-development`: test → update `.ai/` (see section 13) → commit → push.
-7. **The next AI must pull `ai-development` before working**, then read `08_HANDOFF.md` (which branch/commit the previous agent left it at, and what to do next).
-8. **Do not merge `ai-development` into `main` automatically.** Merging into `main` is a deliberate, separate action the owner asks for once the development branch is considered stable and ready — not something an agent decides on its own mid-task.
-9. `main` only receives intentionally reviewed, stable changes (a merge from `ai-development`, decided by the owner).
-10. If a task genuinely requires touching `main` directly (rare — e.g. an urgent one-line fix the owner explicitly asks to ship immediately), say so and confirm with the owner first; do not do it silently.
+7. **Any succeeding session must pull `ai-development` before working**, then read `08_HANDOFF.md` (which commit the previous session left it at, and what to do next).
+8. **Do not merge `ai-development` into `publish` automatically.** Merging or opening a Pull Request into `publish` is a deliberate release action confirmed by the owner once features are verified and ready to deploy.
+9. `publish` only receives intentionally reviewed, stable releases (via PR or merge from `ai-development`).
+10. If a critical hotfix genuinely requires touching `publish` directly, confirm with the owner first; do not do it silently.
 
 Current operational limitation: the Claude instance in the claude.ai chat used so far has no direct `git push`/`git pull` to the GitHub remote (see DEC-018). Until that changes, "push" in the steps above means: commit locally, then hand the repository (with both branches) to the owner, who pulls and pushes it. An agent with real git access to the remote should push directly and skip that hand-off step.
 

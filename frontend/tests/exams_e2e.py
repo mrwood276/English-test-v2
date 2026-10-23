@@ -226,6 +226,10 @@ with sync_playwright() as pw:
     check("reloaded editor keeps the saved values", page.input_value("#ee-title") == "Simple Past, Quiz 1")
     page.wait_for_function("Array.from(document.querySelectorAll('.summary-list .pill')).every(p => p.classList.contains('ok'))")
     check("summary turns green after filling in", page.eval_on_selector_all(".summary-list .pill.warn", "els => els.length") == 0)
+    page.wait_for_selector("#ee-readiness .pill")
+    readiness_text = page.inner_text("#ee-readiness")
+    check("readiness indicator confirms ready to open", "Ready to open" in readiness_text, readiness_text)
+    check("open button is available for a ready draft", page.is_visible("#ee-open-btn"))
 
     # --- editor: existing manual exam shows questions and their weights
     # Fresh document on the existing exam. Reload only once this screen is the one on the URL: a reload

@@ -15,11 +15,13 @@ export function callSession(body) {
 
 export const sessionApi = {
   /** name + class + the code from the board → { token, session, questions, answers } */
-  join: (code, name, studentClass) => callSession({ action: "join", code, name, class: studentClass }),
+  join: (code, name, studentClass) =>
+    callSession({ action: "join", code, name, class: studentClass }),
   get: (token) => callSession({ action: "get", token }),
   save: (token, answers) => callSession({ action: "save", token, answers }),
   heartbeat: (token) => callSession({ action: "heartbeat", token }),
-  event: (token, eventType, meta) => callSession({ action: "event", token, event_type: eventType, meta }),
+  event: (token, eventType, meta) =>
+    callSession({ action: "event", token, event_type: eventType, meta }),
   submit: (token, reason) => callSession({ action: "submit", token, reason }),
   result: (token) => callSession({ action: "result", token }),
   media: (token) => callSession({ action: "media", token }),
@@ -28,4 +30,5 @@ export const sessionApi = {
 export { HttpError, NetworkError };
 
 /** The session is gone (for example the database was cleaned): the student has to join again. */
-export const isExpiredSession = (err) => err instanceof HttpError && (err.status === 401 || err.status === 404);
+export const isExpiredSession = (err) =>
+  err instanceof HttpError && (err.status === 401 || err.status === 404);

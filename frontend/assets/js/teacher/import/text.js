@@ -19,7 +19,8 @@
  *
  * Returns { records, passages, problems }. A record has the same fields as a spreadsheet row (see rows.js).
  */
-const DEFINITION = /\[(?:reading text|passage|teks bacaan)\s*:\s*([^\]\n]+)\]([\s\S]*?)\[\/(?:reading text|passage|teks bacaan)\]/gi;
+const DEFINITION =
+  /\[(?:reading text|passage|teks bacaan)\s*:\s*([^\]\n]+)\]([\s\S]*?)\[\/(?:reading text|passage|teks bacaan)\]/gi;
 const NUMBERED = /^\s*(\d{1,3})\s*[.)]\s+(\S.*)$/;
 const OPTION = /^\s*[*\u2713\u2714]?\s*\(?([A-Fa-f])\s*[.):]\s*(.*)$/;
 const META = [
@@ -34,12 +35,19 @@ const META = [
   ["readingTitle", /^\s*(?:reading text|passage|teks bacaan)\s*[:=]\s*(.*)$/i],
 ];
 const CONTINUES = new Set(["explanation", "guide"]);
-const CORRECT_MARK = /\s*(?:\*+|✓|✔|\((?:correct|benar)\)|\[(?:correct|benar)\])\s*$/i;
+const CORRECT_MARK =
+  /\s*(?:\*+|✓|✔|\((?:correct|benar)\)|\[(?:correct|benar)\])\s*$/i;
 
-const clean = (s) => String(s).replace(/\u00a0/g, " ").replace(/\t/g, " ").replace(/[\u200b\u200e\u200f]/g, "");
+const clean = (s) =>
+  String(s).replace(/\u00a0/g, " ").replace(/\t/g, " ").replace(
+    /[\u200b\u200e\u200f]/g,
+    "",
+  );
 
 function toParagraphs(body) {
-  return body.trim().split(/\n\s*\n/).map((p) => p.replace(/\s*\n\s*/g, " ").trim()).filter(Boolean).join("<br><br>");
+  return body.trim().split(/\n\s*\n/).map((p) =>
+    p.replace(/\s*\n\s*/g, " ").trim()
+  ).filter(Boolean).join("<br><br>");
 }
 
 export function parsePastedText(input) {
@@ -76,16 +84,34 @@ export function parsePastedText(input) {
   const records = [];
   const problems = [];
   blocks.forEach((block, index) => {
-    const record = { row: index + 1, type: "", question: "", options: [], correct: "", guide: "", explanation: "", topic: "", difficulty: "", points: "", classText: "", readingTitle: "", readingBody: "" };
+    const record = {
+      row: index + 1,
+      type: "",
+      question: "",
+      options: [],
+      correct: "",
+      guide: "",
+      explanation: "",
+      topic: "",
+      difficulty: "",
+      points: "",
+      classText: "",
+      readingTitle: "",
+      readingBody: "",
+    };
     const stem = [];
     let field = null; // the meta field a continuation line belongs to
     let lastOption = false;
     const marked = [];
     for (const line of block.lines) {
-      const meta = META.map(([key, re]) => [key, re.exec(line)]).find(([, m]) => m);
+      const meta = META.map(([key, re]) => [key, re.exec(line)]).find(([, m]) =>
+        m
+      );
       if (meta) {
         const [key, m] = meta;
-        record[key] = key === "explanation" || key === "guide" ? m[1].trim() : m[1].trim();
+        record[key] = key === "explanation" || key === "guide"
+          ? m[1].trim()
+          : m[1].trim();
         field = CONTINUES.has(key) ? key : null;
         lastOption = false;
         continue;
@@ -95,7 +121,10 @@ export function parsePastedText(input) {
       if (opt && opt[1].toUpperCase() === expected) {
         let optionText = opt[2].trim();
         let isMarked = /^\s*[*\u2713\u2714]/.test(line.trim());
-        if (CORRECT_MARK.test(optionText)) { optionText = optionText.replace(CORRECT_MARK, "").trim(); isMarked = true; }
+        if (CORRECT_MARK.test(optionText)) {
+          optionText = optionText.replace(CORRECT_MARK, "").trim();
+          isMarked = true;
+        }
         record.options.push(optionText);
         if (isMarked) marked.push(expected);
         field = null;
@@ -110,9 +139,12 @@ export function parsePastedText(input) {
     }
     record.question = stem.join("<br>");
     if (!record.correct && marked.length) record.correct = marked.join(",");
-    if (record.readingTitle && passages[record.readingTitle]) record.readingBody = passages[record.readingTitle];
-    if (record.question || record.options.length || record.correct) records.push(record);
-    else problems.push(`Block ${index + 1} has no question text.`);
+    if (record.readingTitle && passages[record.readingTitle]) {
+      record.readingBody = passages[record.readingTitle];
+    }
+    if (record.question || record.options.length || record.correct) {
+      records.push(record);
+    } else problems.push(`Block ${index + 1} has no question text.`);
   });
   return { records, passages, problems };
 }

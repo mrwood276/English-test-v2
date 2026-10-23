@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import { createHandler, type Db } from "../functions/session/handler.ts";
 import { parseAnswers, parseEventMeta, parseEventType, parseJoin, parseReason } from "../functions/session/parse.ts";
-import { signSessionToken, verifySessionToken } from "../functions/session/token.ts";
+import { signSessionToken, verifySessionToken, computeTokenExpiry } from "../functions/session/token.ts";
 import { ApiError } from "../functions/_shared/errors.ts";
 
 const SESSION = "44444444-4444-4444-8444-444444444444";
 const OTHER = "55555555-5555-4555-8555-555555555555";
 const QUESTION = "33333333-3333-4333-8333-333333333331";
 const SECRET = "test-secret";
-const TOKEN = await signSessionToken(SESSION, SECRET);
+const EXPIRES_AT = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+const TOKEN = await signSessionToken(SESSION, SECRET, EXPIRES_AT);
 
 interface Call { name: string; args: Record<string, unknown> }
 type Result = { data?: unknown; error?: { message: string; hint?: string; code?: string } };
@@ -118,7 +119,7 @@ Deno.test("event types and submit reasons are closed lists", () => {
 // ---------- the session token ----------
 Deno.test("a session token round-trips and is tied to its session", async () => {
   assert.equal(await verifySessionToken(TOKEN, SECRET), SESSION);
-  const other = await signSessionToken(OTHER, SECRET);
+  const other = await signSessionToken(OTHER, SECRET, EXPIRES_AT);
   assert.equal(await verifySessionToken(other, SECRET), OTHER);
   assert.notEqual(TOKEN, other);
 });
@@ -131,9 +132,32 @@ Deno.test("a forged or foreign token is refused", async () => {
   assert.equal(await verifySessionToken("not-a-uuid.AAAA", SECRET), null);
 });
 
+// The expiry is base64url of an 8-byte timestamp. Whether that text contains "-" or "_" depends on the
+// timestamp's value, so a decoder that mishandles them fails only on some days, and then for every
+// student at once. Walk a run of consecutive timestamps (the last byte takes every value) so both
+// characters are certain to be met.
+Deno.test("a session token round-trips for every expiry, whatever characters its base64url holds", async () => {
+  const start = 1_790_000_000;
+  let sawDash = false;
+  let sawUnderscore = false;
+  for (let exp = start; exp < start + 600; exp++) {
+    const token = await signSessionToken(SESSION, SECRET, exp + 10 * 365 * 86400);
+    const part = token.split(".")[1];
+    sawDash ||= part.includes("-");
+    sawUnderscore ||= part.includes("_");
+    assert.equal(await verifySessionToken(token, SECRET), SESSION, `expiry part ${part} must verify`);
+  }
+  assert.ok(sawDash && sawUnderscore, "the walk must have met both url-safe characters, or it proves nothing");
+});
+
+Deno.test("a token with a garbled expiry is refused, never an exception", async () => {
+  assert.equal(await verifySessionToken(`${SESSION}.@@@@.AAAA`, SECRET), null);
+  assert.equal(await verifySessionToken(`${SESSION}.A.AAAA`, SECRET), null);
+});
+
 // ---------- handler ----------
 Deno.test("join rate limits the address, then calls exam_join and hands out a token", async () => {
-  const { db, calls } = fakeDb((name) => name === "exam_join" ? { data: { session: { id: SESSION, status: "in_progress" }, questions: [{ position: 1 }], answers: [] } } : { data: null });
+  const { db, calls } = fakeDb((name) => name === "exam_join" ? { data: { session: { id: SESSION, status: "in_progress", ends_at: new Date(Date.now() + 3600000).toISOString() }, questions: [{ position: 1 }], answers: [] } } : { data: null });
   const res = await handler(db)(post({ action: "join", code: "k7m2qx", name: "Aisyah Putri", class: "XII TKJ A" }));
   assert.equal(res.status, 200);
   const body = await res.json();
@@ -166,7 +190,7 @@ Deno.test("every other action needs a real session token", async () => {
     assert.equal((await h(post({ action }))).status, 400, `${action} without a token is refused`);
   }
   assert.equal((await h(post({ action: "get", token: `${SESSION}.AAAA` }))).status, 401, "a forged token is refused");
-  assert.equal((await h(post({ action: "get", token: await signSessionToken(SESSION, "other-key") }))).status, 401, "a token signed elsewhere is refused");
+  assert.equal((await h(post({ action: "get", token: await signSessionToken(SESSION, "other-key", EXPIRES_AT) }))).status, 401, "a token signed elsewhere is refused");
   assert.deepEqual(rpcNames(calls), [], "no database work happened for a refused caller");
 });
 
@@ -218,24 +242,27 @@ Deno.test("event logs the type and its small details", async () => {
   assert.equal((await handler(db)(post({ action: "event", token: TOKEN, event_type: "sneaky" }))).status, 400);
 });
 
+// The student path must never go through get_media_paths: since the media isolation slice (DEC-041)
+// that function is scoped to a staff actor and returns nothing for anyone else, so a student's
+// audio and images would silently vanish. The session-scoped function is the only door here.
 Deno.test("media signs only the files this session is allowed to show", async () => {
   const { db, calls, signed } = fakeDb((name) => {
-    if (name === "get_session_media_ids") return { data: ["m1"] };
-    if (name === "get_media_paths") return { data: [{ id: "m1", path: "audio/2026/x.mp3" }] };
+    if (name === "get_session_media_paths") return { data: [{ id: "m1", path: "audio/2026/x.mp3", kind: "audio" }] };
     return { data: null };
   });
   const res = await handler(db)(post({ action: "media", token: TOKEN }));
   assert.deepEqual(await res.json(), { urls: { m1: "https://signed/audio/2026/x.mp3" }, expires_in: 3600 });
   assert.deepEqual(signed[0], { paths: ["audio/2026/x.mp3"], expiresIn: 3600 });
-  assert.deepEqual(rpcCall(calls, "get_session_media_ids").args, { p_id: SESSION });
+  assert.deepEqual(rpcCall(calls, "get_session_media_paths").args, { p_id: SESSION });
+  assert.equal(rpcNames(calls).includes("get_media_paths"), false, "the student path must not use the staff-scoped get_media_paths");
 });
 
 Deno.test("media asks Storage for nothing when the session has no files", async () => {
-  const { db, calls, signed } = fakeDb((name) => name === "get_session_media_ids" ? { data: [] } : { data: null });
+  const { db, calls, signed } = fakeDb((name) => name === "get_session_media_paths" ? { data: [] } : { data: null });
   const res = await handler(db)(post({ action: "media", token: TOKEN }));
   assert.deepEqual(await res.json(), { urls: {}, expires_in: 3600 });
   assert.equal(signed.length, 0);
-  assert.deepEqual(rpcNames(calls), ["get_session_media_ids"]);
+  assert.deepEqual(rpcNames(calls), ["get_session_media_paths"]);
 });
 
 Deno.test("an unknown action is refused before any work", async () => {

@@ -11,3 +11,4 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: same-origin
   X-Frame-Options: DENY
+  Content-Security-Policy: default-src 'self'; connect-src 'self' https://lbhnadqmokloyfarrzfv.supabase.co; img-src 'self' data: blob: https://lbhnadqmokloyfarrzfv.supabase.co; media-src 'self' blob: https://lbhnadqmokloyfarrzfv.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'none'; object-src 'none'

@@ -170,6 +170,11 @@ with sync_playwright() as pw:
     check("the exam-wide control is disabled when nobody is working",
           page.query_selector("[data-add-all]").is_disabled(),
           "button still enabled with no running attempts")
+    check("broadcast button is present", page.is_visible("[data-broadcast]"))
+    page.on("dialog", lambda d: d.accept("Attention: 10 minutes remaining!"))
+    page.click("[data-broadcast]")
+    page.wait_for_function("[...document.querySelectorAll('.toast')].some(t => t.textContent.includes('Broadcast sent'))")
+    check("broadcast message reached server", srv.broadcasts.get(EXAM_ID) == "Attention: 10 minutes remaining!")
 
     check("no page errors", errors == [], "; ".join(errors[:3]))
     browser.close()

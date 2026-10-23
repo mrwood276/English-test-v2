@@ -17,17 +17,74 @@ const rich = (html, cls, tag = "div") => {
  */
 export function mediaBlock(files, urls) {
   if (!files || files.length === 0) return null;
-  return h("div", { class: "media-block" }, files.map((file) => {
-    const url = urls[file.id];
-    if (file.kind === "image") {
-      return url
-        ? h("img", { class: "q-image", src: url, alt: "", loading: "lazy" })
-        : h("span", { class: "tag" }, icon("image"), " Image");
-    }
-    return url
-      ? h("audio", { controls: true, preload: "none", src: url })
-      : h("span", { class: "tag" }, icon("audio"), " Audio");
-  }));
+  return h(
+    "div",
+    { class: "media-block" },
+    files.map((file) => {
+      const url = urls[file.id];
+      if (file.kind === "image") {
+        return url
+          ? h("img", { class: "q-image", src: url, alt: "", loading: "lazy" })
+          : h("span", { class: "tag" }, icon("image"), " Image");
+      }
+      if (file.kind === "audio") {
+        if (!url) return h("span", { class: "tag" }, icon("audio"), " Audio");
+        const maxPlays = file.max_plays || 3;
+        const playKey = `ENG_AUDIO_PLAY_${file.id}`;
+        let plays = 0;
+        try {
+          plays = parseInt(sessionStorage.getItem(playKey) || "0", 10);
+        } catch {
+          /* ignore */
+        }
+        const remaining = Math.max(0, maxPlays - plays);
+        const badge = h(
+          "span",
+          {
+            class: `pill ${remaining > 0 ? "plain" : "warn"}`,
+            style: "margin-bottom:4px; font-size:12px; align-self:flex-start;",
+          },
+          remaining > 0
+            ? `Plays remaining: ${remaining} of ${maxPlays}`
+            : `Play limit reached (${maxPlays}/${maxPlays})`,
+        );
+        const audioEl = h("audio", {
+          controls: remaining > 0,
+          preload: "none",
+          src: remaining > 0 ? url : "",
+        });
+        if (remaining > 0) {
+          audioEl.addEventListener("ended", () => {
+            plays += 1;
+            try {
+              sessionStorage.setItem(playKey, String(plays));
+            } catch {
+              /* ignore */
+            }
+            const rem = Math.max(0, maxPlays - plays);
+            badge.className = `pill ${rem > 0 ? "plain" : "warn"}`;
+            badge.textContent = rem > 0
+              ? `Plays remaining: ${rem} of ${maxPlays}`
+              : `Play limit reached (${maxPlays}/${maxPlays})`;
+            if (rem <= 0) {
+              audioEl.removeAttribute("controls");
+              audioEl.src = "";
+            }
+          });
+        }
+        return h(
+          "div",
+          {
+            class: "audio-player-box",
+            style: "display:flex; flex-direction:column; gap:4px;",
+          },
+          badge,
+          audioEl,
+        );
+      }
+      return null;
+    }),
+  );
 }
 
 /**
@@ -44,10 +101,15 @@ export function questionBlock(question, urls, handlers) {
   const parts = [];
 
   if (question.passage) {
-    parts.push(h("div", { class: "passage" },
-      h("strong", { class: "passage-title" }, question.passage.title),
-      mediaBlock(question.passage.media, urls),
-      rich(question.passage.body, "passage-body serif")));
+    parts.push(
+      h(
+        "div",
+        { class: "passage" },
+        h("strong", { class: "passage-title" }, question.passage.title),
+        mediaBlock(question.passage.media, urls),
+        rich(question.passage.body, "passage-body serif"),
+      ),
+    );
   }
   const ownMedia = mediaBlock(question.media, urls);
   if (ownMedia) parts.push(ownMedia);
@@ -58,9 +120,18 @@ export function questionBlock(question, urls, handlers) {
   if (question.type === "multiple_choice" || question.type === "true_false") {
     const options = question.options || [];
     const buttons = options.map((option, index) => {
-      const button = h("button", { class: "opt", type: "button" },
-        h("span", { class: "bubble" }, question.type === "multiple_choice" ? (LETTERS[index] || String(index + 1)) : (option.body || "").slice(0, 1)),
-        rich(option.body, "opt-text", "span"));
+      const button = h(
+        "button",
+        { class: "opt", type: "button" },
+        h(
+          "span",
+          { class: "bubble" },
+          question.type === "multiple_choice"
+            ? (LETTERS[index] || String(index + 1))
+            : (option.body || "").slice(0, 1),
+        ),
+        rich(option.body, "opt-text", "span"),
+      );
       button.addEventListener("click", () => {
         handlers.onAnswer(id, option.body);
         paint(option.body);
@@ -79,20 +150,54 @@ export function questionBlock(question, urls, handlers) {
     // `maxlength` is the first of the two guard rails: the browser itself will not let an answer grow
     // past what `save_session_answers` accepts (INS-02). The screen also checks before it queues one.
     const input = h("input", {
-      class: "input", type: "text", autocomplete: "off", autocapitalize: "sentences", spellcheck: "false",
-      value: handlers.value(id) || "", placeholder: "Type your answer", maxlength: String(answerLimit(question.type)),
+      class: "input",
+      type: "text",
+      autocomplete: "off",
+      autocapitalize: "sentences",
+      spellcheck: "false",
+      value: handlers.value(id) || "",
+      placeholder: "Type your answer",
+      maxlength: String(answerLimit(question.type)),
     });
     input.addEventListener("input", () => handlers.onAnswer(id, input.value));
-    sync = () => { input.value = handlers.value(id) || ""; };
-    parts.push(h("div", { class: "answer-area" },
-      h("p", { class: "hint" }, "Spelling matters. Write your answer in the box."), input));
+    sync = () => {
+      input.value = handlers.value(id) || "";
+    };
+    parts.push(
+      h(
+        "div",
+        { class: "answer-area" },
+        h(
+          "p",
+          { class: "hint" },
+          "Spelling matters. Write your answer in the box.",
+        ),
+        input,
+      ),
+    );
   } else {
-    const area = h("textarea", { spellcheck: "true", placeholder: "Write your answer", maxlength: String(answerLimit(question.type)) });
+    const area = h("textarea", {
+      spellcheck: "true",
+      placeholder: "Write your answer",
+      maxlength: String(answerLimit(question.type)),
+    });
     area.value = handlers.value(id) || "";
     area.addEventListener("input", () => handlers.onAnswer(id, area.value));
-    sync = () => { area.value = handlers.value(id) || ""; };
-    parts.push(h("div", { class: "answer-area" },
-      h("p", { class: "hint" }, "Your teacher reads this answer and gives the points."), area));
+    sync = () => {
+      area.value = handlers.value(id) || "";
+    };
+    parts.push(
+      h(
+        "div",
+        { class: "answer-area" },
+        h(
+          "p",
+          { class: "hint" },
+          "Your teacher reads this answer and gives the points.",
+        ),
+        area,
+      ),
+    );
   }
 
   return { el: h("div", { class: "question" }, parts.filter(Boolean)), sync };

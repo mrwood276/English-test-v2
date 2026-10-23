@@ -3,12 +3,39 @@ import { signIn } from "../../core/auth.js";
 
 /** Sign in screen. `onSuccess` runs after Supabase accepts the email and password. */
 export function renderLogin(root, { notice, onSuccess }) {
-  const errorBox = h("div", { class: "notice error", role: "alert", hidden: true });
-  const noticeBox = notice ? h("div", { class: "notice info", role: "status" }, notice) : null;
+  const errorBox = h("div", {
+    class: "notice error",
+    role: "alert",
+    hidden: true,
+  });
+  const noticeBox = notice
+    ? h("div", { class: "notice info", role: "status" }, notice)
+    : null;
 
-  const email = h("input", { class: "input", id: "email", type: "email", name: "email", autocomplete: "username", inputmode: "email", autocapitalize: "none", spellcheck: "false", required: true });
-  const password = h("input", { class: "input", id: "password", type: "password", name: "password", autocomplete: "current-password", required: true });
-  const toggle = h("button", { class: "input-toggle", type: "button", "aria-pressed": "false" }, "Show");
+  const email = h("input", {
+    class: "input",
+    id: "email",
+    type: "email",
+    name: "email",
+    autocomplete: "username",
+    inputmode: "email",
+    autocapitalize: "none",
+    spellcheck: "false",
+    required: true,
+  });
+  const password = h("input", {
+    class: "input",
+    id: "password",
+    type: "password",
+    name: "password",
+    autocomplete: "current-password",
+    required: true,
+  });
+  const toggle = h("button", {
+    class: "input-toggle",
+    type: "button",
+    "aria-pressed": "false",
+  }, "Show");
   const submit = h("button", { class: "btn block", type: "submit" }, "Sign in");
 
   toggle.addEventListener("click", () => {
@@ -30,7 +57,12 @@ export function renderLogin(root, { notice, onSuccess }) {
     "form",
     { novalidate: true },
     h("div", { class: "field" }, h("label", { for: "email" }, "Email"), email),
-    h("div", { class: "field" }, h("label", { for: "password" }, "Password"), h("div", { class: "input-wrap" }, password, toggle)),
+    h(
+      "div",
+      { class: "field" },
+      h("label", { for: "password" }, "Password"),
+      h("div", { class: "input-wrap" }, password, toggle),
+    ),
     submit,
   );
 
@@ -51,7 +83,10 @@ export function renderLogin(root, { notice, onSuccess }) {
       await onSuccess();
     } catch (err) {
       password.value = "";
-      showError(err.message || "Could not sign in. Please try again.", err.code === "invalid_credentials" ? "password" : undefined);
+      showError(
+        err.message || "Could not sign in. Please try again.",
+        err.code === "invalid_credentials" ? "password" : undefined,
+      );
     } finally {
       submit.disabled = false;
       submit.textContent = "Sign in";
@@ -66,9 +101,18 @@ export function renderLogin(root, { notice, onSuccess }) {
       h(
         "div",
         { class: "login-card" },
-        h("div", { class: "brand" }, h("span", { class: "bubble" }, "E"), "English Daily Test"),
+        h(
+          "div",
+          { class: "brand" },
+          h("span", { class: "bubble" }, "E"),
+          "English Daily Test",
+        ),
         h("h1", {}, "Teacher sign in"),
-        h("p", { class: "lead" }, "Use the email and password for your teacher or admin account."),
+        h(
+          "p",
+          { class: "lead" },
+          "Use the email and password for your teacher or admin account.",
+        ),
         noticeBox,
         errorBox,
         form,

@@ -37,7 +37,9 @@ export function createHandler(getDb: () => Db) {
         };
       case "mark_read":
         return {
-          notifications: await callRpc(db, "mark_notifications_read", { p_actor: me.userId }),
+          notifications: await callRpc(db, "mark_notifications_read", {
+            p_actor: me.userId,
+          }),
         };
     }
   });

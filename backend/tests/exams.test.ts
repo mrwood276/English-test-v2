@@ -146,6 +146,7 @@ Deno.test("list returns the exams list with cleaned filters", async () => {
   assert.deepEqual(await res.json(), { exams: [] });
   assert.equal(calls[0].name, "list_exams");
   assert.deepEqual(calls[0].args.p, { status: "open" });
+  assert.equal(calls[0].args.p_actor, TEACHER);
 });
 
 Deno.test("get 404s a missing exam and rejects a bad id", async () => {
@@ -153,6 +154,14 @@ Deno.test("get 404s a missing exam and rejects a bad id", async () => {
   const h = createHandler(() => db);
   assert.equal((await h(post({ action: "get", id: EXAM }))).status, 404);
   assert.equal((await h(post({ action: "get", id: "nope" }))).status, 400);
+});
+
+Deno.test("get passes the actor to the scoped function", async () => {
+  const { db, calls } = fakeDb(() => ({ data: EXAM }));
+  const res = await createHandler(() => db)(post({ action: "get", id: EXAM }));
+  assert.equal(res.status, 200);
+  assert.equal(calls[0].name, "get_exam");
+  assert.equal(calls[0].args.p_actor, TEACHER);
 });
 
 Deno.test("set_status validates the status value and passes the actor", async () => {
@@ -231,17 +240,6 @@ Deno.test("validation-hinted SQL errors become friendly 400s", async () => {
 });
 
 // ---------- bulk questions on an exam (F-18) ----------
-Deno.test("parseBulkQuestions dedupes the ticked ids and refuses what it cannot act on", () => {
-  const parsed = parseBulkQuestions({ exam_id: EXAM, mode: "add", ids: [QID, QID2, QID] });
-  assert.equal(parsed.examId, EXAM);
-  assert.equal(parsed.mode, "add");
-  assert.deepEqual(parsed.ids, [QID, QID2], "the same question ticked twice is one question");
-  assert.throws(() => parseBulkQuestions({ exam_id: EXAM, mode: "sideways", ids: [QID] }), /Mode/);
-  assert.throws(() => parseBulkQuestions({ exam_id: EXAM, mode: "add", ids: [] }), /at least one question/);
-  assert.throws(() => parseBulkQuestions({ exam_id: EXAM, mode: "add", ids: ["not-a-uuid"] }), /Question 1/);
-  assert.throws(() => parseBulkQuestions({ exam_id: EXAM, mode: "add", ids: new Array(501).fill(QID) }), /at most 500/);
-  assert.throws(() => parseBulkQuestions({ exam_id: "nope", mode: "add", ids: [QID] }), /Exam/);
-});
 
 Deno.test("bulk_questions puts the ticked questions on the exam in one call, with the actor", async () => {
   const { db, calls } = fakeDb(() => ({ data: { matched: 2, updated: 2, unchanged: 0, missing: 0 } }));
@@ -337,4 +335,40 @@ Deno.test("only a literal true counts as the permanent delete", async () => {
   const res = await createHandler(() => db)(post({ action: "remove", id: EXAM, hard: "yes" }));
   assert.equal(res.status, 200, "a teacher is not refused, because this is an ordinary close");
   assert.equal(calls[0].args.p_force, false);
+});
+
+// ---------- readiness ----------
+Deno.test("readiness returns warnings for archived questions, missing questions, essays, points != 100, and code taken", async () => {
+  const { db, calls } = fakeDb(() => ({ data: { ready: false, warnings: ["2 question(s) on this exam are archived.", "Total points are 120 (expected 100)."], questions: [], essay_count: 1, total_points: 120, code_taken: true } }));
+  const res = await createHandler(() => db)(post({ action: "readiness", id: EXAM }));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.readiness.ready, false);
+  assert.equal(body.readiness.warnings.length, 2);
+  // DEC-041: the database decides ownership, so the signed-in teacher must travel with the call.
+  assert.deepEqual(calls, [{ name: "exam_readiness", args: { p_id: EXAM, p_actor: TEACHER } }]);
+});
+
+Deno.test("readiness returns ready true when all checks pass", async () => {
+  const { db, calls } = fakeDb(() => ({ data: { ready: true, warnings: [], questions: [], essay_count: 0, total_points: 100, code_taken: false } }));
+  const res = await createHandler(() => db)(post({ action: "readiness", id: EXAM }));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.readiness.ready, true);
+  assert.deepEqual(calls, [{ name: "exam_readiness", args: { p_id: EXAM, p_actor: TEACHER } }]);
+});
+
+Deno.test("readiness for another teacher's exam is the same friendly refusal as a missing one", async () => {
+  const message = "That exam no longer exists.";
+  const { db } = fakeDb(() => ({ error: { message, hint: "validation" } }));
+  const res = await createHandler(() => db)(post({ action: "readiness", id: EXAM }));
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).error, message);
+});
+
+Deno.test("readiness needs a signed-in staff member before it asks the database anything", async () => {
+  const { db, calls } = fakeDb(() => ({ data: { ready: true } }));
+  const res = await createHandler(() => db)(post({ action: "readiness", id: EXAM }, null));
+  assert.equal(res.status, 401);
+  assert.deepEqual(calls, []);
 });

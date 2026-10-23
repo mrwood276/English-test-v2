@@ -17,11 +17,10 @@
 --     exam was never joinable, and clearing the flag is what makes it joinable again.
 -- No table, column or index changes.
 --
--- APPLIED LIVE: pending — written 2026-10-02 without a Management credential. Apply it as one
--- Management API request with its ledger row (version `20261002000003`, name `template_only_when_safe`),
--- run `supabase/tests/exam_template_test.sql`, record the result here and in `.ai/`. The `exams` Edge
--- Function needs no redeploy for this one (the editor reads a field the payload already carries), but
--- TASK-031's redeploy still has to happen after `20261002000002`.
+-- APPLIED LIVE: 2026-10-03 as one Management API request with its ledger row (version
+-- `20261002000003`, name `template_only_when_safe`), and `supabase/tests/exam_template_test.sql` passed
+-- live against it. The exams Edge Function needed no redeploy for this one (the editor reads a field
+-- the payload already carries), but TASK-031's redeploy had to happen first — it did, on 2026-10-03.
 
 -- ============ who may be a template (the save gate) ============
 create or replace function public.save_exam(p_id uuid, p jsonb, p_actor uuid)

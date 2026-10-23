@@ -20,19 +20,30 @@
  * still uploading) simply has no grip, and the rows on either side close up around it. A button that moves a
  * row one place carries `data-move="up" | "down" | "first" | "last"`.
  */
-export function enableReorder(listEl, { note, onOrder, describe = () => "", noun = "item" } = {}) {
+export function enableReorder(
+  listEl,
+  { note, onOrder, describe = () => "", noun = "item" } = {},
+) {
   let drag = null;
   let keyHandler = null;
 
-  const rows = () => [...listEl.children].filter((el) => !!el.querySelector(".grip"));
-  const centre = (el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2; };
-  const say = (text) => { if (note) note.textContent = text; };
+  const rows = () =>
+    [...listEl.children].filter((el) => !!el.querySelector(".grip"));
+  const centre = (el) => {
+    const r = el.getBoundingClientRect();
+    return r.top + r.height / 2;
+  };
+  const say = (text) => {
+    if (note) note.textContent = text;
+  };
   const nameOf = (row) => describe(row) || `That ${noun}`;
 
   /** The direct child of the list that holds this node — the "row" everything here talks about. */
   function rowOf(node) {
     let el = node;
-    while (el && el.parentElement && el.parentElement !== listEl) el = el.parentElement;
+    while (el && el.parentElement && el.parentElement !== listEl) {
+      el = el.parentElement;
+    }
     return el && el.parentElement === listEl ? el : null;
   }
 
@@ -43,15 +54,23 @@ export function enableReorder(listEl, { note, onOrder, describe = () => "", noun
     if (!row) return;
     const target = row.querySelector(focusSel) || row.querySelector(".grip");
     if (target && !target.disabled) target.focus();
-    else if (target && target.disabled) { const grip = row.querySelector(".grip"); if (grip) grip.focus(); }
+    else if (target && target.disabled) {
+      const grip = row.querySelector(".grip");
+      if (grip) grip.focus();
+    }
   }
 
   /** Move a row to another place in the list and hand the new order to the caller. */
   function move(from, to, { focusSel = ".grip" } = {}) {
     const list = rows();
-    if (from < 0 || from >= list.length || to < 0 || to >= list.length || from === to) return false;
+    if (
+      from < 0 || from >= list.length || to < 0 || to >= list.length ||
+      from === to
+    ) return false;
     const row = list[from];
-    const message = `${nameOf(row)} is now ${noun} ${to + 1} of ${list.length}.`;
+    const message = `${nameOf(row)} is now ${noun} ${
+      to + 1
+    } of ${list.length}.`;
     if (to < from) listEl.insertBefore(row, list[to]);
     else list[to].after(row);
     onOrder([...rows()]);
@@ -64,7 +83,10 @@ export function enableReorder(listEl, { note, onOrder, describe = () => "", noun
     document.removeEventListener("pointermove", onDragMove);
     document.removeEventListener("pointerup", onDragEnd);
     document.removeEventListener("pointercancel", onDragEnd);
-    if (keyHandler) { document.removeEventListener("keydown", keyHandler); keyHandler = null; }
+    if (keyHandler) {
+      document.removeEventListener("keydown", keyHandler);
+      keyHandler = null;
+    }
     if (drag) {
       drag.row.classList.remove("dragging");
       listEl.classList.remove("reordering");
@@ -84,9 +106,14 @@ export function enableReorder(listEl, { note, onOrder, describe = () => "", noun
     document.addEventListener("pointermove", onDragMove);
     document.addEventListener("pointerup", onDragEnd);
     document.addEventListener("pointercancel", onDragEnd);
-    keyHandler = (ev) => { if (ev.key === "Escape" && drag) { ev.preventDefault(); cancel(); } };
+    keyHandler = (ev) => {
+      if (ev.key === "Escape" && drag) {
+        ev.preventDefault();
+        cancel();
+      }
+    };
     document.addEventListener("keydown", keyHandler);
-    e.preventDefault();   // do not let the press start a text selection or the browser's own drag
+    e.preventDefault(); // do not let the press start a text selection or the browser's own drag
     grip.focus();
     say(`Picked up ${nameOf(row)}.`);
   }
@@ -103,7 +130,9 @@ export function enableReorder(listEl, { note, onOrder, describe = () => "", noun
     }
   }
 
-  function onDragEnd(e) { if (drag && e.pointerId === drag.pointerId) drop(); }
+  function onDragEnd(e) {
+    if (drag && e.pointerId === drag.pointerId) drop();
+  }
 
   function drop() {
     const { row, order } = drag;
@@ -149,9 +178,14 @@ export function enableReorder(listEl, { note, onOrder, describe = () => "", noun
     if (!grip || grip.disabled) return;
     const list = rows();
     const at = list.indexOf(rowOf(grip));
-    const to = { ArrowUp: at - 1, ArrowDown: at + 1, Home: 0, End: list.length - 1 }[e.key];
+    const to = {
+      ArrowUp: at - 1,
+      ArrowDown: at + 1,
+      Home: 0,
+      End: list.length - 1,
+    }[e.key];
     if (to === undefined) return;
-    e.preventDefault();   // an arrow key at either end must not scroll the page instead
+    e.preventDefault(); // an arrow key at either end must not scroll the page instead
     move(at, to);
   });
 
@@ -161,7 +195,8 @@ export function enableReorder(listEl, { note, onOrder, describe = () => "", noun
     const which = button.dataset.move;
     const list = rows();
     const at = list.indexOf(rowOf(button));
-    const to = { up: at - 1, down: at + 1, first: 0, last: list.length - 1 }[which];
+    const to =
+      { up: at - 1, down: at + 1, first: 0, last: list.length - 1 }[which];
     if (to === undefined) return;
     move(at, to, { focusSel: `[data-move='${which}']` });
   });

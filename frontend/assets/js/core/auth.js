@@ -1,5 +1,9 @@
-import { AUTH_URL, SUPABASE_PUBLISHABLE_KEY, STAFF_SESSION_KEY } from "./config.js";
-import { requestJson, HttpError } from "./http.js";
+import {
+  AUTH_URL,
+  STAFF_SESSION_KEY,
+  SUPABASE_PUBLISHABLE_KEY,
+} from "./config.js";
+import { HttpError, requestJson } from "./http.js";
 
 /**
  * Teacher/admin sign in through Supabase Auth (REST). The session is kept in sessionStorage,
@@ -19,7 +23,8 @@ function toSession(data) {
   return {
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
-    expiresAt: data.expires_at || Math.floor(Date.now() / 1000) + (data.expires_in || 3600),
+    expiresAt: data.expires_at ||
+      Math.floor(Date.now() / 1000) + (data.expires_in || 3600),
     userId: data.user && data.user.id,
     email: data.user && data.user.email,
   };
@@ -55,9 +60,24 @@ export async function signIn(email, password) {
     return session;
   } catch (err) {
     if (err instanceof HttpError) {
-      if (err.status === 429) throw new HttpError(429, "Too many attempts. Please wait a minute and try again.", err.code, err.body);
-      if (err.status === 400 || err.status === 401 || err.code === "invalid_credentials") {
-        throw new HttpError(400, "The email or password is not correct.", "invalid_credentials", err.body);
+      if (err.status === 429) {
+        throw new HttpError(
+          429,
+          "Too many attempts. Please wait a minute and try again.",
+          err.code,
+          err.body,
+        );
+      }
+      if (
+        err.status === 400 || err.status === 401 ||
+        err.code === "invalid_credentials"
+      ) {
+        throw new HttpError(
+          400,
+          "The email or password is not correct.",
+          "invalid_credentials",
+          err.body,
+        );
       }
     }
     throw err;
@@ -66,11 +86,14 @@ export async function signIn(email, password) {
 
 async function refresh(session) {
   try {
-    const data = await requestJson(`${AUTH_URL}/token?grant_type=refresh_token`, {
-      method: "POST",
-      headers: baseHeaders,
-      body: { refresh_token: session.refreshToken },
-    });
+    const data = await requestJson(
+      `${AUTH_URL}/token?grant_type=refresh_token`,
+      {
+        method: "POST",
+        headers: baseHeaders,
+        body: { refresh_token: session.refreshToken },
+      },
+    );
     const next = toSession(data);
     saveSession(next);
     return next;
@@ -87,7 +110,9 @@ async function refresh(session) {
 export async function getAccessToken() {
   let session = loadSession();
   if (!session) throw new SessionExpiredError("Please sign in.");
-  if (session.expiresAt - Math.floor(Date.now() / 1000) < 60) session = await refresh(session);
+  if (session.expiresAt - Math.floor(Date.now() / 1000) < 60) {
+    session = await refresh(session);
+  }
   return session.accessToken;
 }
 
@@ -98,7 +123,10 @@ export async function signOut() {
   try {
     await requestJson(`${AUTH_URL}/logout`, {
       method: "POST",
-      headers: { ...baseHeaders, Authorization: `Bearer ${session.accessToken}` },
+      headers: {
+        ...baseHeaders,
+        Authorization: `Bearer ${session.accessToken}`,
+      },
     });
   } catch {
     /* already signed out locally; the token also expires by itself */

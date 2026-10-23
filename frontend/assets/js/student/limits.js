@@ -14,4 +14,6 @@ export const ANSWER_CHARS_LIMIT = 1_000;
 export const ESSAY_CHARS_LIMIT = 20_000;
 
 /** The limit for one question, by its type. Anything that is not an essay is a short answer. */
-export const answerLimit = (type) => (type === "essay" ? ESSAY_CHARS_LIMIT : ANSWER_CHARS_LIMIT);
+export const answerLimit = (
+  type,
+) => (type === "essay" ? ESSAY_CHARS_LIMIT : ANSWER_CHARS_LIMIT);

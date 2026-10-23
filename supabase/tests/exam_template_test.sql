@@ -8,10 +8,11 @@
 --   "EXAM TEMPLATE TESTS PASSED (…)"  → every assertion held
 --   "ASSERT FAILED: <message>"        → a rule is broken
 --
--- NOT YET RUN LIVE (written 2026-10-02, TASK-032): no Management credential was available in the
--- session that wrote it. The next live run applies `20261002000003_template_only_when_safe.sql` (after
--- `20261002000002`, which this file's set_exam_status assertions also cover) with its
--- `schema_migrations` row, then runs this file; the result belongs in its header and in `.ai/`.
+-- RUN LIVE 2026-10-03 (TASK-032): `20261002000003_template_only_when_safe.sql` applied with its
+-- `schema_migrations` row after `20261002000002`; this file ended with
+-- `EXAM TEMPLATE TESTS PASSED (...)`. Fixture note (2026-10-03): the copy and the live fixture exams
+-- open on a scheduled availability window, matching the live rule that a manual-availability
+-- auto-draw exam cannot open without a materialized question list.
 --
 -- The red proof for the fix: on the pre-fix `save_exam` the open exam accepts `is_template = true`
 -- (no validation-hinted refusal), and on the pre-fix `set_exam_status` a template opens — the
@@ -109,6 +110,10 @@ begin
   perform pg_temp.assert_true(
     (select not is_template and status = 'draft' from public.exams where id = v_copy),
     'the duplicate is a draft and not a template');
+  -- the fixture's auto-draw exam has no fixed list, so it opens on a scheduled window.
+  update public.exams
+    set availability_mode = 'scheduled', starts_at = now(), ends_at = now() + interval '2 hours'
+    where id = v_copy;
   perform public.set_exam_status(v_copy, 'open', v_actor);
   perform pg_temp.assert_true((select status from public.exams where id = v_copy) = 'open',
     'the copy can be opened');
@@ -136,7 +141,8 @@ begin
   -- ---------- an open exam cannot become a template ----------
   v_open := public.save_exam(null, jsonb_build_object(
     'title', 'Live exam', 'duration_minutes', 30, 'access_code', 'LIVE32',
-    'selection_mode', 'auto', 'auto_filter', jsonb_build_object('topic', 'TASK-032 test'), 'pool_size', 1), v_actor);
+    'selection_mode', 'auto', 'auto_filter', jsonb_build_object('topic', 'TASK-032 test'), 'pool_size', 1,
+    'availability_mode', 'scheduled', 'starts_at', now(), 'ends_at', now() + interval '2 hours'), v_actor);
   perform public.set_exam_status(v_open, 'open', v_actor);
   perform pg_temp.expect_error(
     format('select public.save_exam(%L::uuid, %L::jsonb, %L::uuid)', v_open,

@@ -131,7 +131,7 @@ Deno.test("list passes cleaned filters to the database and returns the result", 
   const res = await createHandler(() => db)(post({ action: "list", q: "wallet", difficulty: "hots", ignored: "x" }));
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { items: [], total: 0, page: 1, page_size: 25 });
-  assert.deepEqual(calls[0], { name: "list_questions", args: { p: { q: "wallet", difficulty: "hots" } } });
+  assert.deepEqual(calls[0], { name: "list_questions", args: { p: { q: "wallet", difficulty: "hots" }, p_actor: TEACHER } });
 });
 
 Deno.test("save sends the sanitized question with the signed-in person as actor", async () => {
@@ -176,12 +176,13 @@ Deno.test("get, remove, archive, duplicates, topics, labels, and passages", asyn
   await h(post({ action: "restore", id: QID }));
   assert.equal(calls.at(-1)!.args.p_archived, false);
   await h(post({ action: "check_duplicates", body: "What <script>x</script>is it?", options: ["A", "<b>B</b>"], exclude_id: QID }));
-  assert.deepEqual(calls.at(-1), { name: "find_similar_questions", args: { p_body: "What is it?", p_options: ["A", "<b>B</b>"], p_exclude: QID, p_threshold: 0.55 } });
+  assert.deepEqual(calls.at(-1), { name: "find_similar_questions", args: { p_body: "What is it?", p_options: ["A", "<b>B</b>"], p_exclude: QID, p_threshold: 0.55, p_actor: TEACHER } });
   await h(post({ action: "class_labels", prefix: "xii" }));
-  assert.deepEqual(calls.at(-1), { name: "list_class_labels", args: { p_prefix: "xii" } });
+  assert.deepEqual(calls.at(-1), { name: "list_class_labels", args: { p_prefix: "xii", p_actor: TEACHER } });
   await h(post({ action: "topics" }));
+  assert.equal(calls.at(-1)!.args.p_actor, TEACHER);
   await h(post({ action: "passages", q: "wallet" }));
-  assert.deepEqual(calls.at(-1), { name: "list_passages", args: { p_q: "wallet" } });
+  assert.deepEqual(calls.at(-1), { name: "list_passages", args: { p_q: "wallet", p_actor: TEACHER } });
   assert.equal((await h(post({ action: "passage_get", id: QID }))).status, 200);
   await h(post({ action: "passage_save", title: "T", body: "B" }));
   assert.equal(calls.at(-1)!.name, "save_passage");
@@ -196,7 +197,7 @@ Deno.test("duplicate_groups asks the database for the overview scan, with no arg
   const res = await createHandler(() => db)(post({ action: "duplicate_groups" }));
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), payload);
-  assert.deepEqual(calls, [{ name: "find_duplicate_groups", args: {} }]);
+  assert.deepEqual(calls, [{ name: "find_duplicate_groups", args: { p_actor: TEACHER } }]);
 });
 
 Deno.test("duplicate_groups is available to a teacher as well as to an admin", async () => {
@@ -339,4 +340,35 @@ Deno.test("bulk_update is not reachable without a signed-in teacher or admin", a
   const res = await createHandler(() => db)(post({ action: "bulk_update", ids: [QID], changes: { archived: true } }, null));
   assert.equal(res.status, 401);
   assert.equal(calls.length, 0, "nothing reaches the database");
+});
+
+// ---------- teacher data isolation (TASK-048, DEC-041) ----------
+// The SQL functions scope every question and passage to `created_by = p_actor`, unless the actor is an
+// active admin (the admin sees the whole school). The handler's job is to hand over who is asking on
+// every call — reads exactly as the writes already do — and to treat a foreign id like a missing one.
+Deno.test("isolation: every read action hands the signed-in person to the database as p_actor", async () => {
+  const { db, calls } = fakeDb(() => ({ data: {} }));
+  const h = createHandler(() => db);
+  const expects: [Record<string, unknown>, string][] = [
+    [{ action: "list", q: "x" }, "list_questions"],
+    [{ action: "get", id: QID }, "get_question"],
+    [{ action: "check_duplicates", body: "x", options: [] }, "find_similar_questions"],
+    [{ action: "duplicate_groups" }, "find_duplicate_groups"],
+    [{ action: "topics" }, "list_topics"],
+    [{ action: "class_labels" }, "list_class_labels"],
+    [{ action: "passages" }, "list_passages"],
+    [{ action: "passage_get", id: QID }, "get_passage"],
+    [{ action: "import_check", items: [{ body: "x", options: [] }] }, "find_similar_batch"],
+  ];
+  for (const [body, rpc] of expects) {
+    await h(post(body));
+    assert.equal(calls.at(-1)!.name, rpc, body.action as string);
+    assert.equal(calls.at(-1)!.args.p_actor, TEACHER, `the ${rpc} call must carry who is asking`);
+  }
+});
+
+Deno.test("isolation: an admin hands over their own id too — the SQL decides what an admin sees", async () => {
+  const { db, calls } = fakeDb(() => ({ data: {} }), "admin");
+  await createHandler(() => db)(post({ action: "list" }));
+  assert.equal(calls.at(-1)!.args.p_actor, TEACHER);
 });

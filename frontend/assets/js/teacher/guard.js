@@ -14,13 +14,20 @@
 let guard = null;
 let unsaved = () => true;
 
-export const setLeaveGuard = (fn, hasUnsavedWork = () => true) => { guard = fn; unsaved = hasUnsavedWork; };
-export const clearLeaveGuard = () => { guard = null; unsaved = () => true; };
+export const setLeaveGuard = (fn, hasUnsavedWork = () => true) => {
+  guard = fn;
+  unsaved = hasUnsavedWork;
+};
+export const clearLeaveGuard = () => {
+  guard = null;
+  unsaved = () => true;
+};
 export const getLeaveGuard = () => guard;
 
 /** True only while a screen is guarding a change that is not saved. */
 export const hasUnsavedChanges = () => (guard ? unsaved() : false);
 
+// deno-lint-ignore no-window no-window-prefix
 window.addEventListener("beforeunload", (event) => {
   if (hasUnsavedChanges()) {
     event.preventDefault();
