@@ -45,6 +45,10 @@ export const results = {
     call({ action: "add_exam_time", exam_id: examId, minutes }).then((r) =>
       r.added
     ),
+  broadcast: (examId, message) =>
+    call({ action: "broadcast", exam_id: examId, message }).then((r) =>
+      r.broadcast
+    ),
   reopen: (sessionId, minutes) =>
     call({ action: "reopen", session_id: sessionId, minutes }).then((r) =>
       r.session

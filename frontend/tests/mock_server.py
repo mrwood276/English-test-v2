@@ -82,6 +82,7 @@ class Server:
         self.role = "admin"   # suites switch this to "teacher" to check the role-dependent screens
         # student side (session function)
         self.session_exams = {}; self.sessions = {}; self.taken = set(); self.session_calls = []
+        self.broadcasts = {}
         self.session_events = []; self.session_seconds = None; self.session_media_urls = {}
         # teacher side (results function)
         self.manual_grades = {}; self.retakes = {}; self.result_calls = []; self.class_aliases = {}
@@ -545,8 +546,10 @@ class Server:
                        "server_time": iso(now), "ends_at": iso(s["ends_at"]), "remaining_seconds": max(0, int(s["ends_at"] - now))})
         if a == "heartbeat":
             if s["status"] == "in_progress" and now > s["ends_at"] + 120: self.session_grade(sid, "auto_submitted")
+            announcement = self.broadcasts.get(exam["id"])
             return ok({"status": s["status"], "server_time": iso(now), "ends_at": iso(s["ends_at"]),
-                       "remaining_seconds": max(0, int(s["ends_at"] - now)), "tab_switch_count": s["tab_switch_count"]})
+                       "remaining_seconds": max(0, int(s["ends_at"] - now)), "tab_switch_count": s["tab_switch_count"],
+                       "announcement": announcement})
         if a == "event":
             kind = body.get("event_type")
             self.session_events.append({"session": sid, "type": kind, "meta": body.get("meta")})
@@ -827,6 +830,12 @@ class Server:
                 x["last_heartbeat_at"] = time.time()
             return ok({"added": {"updated": len(working), "added_seconds": seconds,
                                  "remaining_seconds": max(0, int(max(x["ends_at"] for x in working) - time.time()))}})
+        if a == "broadcast":
+            exam = exam_or_err()
+            if not exam: return
+            msg = body.get("message", "").strip()
+            self.broadcasts[exam["id"]] = msg
+            return ok({"broadcast": {"saved": True, "message": msg}})
         if a in ("grant_retake", "revoke_retake"):
             s = self.sessions.get(body.get("session_id"))
             if not s: return err(400, "That test session was not found.")

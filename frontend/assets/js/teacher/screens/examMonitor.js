@@ -159,6 +159,16 @@ function renderExamSessions(container, examId) {
     "data-add-all": "",
   }, "Add time to everyone");
   const addAll = h("div", { class: "row add-all" }, addAllMinutes, addAllBtn);
+  const broadcastBtn = h(
+    "button",
+    {
+      class: "btn ghost small",
+      type: "button",
+      "data-broadcast": "",
+    },
+    icon("bell"),
+    "Broadcast",
+  );
   const strip = h("div", { class: "strip" });
   const tbody = h("tbody");
   const status = h("div", { class: "list-status", role: "status" });
@@ -308,6 +318,7 @@ function renderExamSessions(container, examId) {
           icon("doc"),
           "Open the exam",
         ),
+        broadcastBtn,
         addAll,
       );
       // Nobody working means nothing to give time to; the button says why instead of failing.
@@ -369,6 +380,18 @@ function renderExamSessions(container, examId) {
       status.replaceChildren(h("p", { class: "sub" }, errorText(err)), retry);
     }
   }
+
+  broadcastBtn.addEventListener("click", async () => {
+    // deno-lint-ignore no-window
+    const msg = window.prompt("Message to broadcast to all live students:");
+    if (!msg || !msg.trim()) return;
+    try {
+      await results.broadcast(examId, msg.trim());
+      toast("Broadcast sent to students.");
+    } catch (err) {
+      if (!ignorable(err)) toast(errorText(err), "bad");
+    }
+  });
 
   addAllBtn.addEventListener("click", async () => {
     const minutes = Number(addAllMinutes.value);

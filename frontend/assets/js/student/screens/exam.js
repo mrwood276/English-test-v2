@@ -131,6 +131,35 @@ export function renderExam(root, ctx) {
     saveMsg,
     fontCtrls,
   );
+  const announcementBar = h(
+    "div",
+    {
+      class: "errcard warn",
+      style:
+        "margin: 8px 16px 0; border-radius: 8px; padding: 10px 12px; font-weight: 500;",
+      hidden: true,
+      role: "alert",
+    },
+    icon("bell"),
+    h("span", { class: "announcement-text" }, ""),
+  );
+  let lastSeenAnnouncement = "";
+  const showAnnouncement = (msg) => {
+    if (!msg) {
+      announcementBar.hidden = true;
+      return;
+    }
+    announcementBar.querySelector(".announcement-text").textContent = msg;
+    announcementBar.hidden = false;
+    if (msg !== lastSeenAnnouncement) {
+      lastSeenAnnouncement = msg;
+      try {
+        if ("vibrate" in navigator) navigator.vibrate(200);
+      } catch {
+        /* ignore */
+      }
+    }
+  };
   const offlineBar = h(
     "div",
     { class: "offbar", hidden: true },
@@ -352,6 +381,9 @@ export function renderExam(root, ctx) {
       const res = await sessionApi.heartbeat(state.token);
       applyServerClock(res);
       state.session.tab_switch_count = res.tab_switch_count;
+      if (res.announcement !== undefined) {
+        showAnnouncement(res.announcement);
+      }
       if (
         res.status && res.status !== "in_progress" && res.status !== "reopened"
       ) {
@@ -739,6 +771,7 @@ export function renderExam(root, ctx) {
       ),
       h("div", { class: "bar" }, progress),
       saveLine,
+      announcementBar,
       offlineBar,
       body,
       h("div", { class: "qnav" }, sheetBtn, markBtn, prevBtn, nextBtn),
