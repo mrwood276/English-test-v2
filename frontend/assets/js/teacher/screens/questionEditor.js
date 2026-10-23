@@ -789,6 +789,17 @@ export async function renderQuestionEditor(
     { class: "btn ghost", type: "button" },
     "Save and add another",
   );
+  const duplicateBtn = isEdit
+    ? h(
+      "button",
+      {
+        class: "btn ghost",
+        type: "button",
+        title: "Create a new copy of this question",
+      },
+      "Duplicate",
+    )
+    : null;
   const previewBtn = h(
     "button",
     { class: "btn ghost", type: "button" },
@@ -878,6 +889,36 @@ export async function renderQuestionEditor(
   }
   saveBtn.addEventListener("click", () => save(false));
   if (saveMoreBtn) saveMoreBtn.addEventListener("click", () => save(true));
+  if (duplicateBtn) {
+    duplicateBtn.addEventListener("click", async () => {
+      summary.hidden = true;
+      const buttons = [saveBtn, duplicateBtn, previewBtn].filter(Boolean);
+      buttons.forEach((b) => (b.disabled = true));
+      duplicateBtn.textContent = "Duplicating…";
+      try {
+        const payload = {
+          ...draft(),
+          weight: Number(state.weight),
+          topic: state.topic.trim() || null,
+          explanation: state.explanation.trim() || null,
+          essay_guidance: state.type === "essay"
+            ? state.guidance.trim() || null
+            : null,
+        };
+        const newId = await questionBank.save(payload);
+        clearLeaveGuard();
+        toast("Question duplicated.");
+        globalThis.location.hash = `#/questions/edit/${newId}`;
+      } catch (err) {
+        if (ignorable(err)) return;
+        showSummary([
+          err.message || "Could not duplicate the question. Please try again.",
+        ]);
+        buttons.forEach((b) => (b.disabled = false));
+        duplicateBtn.textContent = "Duplicate";
+      }
+    });
+  }
 
   previewBtn.addEventListener("click", () => {
     const q = draft();
@@ -947,7 +988,14 @@ export async function renderQuestionEditor(
           ),
           h("h1", {}, isEdit ? "Edit question" : "Add question"),
         ),
-        h("div", { class: "row-flex" }, previewBtn, saveMoreBtn, saveBtn),
+        h(
+          "div",
+          { class: "row-flex" },
+          previewBtn,
+          duplicateBtn,
+          saveMoreBtn,
+          saveBtn,
+        ),
       ),
       ...notes,
       summary,
