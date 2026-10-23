@@ -1,0 +1,32 @@
+name: Nightly verification
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: read-only verification
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_TEST_EMAIL: ${{ secrets.SUPABASE_TEST_EMAIL }}
+      SUPABASE_TEST_PASSWORD: ${{ secrets.SUPABASE_TEST_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Backend tests
+        run: deno test --allow-env backend/tests/
+      - name: Frontend unit tests
+        run: deno test --allow-env --allow-read --no-check frontend/tests/unit/
+      - name: Live board self-test
+        run: python frontend/tests/run_live_checks.py --self-test
+      - name: Read-only live verification (if secrets configured)
+        if: env.SUPABASE_ACCESS_TOKEN != ''
+        run: python frontend/tests/run_live_checks.py --read-only
