@@ -1,5 +1,26 @@
 # 07 CHANGELOG
 
+## 2026-10-23 (Auto-Add Folder Questions in Exam Setup) — User Request Completed & Verified
+- Agent: Google Antigravity.
+- Branch: `ai-development`. Target remote: `https://github.com/mrwood276/English-test-v2.git`.
+- **User Request:** "update sedikit gua mau pas kita pilih folder di menu setup exam semua soal yg ada di dalam foldernya langsung ke add di exam"
+- **Implementations:**
+  - In `frontend/assets/js/teacher/screens/examEditor.js`:
+    - Updated `pickerFolder.addEventListener("change", ...)` so selecting a folder triggers `addFolderQuestions(folderName)` instead of just filtering the view. Choosing "📁 All folders" reverts to general bank listing.
+    - Implemented `addFolderQuestions(folderName)`:
+      - Paginated batch retrieval of all questions in the chosen folder via `questionBank.list`.
+      - Duplicate avoidance: questions already on the exam are skipped.
+      - Capacity limit enforcement: checks against `EXAM_MAX` (200 questions).
+      - Populates `pickerPage.byId` for cache consistency.
+      - Updates `state.questions`, marks the exam dirty (`markDirty()`), re-renders chosen questions (`renderChosen()`), updates exam summary stats (`renderSummary()`), and refreshes question bank view (`searchBank()`).
+      - Immediate user feedback via `addBar.note` loading text and descriptive success/info toasts.
+  - In `frontend/tests/exams_e2e.py`:
+    - Added test check verifying that selecting a folder in `#ee-picker-folder` directly adds all questions from that folder to the exam and displays confirmation toast.
+- **Verification:**
+  - `deno fmt --check`: 100% clean.
+  - `deno lint`: 0 errors.
+  - `python frontend/tests/exams_e2e.py`: 98 passed, 0 failed.
+
 ## 2026-10-23 (Folder System, Direct Edit Button & Draw by Filter Bugfix) — User Request Completed & Verified
 - Agent: Google Antigravity.
 - Branch: `ai-development`. Target remote: `https://github.com/mrwood276/English-test-v2.git`.

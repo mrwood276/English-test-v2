@@ -296,7 +296,11 @@ export function renderExamEditor(container, _ctx, match) {
     [h("option", { value: "" }, "📁 All folders")],
   );
   pickerFolder.addEventListener("change", () => {
-    searchBank();
+    if (pickerFolder.value) {
+      addFolderQuestions(pickerFolder.value);
+    } else {
+      searchBank();
+    }
   });
 
   const pickerSearch = h("input", {
@@ -687,6 +691,92 @@ export function renderExamEditor(container, _ctx, match) {
   }
 
   const examTitle = () => state.title.trim() || "this exam";
+
+  /**
+   * When a folder is chosen from the folder picker, add all questions in that folder directly to the exam.
+   */
+  async function addFolderQuestions(folderName) {
+    if (!folderName) {
+      searchBank();
+      return;
+    }
+    const room = EXAM_MAX - state.questions.length;
+    if (room <= 0) {
+      toast(
+        `This exam can hold at most ${EXAM_MAX} questions and is already full.`,
+        "warn",
+      );
+      searchBank();
+      return;
+    }
+    addBar.note.textContent = `Adding questions from "${folderName}"…`;
+    try {
+      const already = onExam();
+      const allQs = [];
+      const firstRes = await questionBank.list({
+        topic: folderName,
+        page: 1,
+        page_size: SELECT_PAGE,
+      });
+      allQs.push(...firstRes.items);
+      for (const q of firstRes.items) pickerPage.byId.set(q.id, q);
+
+      const totalPages = Math.ceil(firstRes.total / SELECT_PAGE);
+      for (let p = 2; p <= totalPages; p++) {
+        const res = await questionBank.list({
+          topic: folderName,
+          page: p,
+          page_size: SELECT_PAGE,
+        });
+        allQs.push(...res.items);
+        for (const q of res.items) pickerPage.byId.set(q.id, q);
+        if (res.items.length < SELECT_PAGE) break;
+      }
+
+      const toAdd = allQs.filter((q) => !already.has(q.id));
+      if (toAdd.length === 0) {
+        if (allQs.length === 0) {
+          toast(`Folder "${folderName}" has no questions.`, "warn");
+        } else {
+          toast(
+            `All questions from folder "${folderName}" are already on this exam.`,
+            "warn",
+          );
+        }
+        addBar.note.textContent = "";
+        searchBank();
+        return;
+      }
+
+      const adding = toAdd.slice(0, room);
+      for (const q of adding) {
+        already.add(q.id);
+        state.questions.push({
+          id: q.id,
+          body: q.body ?? "Question",
+          type: q.type ?? "multiple_choice",
+          weight: q.weight ?? 1,
+        });
+      }
+
+      markDirty();
+      renderChosen();
+      renderSummary();
+      addBar.note.textContent = "";
+
+      const msg = adding.length < toAdd.length
+        ? `${adding.length} questions from folder "${folderName}" added (exam limit reached). Save to keep the change.`
+        : `${adding.length} question${
+          adding.length === 1 ? "" : "s"
+        } from folder "${folderName}" added to the exam. Save to keep the change.`;
+      toast(msg);
+      searchBank();
+    } catch (err) {
+      addBar.note.textContent = ignorable(err) ? "" : errorText(err);
+      if (!ignorable(err)) toast(errorText(err), "bad");
+      searchBank();
+    }
+  }
 
   /** Add every ticked bank question, after showing exactly what is about to happen. */
   async function openAddQuestions() {

@@ -460,6 +460,13 @@ with sync_playwright() as pw:
     check("and the hint goes with it", page.is_hidden("#ee-reorder-hint"))
     check("the question that is left is still number 1", chosen_pos() == ["1"], str(chosen_pos()))
 
+    # selecting a folder in the picker adds all questions from that folder to the exam
+    chosen_count_before = len(page.query_selector_all(".chosen-item"))
+    page.select_option("#ee-picker-folder", "Narrative Text")
+    page.wait_for_selector(".toast:has-text('added to the exam')")
+    check("selecting a folder directly adds its questions to the exam",
+          len(page.query_selector_all(".chosen-item")) > chosen_count_before)
+
     # leave guard on unsaved changes
     page.fill("#ee-title", "Changed but unsaved")
     page.on("dialog", lambda d: d.accept())
