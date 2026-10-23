@@ -1,6 +1,21 @@
 # 08 HANDOFF
 
-**Short header (2026-10-05, live apply session — keep this short; the full narrative is in `07_CHANGELOG.md`)**
+**Short header (2026-10-23, Google Antigravity project takeover — keep this short; full narrative in `07_CHANGELOG.md`)**
+
+| | |
+|---|---|
+| AI / date / branch | Google Antigravity (Primary Agent), 2026-10-23, `ai-development` @ `140158f` — synced with `origin/publish` commit `a7faa0c`. |
+| Task | **Project Takeover & Branch Alignment**: Comprehensive read-only audit completed; connected workspace `d:\enghils-app-V2.1` to remote `https://github.com/mrwood276/English-test-v2.git`; synced 2 owner commits from `publish` (`b43008b` and `a7faa0c` bulk assignment state refresh); established Antigravity as permanent primary development agent. |
+| Completed | Workspace initialized and verified on `ai-development`; cherry-picked owner's questionBank refresh from `a7faa0c` cleanly; all tests green (180 backend, 44 unit); lint clean; documented `publish` as production branch and Antigravity as primary agent. |
+| Files changed (this session) | `frontend/assets/js/teacher/screens/questionBank.js`, `AGENTS.md`, `CLAUDE.md`, `.ai/00_AI_RULES.md`, `.ai/08_HANDOFF.md`, `.ai/04_CURRENT_STATE.md`. |
+| Database/config changes | None. Supabase schema and functions remain at the live-verified state (41 migrations, all applied live). |
+| Tests | Backend **180 passed**, frontend unit **44 passed**; `deno lint` clean (104 files). |
+| Open tasks | **TASK-041's frontend half** (readiness pill in exam editor before Open), TASK-039 (CSP & secret), TASK-033 (D-2), TASK-042 (D-5), TASK-044, TASK-045 (D-3), TASK-047 (D-6). |
+| Next recommended task | **TASK-041's frontend half**: surface `exam_readiness` in the exam editor before Open; mirror in `mock_server.py`; add `exams_e2e.py` checks. |
+| Important notes | Development happens on `ai-development`. Production deployment is from `publish`. Never commit secrets or bypass SQL ownership checks (DEC-041). |
+| Do not | Do not push directly to `publish` without explicit user release approval. |
+
+**Previous short header (2026-10-05, live apply session — superseded by the header above, kept as reference)**
 
 | | |
 |---|---|
