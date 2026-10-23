@@ -103,3 +103,12 @@ async function boot() {
 }
 
 boot();
+
+if (
+  "serviceWorker" in navigator &&
+  globalThis.location?.protocol.startsWith("http")
+) {
+  globalThis.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
