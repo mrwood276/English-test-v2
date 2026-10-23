@@ -27,9 +27,62 @@ export function mediaBlock(files, urls) {
           ? h("img", { class: "q-image", src: url, alt: "", loading: "lazy" })
           : h("span", { class: "tag" }, icon("image"), " Image");
       }
-      return url
-        ? h("audio", { controls: true, preload: "none", src: url })
-        : h("span", { class: "tag" }, icon("audio"), " Audio");
+      if (file.kind === "audio") {
+        if (!url) return h("span", { class: "tag" }, icon("audio"), " Audio");
+        const maxPlays = file.max_plays || 3;
+        const playKey = `ENG_AUDIO_PLAY_${file.id}`;
+        let plays = 0;
+        try {
+          plays = parseInt(sessionStorage.getItem(playKey) || "0", 10);
+        } catch {
+          /* ignore */
+        }
+        const remaining = Math.max(0, maxPlays - plays);
+        const badge = h(
+          "span",
+          {
+            class: `pill ${remaining > 0 ? "plain" : "warn"}`,
+            style: "margin-bottom:4px; font-size:12px; align-self:flex-start;",
+          },
+          remaining > 0
+            ? `Plays remaining: ${remaining} of ${maxPlays}`
+            : `Play limit reached (${maxPlays}/${maxPlays})`,
+        );
+        const audioEl = h("audio", {
+          controls: remaining > 0,
+          preload: "none",
+          src: remaining > 0 ? url : "",
+        });
+        if (remaining > 0) {
+          audioEl.addEventListener("ended", () => {
+            plays += 1;
+            try {
+              sessionStorage.setItem(playKey, String(plays));
+            } catch {
+              /* ignore */
+            }
+            const rem = Math.max(0, maxPlays - plays);
+            badge.className = `pill ${rem > 0 ? "plain" : "warn"}`;
+            badge.textContent = rem > 0
+              ? `Plays remaining: ${rem} of ${maxPlays}`
+              : `Play limit reached (${maxPlays}/${maxPlays})`;
+            if (rem <= 0) {
+              audioEl.removeAttribute("controls");
+              audioEl.src = "";
+            }
+          });
+        }
+        return h(
+          "div",
+          {
+            class: "audio-player-box",
+            style: "display:flex; flex-direction:column; gap:4px;",
+          },
+          badge,
+          audioEl,
+        );
+      }
+      return null;
     }),
   );
 }
