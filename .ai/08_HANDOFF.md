@@ -1,19 +1,19 @@
 # 08 HANDOFF
 
-**Short header (2026-10-23, Google Antigravity project takeover — keep this short; full narrative in `07_CHANGELOG.md`)**
+**Short header (2026-10-23, Google Antigravity — End-to-End Trial & Feature Expansion Pass)**
 
 | | |
 |---|---|
-| AI / date / branch | Google Antigravity (Primary Agent), 2026-10-23, `ai-development` — synced with `origin/publish` commit `a7faa0c`. |
-| Task | **Project Takeover & Task Queue Completion**: Takeover audit complete; repository synced; completed open tasks: TASK-041 (UI exam readiness check), TASK-039 (CSP header), TASK-042 (offline student service worker shell), TASK-047 (nightly read-only CI verification workflow). DEC-043 recorded. |
-| Completed | TASK-041 (UI exam readiness preflight), TASK-039 (CSP in `frontend/_headers`), TASK-042 (`frontend/sw.js` offline student shell), TASK-047 (`.github/workflows/nightly-live-checks.yml`). All tests green. |
-| Files changed (this session) | `frontend/assets/js/teacher/screens/questionBank.js`, `frontend/assets/js/teacher/api/exams.js`, `frontend/assets/js/teacher/screens/examEditor.js`, `frontend/assets/js/teacher/screens/exams.js`, `frontend/tests/mock_server.py`, `frontend/tests/exams_e2e.py`, `frontend/_headers`, `frontend/sw.js`, `frontend/assets/js/student/app.js`, `.github/workflows/nightly-live-checks.yml`, `AGENTS.md`, `CLAUDE.md`, `.ai/*`. |
-| Database/config changes | None in SQL (all migrations already applied live). Static host headers updated with CSP (`frontend/_headers`). |
-| Tests | Backend **180 passed**, frontend unit **44 passed**; `student_e2e.py` **91 passed**, `exams_e2e.py` **96 passed**, `question_bank_e2e.py` **161 passed**; `deno lint` clean (104 files); `run_live_checks.py --self-test` **14 passed**. |
+| AI / date / branch | Google Antigravity (Primary Agent), 2026-10-23, `ai-development` — pushed to `origin/ai-development`. |
+| Task | **End-to-End Field Trial & Feature Expansion Pass**: Conducted full dual-persona simulation (Teacher + Student), generated audit walkthrough report with 12 screenshots, and implemented 7 approved high-impact features requested by user. |
+| Completed | 1. **Fitur 2** (Flagged question warning on submit dialog); 2. **Fitur 6** (Direct join URL via `?code=XXXX` + 'Copy link' button); 3. **Fitur 5** (Text scaling controls A-/A+ with localStorage memory); 4. **Fitur 3** (Listening audio play counter & 3-play limit); 5. **Fitur 8** (Quick Duplicate in Question Editor); 6. **Fitur 7** (Item Analysis difficulty badges in Results); 7. **Fitur 1** (Live teacher broadcast announcement to student test screens). Full walkthrough simulation script `frontend/tests/trial_walkthrough.py`. |
+| Files changed (this session) | `frontend/assets/js/student/screens/exam.js`, `frontend/assets/js/student/screens/join.js`, `frontend/assets/js/student/components/question.js`, `frontend/assets/css/student.css`, `frontend/assets/js/teacher/screens/dashboard.js`, `frontend/assets/js/teacher/screens/questionEditor.js`, `frontend/assets/js/teacher/screens/examResults.js`, `frontend/assets/js/teacher/screens/examMonitor.js`, `frontend/assets/js/teacher/api/results.js`, `frontend/tests/mock_server.py`, `frontend/tests/trial_walkthrough.py`, test suites (`student_e2e.py`, `dashboard_e2e.py`, `question_editor_e2e.py`, `monitor_e2e.py`, `results_e2e.py`), `.ai/*`. |
+| Database/config changes | None in SQL. All features work within existing stateless RPC and local persistence boundaries. |
+| Tests | Backend **180 passed**, frontend unit **44 passed**, `trial_walkthrough.py` **14/14 observations passed**; all updated e2e suites green (`student_e2e.py` 92, `question_editor_e2e.py` 89, `monitor_e2e.py` 36, `dashboard_e2e.py` 37, `results_e2e.py` 87); `deno lint` clean (104 files). |
 | Open tasks | TASK-033 (D-2: student identity on phone swap), TASK-044 (scale/perf optimization), TASK-045 (D-3: zero-answer timeout display). |
-| Next recommended task | Owner decision on D-2 or D-3, or full live board run against live Supabase with credentials. |
-| Important notes | Development happens on `ai-development`. Production deployment is from `publish`. Never commit secrets or bypass SQL ownership checks (DEC-041). |
-| Do not | Do not push directly to `publish` without explicit user release approval. |
+| Next recommended task | Owner review of new features and preparation for production release merge into `publish`. |
+| Important notes | Working branch is `ai-development`. Never push directly to `publish` without explicit authorization. |
+| Do not | Do not push unverified code; preserve single-line comment headers and Deno lint rules. |
 
 **Previous short header (2026-10-05, live apply session — superseded by the header above, kept as reference)**
 

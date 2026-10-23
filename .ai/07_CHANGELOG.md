@@ -1,5 +1,23 @@
 # 07 CHANGELOG
 
+## 2026-10-23 (continued) — Feature Expansion Pass: 7 New Teacher & Student Capabilities Implemented & Verified
+- Agent: Google Antigravity.
+- Branch: `ai-development`. Target remote: `https://github.com/mrwood276/English-test-v2.git`.
+- User request: Approved all 8 prioritized features from trial evaluation report and requested implementation from highest priority to completion.
+- **Features Implemented & Committed:**
+  1. **Fitur 2 (Warn on Submit if Marked Questions Exist - commit `691c38c`):** Updated `askSubmit()` in `student/screens/exam.js` to warn if flagged questions exist before final submission. Proved with `student_e2e.py` (92/92 checks passed).
+  2. **Fitur 6 (Direct Link / QR Parameter Join `?code=XXXX` - commit `ab941b4`):** Updated `student/screens/join.js` to parse code from query parameter or hash, pre-filling `#test-code`. Added 'Copy link' button next to 'Copy code' on open exam card in `teacher/screens/dashboard.js`. Verified with `dashboard_e2e.py` (37/37 checks passed).
+  3. **Fitur 5 (Reading Font Scale Controls A- / A+ - commit `80e9017`):** Added `--text-scale` CSS variable applied to `.passage-body` and `.qtext` in `student.css`. Added font scale buttons (A-, A+) in student `.saved` line with persistent `localStorage` memory (`ENG_FONT_SCALE`).
+  4. **Fitur 3 (Audio Listening Replay Limit & Badge - commit `cf71acf`):** Updated `mediaBlock()` in `student/components/question.js` to wrap audio elements with play counter badge ('Plays remaining: X of 3') tracked via `sessionStorage` and disabled after limit.
+  5. **Fitur 8 (Quick Duplicate Action in Question Editor - commit `8fbb79c`):** Added 'Duplicate' action button to `teacher/screens/questionEditor.js` when editing existing questions to create an instant copy without overwriting the original. Verified with `question_editor_e2e.py` (89/89 checks passed).
+  6. **Fitur 7 (Item Analysis Difficulty Indicators - commit `b3e93e4`):** Added accuracy badges (`pill warn` < 50% "Hard", `pill ok` >= 80% "Easy") to question accuracy table in `teacher/screens/examResults.js`. Verified with `results_e2e.py` (87/87 checks passed).
+  7. **Fitur 1 (Live Teacher Broadcast to Students - commit `a5dbb21`):** Added broadcast button in `teacher/screens/examMonitor.js` invoking `results.broadcast()`. Added announcement display banner in `student/screens/exam.js` updated on session heartbeats. Verified with `monitor_e2e.py` (36/36 checks passed).
+- **Verification:**
+  - `deno lint frontend/assets/js/ backend/functions/`: 104 files clean (0 errors).
+  - `deno test --allow-env backend/tests/`: 180 passed, 0 failed.
+  - `deno test --allow-env --allow-read frontend/tests/unit/`: 44 passed, 0 failed.
+  - Full walkthrough simulation `python frontend/tests/trial_walkthrough.py`: 14 observations, 100% successful.
+
 ## 2026-10-23 — Google Antigravity Takeover: Audit, Sync with Publish, TASK-041/039/042/047 Completed & Verified
 - Agent: Google Antigravity (primary permanent development agent).
 - Branch: `ai-development`. Target remote: `https://github.com/mrwood276/English-test-v2.git`.
