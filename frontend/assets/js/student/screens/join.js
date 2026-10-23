@@ -55,6 +55,20 @@ export function renderJoin(root, { notice, onJoined }) {
     "Start test",
   );
 
+  // Pre-fill test code if student clicked a direct link (e.g. ?code=ENG101 or #/join?code=ENG101)
+  const loc = globalThis.location;
+  if (loc) {
+    const searchParams = new URLSearchParams(loc.search || "");
+    let initialCode = searchParams.get("code") || "";
+    if (!initialCode && loc.hash && loc.hash.includes("?")) {
+      const hashParams = new URLSearchParams(loc.hash.split("?")[1]);
+      initialCode = hashParams.get("code") || "";
+    }
+    if (initialCode) {
+      code.value = initialCode.replace(/\s+/g, "").toUpperCase();
+    }
+  }
+
   // Students type the code in any case and often with a stray space; the server does the same cleanup.
   code.addEventListener("input", () => {
     const clean = code.value.replace(/\s+/g, "").toUpperCase();

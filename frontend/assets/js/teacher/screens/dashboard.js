@@ -116,6 +116,29 @@ export function renderDashboard(container, { onSignOut }) {
       }
     });
 
+    const copyLinkBtn = h(
+      "button",
+      {
+        class: "btn small ghost",
+        type: "button",
+        title: "Copy direct student join link",
+      },
+      icon("copy"),
+      "Copy link",
+    );
+    copyLinkBtn.addEventListener("click", async () => {
+      try {
+        const origin = globalThis.location?.origin || "";
+        const studentUrl = `${origin}/index.html?code=${
+          encodeURIComponent(exam.access_code)
+        }`;
+        await navigator.clipboard.writeText(studentUrl);
+        toast("Student join link copied.");
+      } catch {
+        toast("Could not copy link automatically.", "bad");
+      }
+    });
+
     const changeBtn = h(
       "button",
       { class: "btn small ghost", type: "button" },
@@ -214,6 +237,7 @@ export function renderDashboard(container, { onSignOut }) {
           "div",
           { class: "row gap now-actions" },
           copyBtn,
+          copyLinkBtn,
           changeBtn,
           closeBtn,
         ),
