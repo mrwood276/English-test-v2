@@ -1,5 +1,38 @@
 # 07 CHANGELOG
 
+## 2026-10-23 (Folder System, Direct Edit Button & Draw by Filter Bugfix) — User Request Completed & Verified
+- Agent: Google Antigravity.
+- Branch: `ai-development`. Target remote: `https://github.com/mrwood276/English-test-v2.git`.
+- **User Request:**
+  1. Direct "Edit" button per row in Question Bank (`questionBank.js`) to save time without having to click the question text to preview it first.
+  2. Question Bank folder system: organize questions into folders, move questions to folders via bulk actions, and select folders during exam setup (`examEditor.js`).
+  3. Fix "Draw by filter" (auto selection) bug in exam setup and exam status transitions.
+- **Implementations:**
+  - **Direct Edit Button:** Added `Action` column (`col-action`) with direct `Edit` button (`a.btn.small.ghost.edit-btn`) on every row in Question Bank table linking directly to `#/questions/edit/${q.id}`. Updated `questions.css` with responsive alignment. Verified with `question_bank_e2e.py` (163/163 checks passed).
+  - **Folder System (Question Bank):**
+    - Added `folderDialog.js` modal allowing teachers to move selected questions into an existing folder or create a new folder directly from the bulk toolbar (`#qb-bulk-folder`).
+    - Updated Question Bank topic dropdown to act as Folder selector (`All folders`, showing folder counts `${name} (${count})`).
+    - Labeled Question Editor details as `Folder / Topic` with datalist suggestions.
+  - **Folder Selection in Exam Editor:**
+    - Added `#ee-picker-folder` dropdown in manual picker to filter question bank questions by folder in real time.
+    - Added `#ee-topics-list` datalist in auto-draw mode to select folders effortlessly.
+  - **Draw by Filter Bugfixes:**
+    - Added dual `"input"` and `"change"` listeners on `filterClass`, `filterTopic`, and `filterDifficulty` select/inputs.
+    - Added reactive state binding and pool count validation for `poolSize` input.
+    - Cleaned `auto_filter` serialization in `collect()` to strip blank keys, preventing `badRequest` from empty fields.
+    - Added pre-save validation warning teachers if an auto exam has no criteria selected before attempting save.
+    - Added migration `20261006000000_fix_auto_exam_open_status.sql` fixing `set_exam_status` which previously checked `availability_mode = 'manual'` instead of `selection_mode = 'manual'`, blocking auto exams from being opened manually.
+- **Verification:**
+  - `deno fmt --check`: 100% clean.
+  - `deno lint`: 0 errors.
+  - `deno test --allow-env backend/tests/`: 180 passed, 0 failed.
+  - `deno test --allow-env --allow-read frontend/tests/unit/`: 44 passed, 0 failed.
+  - `python frontend/tests/question_bank_e2e.py`: 163 passed, 0 failed.
+  - `python frontend/tests/exams_e2e.py`: 97 passed, 0 failed.
+  - `python frontend/tests/question_editor_e2e.py`: 89 passed, 0 failed.
+  - `python frontend/tests/a11y_check.py`: 4 passed, 0 violations.
+
+
 ## 2026-10-23 (continued) — Feature Expansion Pass: 7 New Teacher & Student Capabilities Implemented & Verified
 - Agent: Google Antigravity.
 - Branch: `ai-development`. Target remote: `https://github.com/mrwood276/English-test-v2.git`.

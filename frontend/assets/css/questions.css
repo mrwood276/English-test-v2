@@ -42,6 +42,8 @@
 .col-media { white-space: nowrap; color: var(--ink-2); }
 .col-media .icon + .icon { margin-left: 6px; }
 .col-used, .col-diff { white-space: nowrap; }
+.col-action { white-space: nowrap; text-align: right; }
+.edit-btn { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; font-weight: 550; }
 .tag { display: inline-block; background: #edf0f6; color: var(--ink-2); border-radius: 6px; padding: 1px 7px; font-size: 12px; margin: 0 4px 3px 0; }
 .list-status { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 22px 16px; color: var(--ink-2); font-size: 14px; }
 .list-status:empty { display: none; }

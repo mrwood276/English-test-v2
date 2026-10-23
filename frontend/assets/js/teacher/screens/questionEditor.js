@@ -1062,7 +1062,7 @@ export async function renderQuestionEditor(
             "section",
             { class: "card sec", "aria-labelledby": "h-details" },
             h("h2", { id: "h-details" }, "Details"),
-            h("label", { class: "lbl", for: "q-topic" }, "Topic"),
+            h("label", { class: "lbl", for: "q-topic" }, "Folder / Topic"),
             topicInput,
             topicList,
             h("div", { class: "lbl spaced" }, "Difficulty"),

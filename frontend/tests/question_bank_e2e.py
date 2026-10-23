@@ -128,6 +128,7 @@ with sync_playwright() as pw:
     page.click("tr[data-id='00000000-0000-4000-8000-000000000002'] .qlink"); page.wait_for_selector(".preview .passage img.q-image")
     check("images of the reading text are shown inside it", page.get_attribute(".preview .passage img.q-image", "src").startswith("data:image/"))
     check("edit and add are links to the editor", (page.get_attribute(".preview a:has-text('Edit')", "href") or "").startswith("#/questions/edit/00000000-0000-4000-8000-000000000002") and page.get_attribute("a:has-text('Add question')", "href") == "#/questions/new")
+    check("row has direct edit button linking straight to editor", page.get_attribute("tr[data-id='00000000-0000-4000-8000-000000000002'] .col-action a.edit-btn", "href") == "#/questions/edit/00000000-0000-4000-8000-000000000002")
     page.focus("tr[data-id='00000000-0000-4000-8000-000000000006'] .qlink"); page.keyboard.press("Enter"); page.wait_for_function("document.querySelector('tr.sel') && document.querySelector('tr.sel').dataset.id.endsWith('006')")
     check("rows can be opened with the keyboard", True)
 
@@ -171,6 +172,7 @@ with sync_playwright() as pw:
     check("every row carries a checkbox", len(page.query_selector_all(".qtable tbody tr input.pick")) == 25)
     pick(page, 1); page.wait_for_selector(".bulkbar:not([hidden])")
     check("picking one shows the bar and the count", "1 question selected" in page.inner_text(".bulkbar"), page.inner_text(".bulkbar"))
+    check("bulk bar offers move to folder", page.query_selector("#qb-bulk-folder") is not None)
     check("a picked row is shaded", page.query_selector(f"tr[data-id='{qid(1)}'].picked") is not None)
     check("the header box is half-ticked when part of the page is picked", page.evaluate("document.querySelector('#qb-pick-all').indeterminate"))
     pick(page, 2); page.uncheck(f"tr[data-id='{qid(1)}'] input.pick")

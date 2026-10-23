@@ -299,6 +299,7 @@ with sync_playwright() as pw:
     page.click("button[data-sel='manual']")
     page.wait_for_selector(".chosen-item")
     check("picker search results appear", page.eval_on_selector_all(".picker-list:not(.chosen) .picker-item", "els => els.length") > 0)
+    check("picker folder dropdown is present", page.query_selector("#ee-picker-folder") is not None)
 
     # --- editor: adding and removing questions in bulk (F-18)
     # Both halves of the picker are tick-and-act, with a preview between choosing and applying. Nothing

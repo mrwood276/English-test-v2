@@ -13,6 +13,7 @@ import {
 } from "../components/questionView.js";
 import { duplicateGroupsDialog } from "../components/duplicateGroupsDialog.js";
 import { bulkEditDialog } from "../components/bulkEditDialog.js";
+import { folderDialog } from "../components/folderDialog.js";
 import {
   examQuestionsDialog,
   examQuestionsResult,
@@ -134,6 +135,7 @@ export function renderQuestionBank(container) {
         h("th", { class: "col-diff" }, "Diff"),
         h("th", { class: "col-media" }, "Media"),
         h("th", { class: "col-used" }, "Used"),
+        h("th", { class: "col-action" }, "Action"),
       ),
     ),
   );
@@ -215,6 +217,7 @@ export function renderQuestionBank(container) {
           h("td", { class: "col-diff" }, bar("45%")),
           h("td", { class: "col-media" }),
           h("td", { class: "col-used" }, bar("55%")),
+          h("td", { class: "col-action" }, bar("40px")),
         )),
     );
   }
@@ -362,6 +365,20 @@ export function renderQuestionBank(container) {
       ),
       media,
       h("td", { class: "col-used" }, usedText(q.used_in_exams)),
+      h(
+        "td",
+        { class: "col-action" },
+        h(
+          "a",
+          {
+            class: "btn small ghost edit-btn",
+            href: `#/questions/edit/${q.id}`,
+            "aria-label": `Edit question: ${plainText(q.body, 40)}`,
+          },
+          icon("pencil"),
+          "Edit",
+        ),
+      ),
     );
   }
 
@@ -689,6 +706,12 @@ export function renderQuestionBank(container) {
 
     const edit = h("button", { class: "btn small", type: "button" }, "Edit…");
     edit.addEventListener("click", openBulkEdit);
+    const folder = h(
+      "button",
+      { class: "btn small ghost", type: "button", id: "qb-bulk-folder" },
+      "Move to folder…",
+    );
+    folder.addEventListener("click", openBulkFolder);
     const toggle = h(
       "button",
       { class: "btn small ghost", type: "button" },
@@ -716,7 +739,7 @@ export function renderQuestionBank(container) {
       "Clear",
     );
     clear.addEventListener("click", clearSelection);
-    bulkActions.append(edit, toExam, offExam, toggle, clear);
+    bulkActions.append(edit, folder, toExam, offExam, toggle, clear);
 
     if (pageIds.length > 0 && onPage === pageIds.length && n < state.total) {
       const all = h(
@@ -869,6 +892,47 @@ export function renderQuestionBank(container) {
       clearSelection();
       load();
     });
+  }
+
+  async function openBulkFolder() {
+    const ids = [...state.selected];
+    if (ids.length === 0) return;
+    bulkNote.textContent = "";
+    const folderName = await folderDialog({
+      count: ids.length,
+      folders: topicNames,
+    });
+    if (folderName === null) return;
+    try {
+      await runBulk(ids, { topic: folderName });
+      toast(
+        folderName
+          ? `${ids.length} question${
+            ids.length === 1 ? "" : "s"
+          } moved to folder "${folderName}".`
+          : `${ids.length} question${
+            ids.length === 1 ? "" : "s"
+          } removed from folder.`,
+      );
+      clearSelection();
+      await load();
+      questionBank.topics().then((topics) => {
+        topicNames = topics.map((t) => t.name);
+        topicSelect.replaceChildren(
+          h("option", { value: "" }, "All topics"),
+          ...topics.map((t) =>
+            h(
+              "option",
+              { value: t.name },
+              `${t.name} (${t.question_count || 0})`,
+            )
+          ),
+        );
+        topicSelect.value = state.filters.topic || "";
+      }).catch(() => {});
+    } catch (err) {
+      if (!ignorable(err)) toast(errorText(err), "bad");
+    }
   }
 
   // ---------- start ----------

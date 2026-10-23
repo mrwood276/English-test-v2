@@ -182,9 +182,11 @@ export function renderExamEditor(container, _ctx, match) {
   const filterTopic = h("input", {
     class: "input",
     type: "text",
-    placeholder: "Any topic, e.g. Narrative Text",
+    placeholder: "Any folder or topic, e.g. Narrative Text",
+    list: "ee-topics-list",
     maxlength: "120",
   });
+  const filterTopicList = h("datalist", { id: "ee-topics-list" });
   const filterDifficulty = h(
     "select",
     { class: "input" },
@@ -283,6 +285,19 @@ export function renderExamEditor(container, _ctx, match) {
   const PICKER_PAGE = 25; // how many bank questions the picker shows at once
   // The ceiling `parseExamQuestions` and the database both enforce on one exam.
   const EXAM_MAX = 200;
+
+  const pickerFolder = h(
+    "select",
+    {
+      class: "input chip-select",
+      id: "ee-picker-folder",
+      "aria-label": "Filter questions by folder",
+    },
+    [h("option", { value: "" }, "📁 All folders")],
+  );
+  pickerFolder.addEventListener("change", () => {
+    searchBank();
+  });
 
   const pickerSearch = h("input", {
     class: "input",
@@ -619,6 +634,7 @@ export function renderExamEditor(container, _ctx, match) {
     try {
       const res = await questionBank.list({
         q: pickerSearch.value || "",
+        topic: pickerFolder.value || "",
         page_size: PICKER_PAGE,
       });
       pickerPage.items = res.items;
@@ -653,6 +669,7 @@ export function renderExamEditor(container, _ctx, match) {
       for (let page = 1; page <= pages; page++) {
         const res = await questionBank.list({
           q: pickerSearch.value || "",
+          topic: pickerFolder.value || "",
           page,
           page_size: SELECT_PAGE,
         });
@@ -909,20 +926,28 @@ export function renderExamEditor(container, _ctx, match) {
     }
     renderSummary();
   }
+  const syncAutoFilter = debounce(() => {
+    state.auto_filter = {
+      class_label: filterClass.value.trim(),
+      topic: filterTopic.value.trim(),
+      difficulty: filterDifficulty.value,
+    };
+    markDirty();
+    refreshPoolCount();
+  }, 250);
+
   for (const el of [filterClass, filterTopic, filterDifficulty]) {
-    el.addEventListener(
-      "input",
-      debounce(() => {
-        state.auto_filter = {
-          class_label: filterClass.value.trim(),
-          topic: filterTopic.value.trim(),
-          difficulty: filterDifficulty.value,
-        };
-        markDirty();
-        refreshPoolCount();
-      }, 300),
-    );
+    el.addEventListener("input", syncAutoFilter);
+    el.addEventListener("change", syncAutoFilter);
   }
+
+  const syncPoolSize = () => {
+    state.pool_size = Math.max(1, Math.min(200, Number(poolSize.value) || 1));
+    markDirty();
+    refreshPoolCount();
+  };
+  poolSize.addEventListener("input", syncPoolSize);
+  poolSize.addEventListener("change", syncPoolSize);
   drawToggle.addEventListener("change", () => {
     state.draw_per_student = drawToggle.checked;
     markDirty();
@@ -1075,7 +1100,22 @@ export function renderExamEditor(container, _ctx, match) {
       late_start_policy: state.late_start_policy,
       access_code: state.access_code,
       selection_mode: state.selection_mode,
-      auto_filter: state.selection_mode === "auto" ? state.auto_filter : null,
+      auto_filter: state.selection_mode === "auto"
+        ? (() => {
+          const out = {};
+          if (state.auto_filter?.class_label?.trim()) {
+            out.class_label = state
+              .auto_filter.class_label.trim();
+          }
+          if (state.auto_filter?.topic?.trim()) {
+            out.topic = state.auto_filter.topic.trim();
+          }
+          if (state.auto_filter?.difficulty?.trim()) {
+            out.difficulty = state.auto_filter.difficulty.trim();
+          }
+          return Object.keys(out).length > 0 ? out : null;
+        })()
+        : null,
       pool_size: state.selection_mode === "auto"
         ? Number(poolSize.value) || 1
         : null,
@@ -1099,6 +1139,16 @@ export function renderExamEditor(container, _ctx, match) {
   }
 
   async function save(thenClose) {
+    if (state.selection_mode === "auto") {
+      const f = state.auto_filter || {};
+      if (!f.class_label?.trim() && !f.topic?.trim() && !f.difficulty?.trim()) {
+        toast(
+          "Selection filter needs at least a class, folder/topic, or difficulty.",
+          "warn",
+        );
+        return;
+      }
+    }
     saveStatus.textContent = "Saving…";
     saveBtn.disabled = saveCloseBtn.disabled = true;
     try {
@@ -1180,6 +1230,7 @@ export function renderExamEditor(container, _ctx, match) {
       "div",
       { class: "picker-head row" },
       h("span", { class: "lbl" }, "Pick questions"),
+      pickerFolder,
       pickerSearch,
     ),
     addBar.el,
@@ -1197,7 +1248,7 @@ export function renderExamEditor(container, _ctx, match) {
       "div",
       { class: "form-row three" },
       field("Class", filterClass),
-      field("Topic", filterTopic),
+      field("Folder / Topic", filterTopic, filterTopicList),
       field("Difficulty", filterDifficulty),
     ),
     h(
@@ -1428,4 +1479,16 @@ export function renderExamEditor(container, _ctx, match) {
     fill();
     searchBank();
   }
+  questionBank.topics().then((topics) => {
+    for (const t of topics) {
+      pickerFolder.append(
+        h(
+          "option",
+          { value: t.name },
+          `📁 ${t.name} (${t.question_count || 0})`,
+        ),
+      );
+      filterTopicList.append(h("option", { value: t.name }));
+    }
+  }).catch(() => {});
 }
