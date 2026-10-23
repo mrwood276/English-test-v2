@@ -753,3 +753,27 @@ Add a new entry for every meaningful change (what, files, database changes, veri
 - Edge Functions deployed: `auth-me` v1, `question-bank` v1 (later v2).
 - 40 v1 questions migrated (fingerprint-verified against v1).
 - Supabase project `English_Test_v2` created; admin account created by the owner in Supabase Auth; profile row inserted.
+
+
+---
+
+## 2026-10-23 — Google Antigravity Takeover, Branch Alignment, and TASK-041 (UI Exam Readiness)
+
+- **AI Agent:** Google Antigravity (Primary and Permanent Agent)
+- **Branch:** `ai-development` @ `7923844`
+- **Actions Completed:**
+  1. **Comprehensive Project Takeover Audit:** Inspected workspace, git repository, remote branches, architecture, and tests in read-only mode.
+  2. **Branch & Workspace Alignment:** Connected workspace `d:\enghils-app-V2.1` to remote `https://github.com/mrwood276/English-test-v2.git` on `ai-development`.
+  3. **Synced Owner Commits from `publish`:** Merged commit `a7faa0c` (question bank bulk assignment immediate state refresh and `Diff` column header).
+  4. **Documented Primary Agent & Branch Model:** Established Google Antigravity in `AGENTS.md`, `CLAUDE.md`, and `.ai/00_AI_RULES.md`. Clarified `publish` as production release branch (remote HEAD) and `ai-development` as everyday development branch.
+  5. **Completed TASK-041 (UI Exam Readiness Pre-Flight Check):**
+     - Added `exams.readiness(id)` API method in `frontend/assets/js/teacher/api/exams.js`.
+     - Mirrored `readiness` RPC in `frontend/tests/mock_server.py`.
+     - Added `#ee-readiness` pre-flight status box and direct "Open exam" affordance in `frontend/assets/js/teacher/screens/examEditor.js`.
+     - Added a small readiness indicator pill for draft exams in `frontend/assets/js/teacher/screens/exams.js`.
+     - Added automated browser checks in `frontend/tests/exams_e2e.py` (96 checks passing).
+- **Verification:**
+  - `deno lint frontend/assets/js/ backend/functions/`: 104 files clean.
+  - `deno test --allow-env backend/tests/`: 180 passed, 0 failed.
+  - `deno test --allow-env --allow-read --no-check frontend/tests/unit/`: 44 passed, 0 failed.
+  - `python frontend/tests/exams_e2e.py`: 96 passed, 0 failed.
