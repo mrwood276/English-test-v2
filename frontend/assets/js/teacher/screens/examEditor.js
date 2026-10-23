@@ -716,6 +716,7 @@ export function renderExamEditor(container, _ctx, match) {
         markDirty();
         addTicks.clear();
         renderChosen();
+        renderPicker();
         searchBank();
       },
     });
