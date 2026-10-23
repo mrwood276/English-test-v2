@@ -359,7 +359,26 @@ export function renderExamResults(container, _ctx, { examId }) {
                   "td",
                   {},
                   group.answered
-                    ? `${Math.round(group.correct / group.answered * 100)}%`
+                    ? (() => {
+                      const acc = Math.round(
+                        group.correct / group.answered * 100,
+                      );
+                      const badgeClass = acc < 50
+                        ? "pill warn"
+                        : acc >= 80
+                        ? "pill ok"
+                        : "pill";
+                      const diffTag = acc < 50
+                        ? " (Hard)"
+                        : acc >= 80
+                        ? " (Easy)"
+                        : "";
+                      return h(
+                        "span",
+                        { class: badgeClass },
+                        `${acc}%${diffTag}`,
+                      );
+                    })()
                     : "—",
                 ),
                 h("td", {}, mostChosen(group)),
