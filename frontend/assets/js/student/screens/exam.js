@@ -500,14 +500,30 @@ export function renderExam(root, ctx) {
 
   // ---------- submit ----------
   async function askSubmit() {
-    const { empty } = store.progress();
+    const { empty, flagged } = store.progress();
+    const parts = [];
+    if (empty > 0) {
+      parts.push(
+        `${empty} ${
+          empty === 1 ? "question is" : "questions are"
+        } still empty.`,
+      );
+    }
+    if (flagged > 0) {
+      parts.push(
+        `${flagged} ${
+          flagged === 1 ? "question is" : "questions are"
+        } marked for review.`,
+      );
+    }
+    if (parts.length === 0) {
+      parts.push("You answered every question.");
+    }
+    parts.push("You cannot change your answers after sending.");
+
     const ok = await confirmDialog({
       title: "Send your test?",
-      message: empty > 0
-        ? `${empty} ${
-          empty === 1 ? "question is" : "questions are"
-        } still empty. You cannot change your answers after sending.`
-        : "You answered every question. You cannot change your answers after sending.",
+      message: parts.join(" "),
       confirmLabel: "Send my test",
       cancelLabel: "Keep working",
     });
