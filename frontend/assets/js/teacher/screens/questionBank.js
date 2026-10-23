@@ -131,13 +131,13 @@ export function renderQuestionBank(container) {
         h("th", { class: "col-pick" }, headPick),
         h("th", {}, "Question"),
         h("th", { class: "col-class" }, "Class"),
-        h("th", { class: "col-diff" }, "Difficulty"),
+        h("th", { class: "col-diff" }, "Diff"),
         h("th", { class: "col-media" }, "Media"),
         h("th", { class: "col-used" }, "Used"),
       ),
     ),
-    tbody,
   );
+  table.append(tbody);
   const status = h("div", { class: "list-status", role: "status" });
   const pager = h("div", { class: "pager" });
   const preview = h("aside", {
@@ -846,17 +846,13 @@ export function renderQuestionBank(container) {
       // A failure travels on, so the dialog shows it where the choice is instead of the toast
       // disappearing before it can be read.
       onApply: async (examId) => {
-        toast(
-          examQuestionsResult(
-            mode,
-            await exams.bulkQuestions(examId, mode, ids),
-          ),
-        );
+        const result = await exams.bulkQuestions(examId, mode, ids);
+        toast(examQuestionsResult(mode, result));
+        clearSelection();
+        await load();
       },
     });
     if (!applied) return; // closed without applying: the ticks are still there
-    clearSelection();
-    load(); // the Used column changes either way
   }
 
   function openBulkEdit() {
